@@ -131,8 +131,11 @@ model User {
   sentMessages        Message[]            @relation("SentMessages")
   receivedMessages    Message[]            @relation("ReceivedMessages")
 
+  // Indexes
   @@index([email])
   @@index([role])
+  @@index([createdAt])
+  @@index([role, createdAt]) // Composite: Get users by role with sorting
 }
 
 model Client {
@@ -172,9 +175,16 @@ model CharteredAccountant {
   payments        Payment[]
   availabilities  Availability[]
 
+  // Indexes
   @@index([userId])
   @@index([caLicenseNumber])
   @@index([verificationStatus])
+  @@index([hourlyRate])
+  @@index([experienceYears])
+  // Composite indexes for CA search and filtering
+  @@index([verificationStatus, hourlyRate]) // Search verified CAs by price
+  @@index([verificationStatus, experienceYears]) // Search verified CAs by experience
+  @@index([verificationStatus, hourlyRate, experienceYears]) // Combined search filters
 }
 
 model ServiceRequest {
@@ -198,10 +208,19 @@ model ServiceRequest {
   reviews  Review[]
   payments Payment[]
 
+  // Indexes
   @@index([clientId])
   @@index([caId])
   @@index([status])
   @@index([createdAt])
+  @@index([serviceType])
+  @@index([deadline])
+  // Composite indexes for efficient queries
+  @@index([clientId, status, createdAt]) // Client's requests filtered by status
+  @@index([caId, status, createdAt]) // CA's requests filtered by status
+  @@index([status, createdAt]) // All requests by status with pagination
+  @@index([serviceType, status]) // Requests by type and status
+  @@index([status, deadline]) // Pending requests sorted by deadline
 }
 
 model Message {
@@ -220,10 +239,18 @@ model Message {
   receiver User           @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
   request ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 
+  // Indexes
   @@index([senderId])
   @@index([receiverId])
   @@index([requestId])
   @@index([createdAt])
+  @@index([readStatus])
+  // Composite indexes for efficient message queries
+  @@index([receiverId, readStatus, createdAt]) // Unread messages for user
+  @@index([senderId, createdAt]) // Sent messages sorted by date
+  @@index([receiverId, createdAt]) // Received messages sorted by date
+  @@index([requestId, createdAt]) // Messages in a conversation
+  @@index([senderId, receiverId, createdAt]) // Conversation between two users
 }
 
 model Review {
@@ -241,10 +268,16 @@ model Review {
   ca      CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
   request ServiceRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
+  // Indexes
   @@index([clientId])
   @@index([caId])
   @@index([requestId])
   @@index([rating])
+  @@index([createdAt])
+  // Composite indexes for review queries
+  @@index([caId, rating, createdAt]) // CA reviews filtered by rating
+  @@index([caId, createdAt]) // Recent reviews for CA
+  @@index([clientId, createdAt]) // Reviews by client
 }
 
 model Payment {
@@ -271,6 +304,7 @@ model Payment {
   ca      CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
   request ServiceRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
+  // Indexes
   @@index([clientId])
   @@index([caId])
   @@index([requestId])
@@ -278,6 +312,14 @@ model Payment {
   @@index([transactionId])
   @@index([razorpayOrderId])
   @@index([razorpayPaymentId])
+  @@index([releasedToCA])
+  @@index([createdAt])
+  // Composite indexes for payment queries
+  @@index([clientId, status, createdAt]) // Client's payments by status
+  @@index([caId, status, createdAt]) // CA's earnings by status
+  @@index([status, releasedToCA]) // Admin: Payments to release
+  @@index([caId, releasedToCA, createdAt]) // CA's pending earnings
+  @@index([status, createdAt]) // All payments with pagination
 }
 
 model Availability {
@@ -293,9 +335,14 @@ model Availability {
   // Relations
   ca CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
 
+  // Indexes
   @@index([caId])
   @@index([date])
   @@index([isBooked])
+  // Composite indexes for availability queries
+  @@index([caId, date, isBooked]) // Find available slots for CA on date
+  @@index([caId, isBooked, date]) // CA's available/booked slots sorted by date
+  @@index([date, isBooked]) // All available slots on a date
 }
 
 model PasswordHistory {

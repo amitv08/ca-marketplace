@@ -11,7 +11,12 @@
     "prisma:migrate": "npx prisma migrate dev",
     "prisma:studio": "npx prisma studio",
     "test": "jest --coverage",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "db:maintenance": "ts-node src/scripts/db-maintenance.ts",
+    "db:analyze": "ts-node src/scripts/db-maintenance.ts analyze",
+    "db:vacuum": "ts-node src/scripts/db-maintenance.ts vacuum",
+    "db:reindex": "ts-node src/scripts/db-maintenance.ts reindex",
+    "db:stats": "ts-node src/scripts/db-maintenance.ts stats"
   },
   "keywords": ["ca", "marketplace", "accounting"],
   "author": "",
