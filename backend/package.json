@@ -24,8 +24,10 @@
   "dependencies": {
     "@prisma/client": "^6.2.0",
     "bcrypt": "^5.1.1",
+    "compression": "^1.7.4",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
+    "dataloader": "^2.2.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "express-rate-limit": "^7.1.5",
