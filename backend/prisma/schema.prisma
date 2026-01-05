@@ -256,3 +256,13 @@ model Availability {
   @@index([date])
   @@index([isBooked])
 }
+
+model PasswordHistory {
+  id           String   @id @default(uuid())
+  userId       String
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
