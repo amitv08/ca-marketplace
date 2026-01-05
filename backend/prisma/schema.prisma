@@ -15,6 +15,47 @@ enum UserRole {
   CLIENT
   CA
   ADMIN
+  SUPER_ADMIN
+}
+
+enum Permission {
+  // Client permissions
+  CREATE_SERVICE_REQUEST
+  VIEW_OWN_REQUESTS
+  UPDATE_OWN_REQUEST
+  CANCEL_OWN_REQUEST
+  CREATE_REVIEW
+  VIEW_OWN_REVIEWS
+  MESSAGE_ASSIGNED_CA
+  VIEW_OWN_PAYMENTS
+
+  // CA permissions
+  VIEW_ASSIGNED_REQUESTS
+  ACCEPT_REQUEST
+  REJECT_REQUEST
+  UPDATE_REQUEST_STATUS
+  UPDATE_OWN_PROFILE
+  MANAGE_AVAILABILITY
+  MESSAGE_OWN_CLIENTS
+  VIEW_OWN_EARNINGS
+
+  // Admin permissions
+  VIEW_ALL_USERS
+  VIEW_ALL_REQUESTS
+  VIEW_ALL_PAYMENTS
+  VERIFY_CA
+  REJECT_CA
+  RELEASE_PAYMENT
+  VIEW_PLATFORM_STATS
+  MANAGE_SERVICE_TYPES
+
+  // Super Admin permissions
+  MANAGE_ADMINS
+  MANAGE_PLATFORM_SETTINGS
+  DELETE_USERS
+  REFUND_PAYMENTS
+  VIEW_AUDIT_LOGS
+  MANAGE_PERMISSIONS
 }
 
 enum Specialization {
@@ -265,4 +306,36 @@ model PasswordHistory {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model RolePermission {
+  id         String     @id @default(uuid())
+  role       UserRole
+  permission Permission
+  createdAt  DateTime   @default(now())
+
+  @@unique([role, permission])
+  @@index([role])
+  @@index([permission])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  userId      String?
+  userRole    UserRole?
+  action      String   // e.g., "CREATE_REQUEST", "VERIFY_CA", "RELEASE_PAYMENT"
+  resource    String   // e.g., "ServiceRequest", "CharteredAccountant", "Payment"
+  resourceId  String?
+  details     Json?    // Additional details about the action
+  ipAddress   String?
+  userAgent   String?
+  success     Boolean  @default(true)
+  errorMessage String? @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@index([success])
 }
