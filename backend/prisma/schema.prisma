@@ -1,0 +1,258 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+  CLIENT
+  CA
+  ADMIN
+}
+
+enum Specialization {
+  GST
+  INCOME_TAX
+  AUDIT
+  ACCOUNTING
+  FINANCIAL_PLANNING
+  TAX_PLANNING
+  COMPANY_LAW
+  OTHER
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum ServiceType {
+  GST_FILING
+  INCOME_TAX_RETURN
+  AUDIT
+  ACCOUNTING
+  TAX_PLANNING
+  FINANCIAL_CONSULTING
+  COMPANY_REGISTRATION
+  OTHER
+}
+
+enum ServiceRequestStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  NET_BANKING
+  UPI
+  WALLET
+  CASH
+  RAZORPAY
+}
+
+// Models
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  password     String
+  role         UserRole
+  name         String
+  phone        String?
+  profileImage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  client              Client?
+  charteredAccountant CharteredAccountant?
+  sentMessages        Message[]            @relation("SentMessages")
+  receivedMessages    Message[]            @relation("ReceivedMessages")
+
+  @@index([email])
+  @@index([role])
+}
+
+model Client {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  companyName String?
+  address     String?
+  taxNumber   String?
+  documents   Json?   // Array of document URLs/metadata
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceRequests ServiceRequest[]
+  reviews         Review[]
+  payments        Payment[]
+
+  @@index([userId])
+}
+
+model CharteredAccountant {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  caLicenseNumber    String             @unique
+  specialization     Specialization[]
+  experienceYears    Int
+  qualifications     String[] // Array of qualification strings
+  verificationStatus VerificationStatus @default(PENDING)
+  hourlyRate         Float
+  description        String?            @db.Text
+  languages          String[] // Array of languages spoken
+  availability       Json? // Store complex availability data
+
+  // Relations
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceRequests ServiceRequest[]
+  reviews         Review[]
+  payments        Payment[]
+  availabilities  Availability[]
+
+  @@index([userId])
+  @@index([caLicenseNumber])
+  @@index([verificationStatus])
+}
+
+model ServiceRequest {
+  id             String               @id @default(uuid())
+  clientId       String
+  caId           String?
+  serviceType    ServiceType
+  status         ServiceRequestStatus @default(PENDING)
+  description    String               @db.Text
+  documents      Json? // Array of document URLs/metadata
+  deadline       DateTime?
+  estimatedHours Float?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  // Relations
+  client Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca     CharteredAccountant? @relation(fields: [caId], references: [id], onDelete: SetNull)
+
+  messages Message[]
+  reviews  Review[]
+  payments Payment[]
+
+  @@index([clientId])
+  @@index([caId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Message {
+  id         String   @id @default(uuid())
+  senderId   String
+  receiverId String
+  requestId  String?
+  content    String   @db.Text
+  attachments Json? // Array of attachment URLs/metadata
+  readStatus Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  sender  User            @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User           @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  request ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([requestId])
+  @@index([createdAt])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  clientId  String
+  caId      String
+  requestId String   @unique
+  rating    Int // 1-5 stars
+  comment   String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  client  Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca      CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
+  request ServiceRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([caId])
+  @@index([requestId])
+  @@index([rating])
+}
+
+model Payment {
+  id                 String        @id @default(uuid())
+  clientId           String
+  caId               String
+  requestId          String
+  amount             Float
+  platformFee        Float?        // 10% platform commission
+  caAmount           Float?        // Amount to be paid to CA (90%)
+  status             PaymentStatus @default(PENDING)
+  paymentMethod      PaymentMethod
+  transactionId      String?       @unique
+  razorpayOrderId    String?       @unique
+  razorpayPaymentId  String?       @unique
+  razorpaySignature  String?
+  releasedToCA       Boolean       @default(false)
+  releasedAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relations
+  client  Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca      CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
+  request ServiceRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([caId])
+  @@index([requestId])
+  @@index([status])
+  @@index([transactionId])
+  @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+}
+
+model Availability {
+  id        String   @id @default(uuid())
+  caId      String
+  date      DateTime @db.Date
+  startTime DateTime @db.Time
+  endTime   DateTime @db.Time
+  isBooked  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  ca CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
+
+  @@index([caId])
+  @@index([date])
+  @@index([isBooked])
+}

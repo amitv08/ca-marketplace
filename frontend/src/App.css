@@ -1,0 +1,76 @@
+.App {
+  text-align: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.App-header {
+  padding: 40px 20px;
+  color: white;
+}
+
+.App-header h1 {
+  font-size: 3rem;
+  margin-bottom: 10px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.App-header > p {
+  font-size: 1.2rem;
+  margin-bottom: 40px;
+  opacity: 0.9;
+}
+
+.status-box {
+  background: rgba(255, 255, 255, 0.95);
+  color: #333;
+  border-radius: 10px;
+  padding: 30px;
+  max-width: 600px;
+  margin: 0 auto 40px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.status-box h2 {
+  margin-top: 0;
+  color: #667eea;
+}
+
+.success {
+  color: #10b981;
+}
+
+.error {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.info {
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 30px;
+  max-width: 600px;
+  margin: 0 auto;
+  backdrop-filter: blur(10px);
+}
+
+.info h3 {
+  margin-top: 0;
+  font-size: 1.5rem;
+}
+
+.info ul {
+  list-style: none;
+  padding: 0;
+}
+
+.info li {
+  padding: 10px 0;
+  font-size: 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info li:last-child {
+  border-bottom: none;
+}

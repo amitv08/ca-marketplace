@@ -1,0 +1,59 @@
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Development
+.git
+.gitignore
+README.md
+.env
+.env.local
+.env.development
+.env.test
+
+# Production
+.env.production
+docker-compose.yml
+docker-compose.dev.yml
+
+# Logs
+logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Testing
+coverage
+.nyc_output
+
+# Misc
+.cache
+tmp
+temp
+dist
+
+# Documentation
+docs
+*.md
+
+# Backups
+backups
+*.sql
+*.sql.gz
+
+# Certificates
+certbot
+
+# Nginx logs
+nginx/logs
