@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { AppError } from './errorHandler';
+import { AuthenticationError, AuthorizationError, ValidationError, ErrorCode } from '../utils/errors';
 import { TokenService } from '../services/token.service';
 
 export interface JwtPayload {
@@ -32,7 +32,7 @@ export const authenticate = async (
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new AppError('No token provided', 401);
+      throw new AuthenticationError('No token provided', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
@@ -44,7 +44,7 @@ export const authenticate = async (
     if (decoded.iat) {
       const areRevoked = await TokenService.areUserTokensBlacklisted(decoded.userId, decoded.iat);
       if (areRevoked) {
-        throw new AppError('Session has been revoked. Please login again.', 401);
+        throw new AuthenticationError('Session has been revoked. Please login again.', ErrorCode.TOKEN_INVALID, (req as any).correlationId);
       }
     }
 
@@ -58,7 +58,7 @@ export const authenticate = async (
       throw error;
     }
     if (error instanceof jwt.JsonWebTokenError) {
-      throw new AppError('Invalid token', 401);
+      throw new AuthenticationError('Invalid token', ErrorCode.TOKEN_INVALID, (req as any).correlationId);
     }
     if (error instanceof jwt.TokenExpiredError) {
       throw new AppError('Token expired. Please refresh your session.', 401);

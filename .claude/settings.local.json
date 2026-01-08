@@ -9,7 +9,16 @@
       "Bash(TOKEN=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4YWJjZTU0NS1iZTEzLTRmNTctOTE4Ny02MDk3NThiNWRjOGIiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20iLCJyb2xlIjoiQ0xJRU5UIiwiaWF0IjoxNzY3NTE1MzI3LCJleHAiOjE3NjgxMjAxMjd9.z58oaUIVX0jqlRKgys-rhMLxlg7ODhxMRekJTw1XmlY\")",
       "Bash(docker-compose restart:*)",
       "Bash(docker-compose logs:*)",
-      "Bash(TOKEN_CA=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxZGE1ZWM5YS0zZmJiLTQ5MGYtOGY3Mi04N2E0MmM3NTcxZDYiLCJlbWFpbCI6ImNhQGV4YW1wbGUuY29tIiwicm9sZSI6IkNBIiwiaWF0IjoxNzY3NTI2MTUwLCJleHAiOjE3NjgxMzA5NTB9.bqYdjSI4EiS-BfWQGuZwPZy3JI-Ate9zWkBAGCtP6Nk\")"
+      "Bash(TOKEN_CA=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxZGE1ZWM5YS0zZmJiLTQ5MGYtOGY3Mi04N2E0MmM3NTcxZDYiLCJlbWFpbCI6ImNhQGV4YW1wbGUuY29tIiwicm9sZSI6IkNBIiwiaWF0IjoxNzY3NTI2MTUwLCJleHAiOjE3NjgxMzA5NTB9.bqYdjSI4EiS-BfWQGuZwPZy3JI-Ate9zWkBAGCtP6Nk\")",
+      "Bash(docker-compose ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(TOKEN_CA=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyOGFkMDE5Yi00NzUzLTQ0OWYtYWI1ZC01NjAzOWMzODdiNmQiLCJlbWFpbCI6ImNhQHRlc3QuY29tIiwicm9sZSI6IkNBIiwiaWF0IjoxNzY3ODQ1MjIyLCJleHAiOjE3Njg0NTAwMjJ9.IMMtjnGi_ckw3lDppmQIc1DHOITp4FnWcTH7jsjdGzU\")",
+      "Bash(TOKEN_CLIENT=\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI4NWJiZGRmYS1hZmE3LTQwNzEtOTA5NC1mMGMxMWYzZjlhYTUiLCJlbWFpbCI6ImNsaWVudEB0ZXN0LmNvbSIsInJvbGUiOiJDTElFTlQiLCJpYXQiOjE3Njc4NDUyMDksImV4cCI6MTc2ODQ1MDAwOX0.u4J8IkEdk0rFwhDw2KWzBTdSRzUwNn6QHfGzmle_kmI\")",
+      "Bash(__NEW_LINE__ echo \"=== Test 1: Create CA Profile with all required fields ===\")",
+      "Bash(__NEW_LINE__ echo \"=== Test 2: Get all CAs \\(should return our newly created CA\\) ===\")",
+      "Bash(__NEW_LINE__ echo \"=== Test 3: Create Client Profile ===\")",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

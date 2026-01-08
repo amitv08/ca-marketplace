@@ -2,7 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { UserRole, Permission } from '@prisma/client';
 import { PermissionService } from '../services/permission.service';
 import { AuditService } from '../services/audit.service';
-import { AppError } from './errorHandler';
+import { AuthenticationError, AuthorizationError, ValidationError, ErrorCode } from '../utils/errors';
 
 /**
  * Middleware to require specific permissions
@@ -11,7 +11,7 @@ export const requirePermission = (...permissions: Permission[]) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
-        throw new AppError('Authentication required', 401);
+        throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
       }
 
       const userRole = req.user.role as UserRole;
@@ -31,7 +31,7 @@ export const requirePermission = (...permissions: Permission[]) => {
           `User with role ${userRole} attempted to access resource requiring: ${permissions.join(', ')}`
         );
 
-        throw new AppError('Insufficient permissions', 403);
+        throw new AuthorizationError('Insufficient permissions', (req as any).correlationId);
       }
 
       next();
@@ -48,7 +48,7 @@ export const requireRole = (...roles: UserRole[]) => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
-        throw new AppError('Authentication required', 401);
+        throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
       }
 
       const userRole = req.user.role as UserRole;
@@ -65,7 +65,7 @@ export const requireRole = (...roles: UserRole[]) => {
           `User with role ${userRole} attempted to access resource requiring roles: ${roles.join(', ')}`
         );
 
-        throw new AppError('Insufficient permissions', 403);
+        throw new AuthorizationError('Insufficient permissions', (req as any).correlationId);
       }
 
       next();
@@ -83,7 +83,7 @@ export const requireOwnership = (resourceIdParam: string = 'id', userIdField: st
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
-        throw new AppError('Authentication required', 401);
+        throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
       }
 
       const userRole = req.user.role as UserRole;
@@ -103,7 +103,7 @@ export const requireOwnership = (resourceIdParam: string = 'id', userIdField: st
       const resourceId = req.params[resourceIdParam] || req.body[resourceIdParam];
 
       if (!resourceId) {
-        throw new AppError('Resource ID required', 400);
+        throw new ValidationError('Resource ID required', {}, (req as any).correlationId);
       }
 
       // For clients and CAs, check ownership
@@ -135,7 +135,7 @@ export const canAccessServiceRequest = async (
     const requestId = req.params.id || req.params.requestId;
 
     if (!requestId) {
-      throw new AppError('Request ID required', 400);
+      throw new ValidationError('Request ID required', {}, (req as any).correlationId);
     }
 
     // Determine action from HTTP method
@@ -173,7 +173,7 @@ export const canAccessServiceRequest = async (
         `User ${userId} (${userRole}) attempted unauthorized access to service request ${requestId}`
       );
 
-      throw new AppError('You do not have permission to access this service request', 403);
+      throw new AuthorizationError('You do not have permission to access this service request', (req as any).correlationId);
     }
 
     next();
@@ -200,7 +200,7 @@ export const canMessageUser = async (
     const recipientId = req.body.recipientId;
 
     if (!recipientId) {
-      throw new AppError('Recipient ID required', 400);
+      throw new ValidationError('Recipient ID required', {}, (req as any).correlationId);
     }
 
     const canMessage = await PermissionService.canMessageUser(userRole, senderId, recipientId);
@@ -216,7 +216,7 @@ export const canMessageUser = async (
         `User ${senderId} (${userRole}) attempted to message unauthorized user ${recipientId}`
       );
 
-      throw new AppError('You cannot message this user', 403);
+      throw new AuthorizationError('You cannot message this user', (req as any).correlationId);
     }
 
     next();
@@ -233,14 +233,14 @@ export const canManageRole = (targetRoleParam: string = 'role') => {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
-        throw new AppError('Authentication required', 401);
+        throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
       }
 
       const managerRole = req.user.role as UserRole;
       const targetRole = req.body[targetRoleParam] || req.params[targetRoleParam];
 
       if (!targetRole) {
-        throw new AppError('Target role required', 400);
+        throw new ValidationError('Target role required', {}, (req as any).correlationId);
       }
 
       const canManage = PermissionService.canManageRole(managerRole, targetRole as UserRole);
@@ -256,7 +256,7 @@ export const canManageRole = (targetRoleParam: string = 'role') => {
           `User with role ${managerRole} attempted to manage role ${targetRole}`
         );
 
-        throw new AppError('You cannot manage users with this role', 403);
+        throw new AuthorizationError('You cannot manage users with this role', (req as any).correlationId);
       }
 
       next();
@@ -303,7 +303,7 @@ export const injectDataFilter = (resourceType: 'serviceRequest' | 'payment' | 'm
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
-        throw new AppError('Authentication required', 401);
+        throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
       }
 
       const userRole = req.user.role as UserRole;
@@ -357,7 +357,7 @@ export const preventSelfAction = (action: 'delete' | 'role-change' | 'verify') =
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
-        throw new AppError('Authentication required', 401);
+        throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
       }
 
       const currentUserId = req.user.userId;
@@ -370,7 +370,7 @@ export const preventSelfAction = (action: 'delete' | 'role-change' | 'verify') =
           verify: 'You cannot verify yourself',
         };
 
-        throw new AppError(messages[action] || 'You cannot perform this action on yourself', 400);
+        throw new ValidationError(messages[action] || 'You cannot perform this action on yourself', {}, (req as any).correlationId);
       }
 
       next();

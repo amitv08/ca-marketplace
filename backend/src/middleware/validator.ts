@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { AppError } from './errorHandler';
+import { ValidationError } from '../utils/errors';
 
 // Validation helper types
 type ValidationRule = (value: any) => boolean | string;
@@ -78,7 +78,11 @@ export const validateBody = (schema: ValidationSchema) => {
     }
 
     if (errors.length > 0) {
-      throw new AppError(`Validation failed: ${errors.join(', ')}`, 400);
+      throw new ValidationError(
+        `Validation failed: ${errors.join(', ')}`,
+        { errors },
+        (req as any).correlationId
+      );
     }
 
     next();

@@ -1,7 +1,7 @@
 import multer, { FileFilterCallback } from 'multer';
 import path from 'path';
 import { Request } from 'express';
-import { AppError } from './errorHandler';
+import { AppError, ValidationError, ErrorCategory, ErrorCode } from '../utils/errors';
 
 // Create uploads directory path
 const uploadsDir = path.join(__dirname, '../../uploads');
@@ -44,10 +44,10 @@ const fileFilter = (_req: Request, file: Express.Multer.File, cb: FileFilterCall
   if (ALLOWED_FILE_TYPES.includes(mimeType) && ALLOWED_EXTENSIONS.includes(ext)) {
     cb(null, true);
   } else {
-    cb(new AppError(
+    cb(new ValidationError(
       `Invalid file type. Allowed types: ${ALLOWED_EXTENSIONS.join(', ')}`,
-      400
-    ));
+      { fileType: mimeType, extension: ext }
+    ) as any);
   }
 };
 
@@ -64,19 +64,25 @@ export const upload = multer({
 export const handleUploadError = (error: any): AppError => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return new AppError('File size exceeds 10MB limit', 400);
+      return new ValidationError('File size exceeds 10MB limit', { multerCode: error.code });
     }
     if (error.code === 'LIMIT_UNEXPECTED_FILE') {
-      return new AppError('Unexpected file field', 400);
+      return new ValidationError('Unexpected file field', { multerCode: error.code });
     }
-    return new AppError(`Upload error: ${error.message}`, 400);
+    return new ValidationError(`Upload error: ${error.message}`, { multerCode: error.code });
   }
 
   if (error instanceof AppError) {
     return error;
   }
 
-  return new AppError('File upload failed', 500);
+  return new AppError('File upload failed', {
+    category: ErrorCategory.SYSTEM,
+    code: ErrorCode.FILE_UPLOAD_ERROR,
+    statusCode: 500,
+    isOperational: true,
+    isRetryable: false,
+  });
 };
 
 // Export upload directory path for serving static files
