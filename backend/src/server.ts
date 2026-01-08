@@ -4,6 +4,10 @@ import cors from 'cors';
 import { env, connectDatabase, disconnectDatabase, corsOptions, setSocketIO } from './config';
 import { initializeSocketIO } from './config/socket';
 import { errorHandler, notFoundHandler } from './middleware';
+import { correlationIdMiddleware, httpLogger } from './middleware/httpLogger';
+import { metricsTracker } from './middleware/metricsTracker';
+import { MetricsService } from './services/metrics.service';
+import { LoggerService } from './services/logger.service';
 import { sendSuccess } from './utils';
 
 // Initialize Express app
@@ -24,13 +28,13 @@ app.use(express.urlencoded({ extended: true }));
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
 
-// Request logging middleware (development only)
-if (env.NODE_ENV === 'development') {
-  app.use((req: Request, _res: Response, next) => {
-    console.log(`${req.method} ${req.path}`);
-    next();
-  });
-}
+// Monitoring middleware (must be early in the stack)
+app.use(correlationIdMiddleware);
+app.use(httpLogger);
+app.use(metricsTracker);
+
+// Initialize metrics service
+MetricsService.initialize();
 
 // Health check endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -73,14 +77,23 @@ const startServer = async (): Promise<void> => {
 
     // Start listening
     httpServer.listen(env.PORT, () => {
+      LoggerService.info('Server started successfully', {
+        environment: env.NODE_ENV,
+        port: env.PORT,
+        nodeVersion: process.version,
+      });
+
       console.log('🚀 Server started successfully');
       console.log(`📝 Environment: ${env.NODE_ENV}`);
       console.log(`🔗 Server running on port ${env.PORT}`);
       console.log(`🏥 Health check: http://localhost:${env.PORT}/api/health`);
+      console.log(`📊 Monitoring dashboard: http://localhost:${env.PORT}/api/monitoring/dashboard`);
+      console.log(`📈 Metrics: http://localhost:${env.PORT}/api/monitoring/metrics`);
       console.log(`📚 API info: http://localhost:${env.PORT}/api`);
       console.log(`🔌 Socket.IO enabled for real-time messaging`);
     });
   } catch (error) {
+    LoggerService.error('Failed to start server', error as Error);
     console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
@@ -88,23 +101,28 @@ const startServer = async (): Promise<void> => {
 
 // Graceful shutdown
 const gracefulShutdown = async (signal: string): Promise<void> => {
+  LoggerService.info(`${signal} received. Starting graceful shutdown...`);
   console.log(`\n${signal} received. Starting graceful shutdown...`);
 
   try {
     // Close Socket.IO connections
     io.close(() => {
+      LoggerService.info('Socket.IO connections closed');
       console.log('🔌 Socket.IO connections closed');
     });
 
     // Close HTTP server
     httpServer.close(() => {
+      LoggerService.info('HTTP server closed');
       console.log('🔗 HTTP server closed');
     });
 
     await disconnectDatabase();
+    LoggerService.info('Graceful shutdown completed');
     console.log('✅ Graceful shutdown completed');
     process.exit(0);
   } catch (error) {
+    LoggerService.error('Error during shutdown', error as Error);
     console.error('❌ Error during shutdown:', error);
     process.exit(1);
   }
@@ -116,12 +134,14 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 // Handle unhandled rejections
 process.on('unhandledRejection', (reason: any) => {
+  LoggerService.error('Unhandled Rejection', reason);
   console.error('❌ Unhandled Rejection:', reason);
   gracefulShutdown('UNHANDLED_REJECTION');
 });
 
 // Handle uncaught exceptions
 process.on('uncaughtException', (error: Error) => {
+  LoggerService.error('Uncaught Exception', error);
   console.error('❌ Uncaught Exception:', error);
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });

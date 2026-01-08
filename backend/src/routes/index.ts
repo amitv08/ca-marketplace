@@ -9,6 +9,8 @@ import reviewRoutes from './review.routes';
 import paymentRoutes from './payment.routes';
 import availabilityRoutes from './availability.routes';
 import adminRoutes from './admin.routes';
+import monitoringRoutes from './monitoring.routes';
+import errorManagementRoutes from './error-management.routes';
 import { prisma } from '../config';
 import { asyncHandler, authenticate, authorize } from '../middleware';
 import { sendSuccess, sendError, parsePaginationParams, createPaginationResponse } from '../utils';
@@ -153,4 +155,10 @@ export const registerRoutes = (app: Express): void => {
 
   // Admin routes (protected)
   app.use('/api/admin', adminRoutes);
+
+  // Monitoring routes
+  app.use('/api/monitoring', monitoringRoutes);
+
+  // Error management routes (admin only)
+  app.use('/api/error-management', errorManagementRoutes);
 };

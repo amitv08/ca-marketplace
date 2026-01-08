@@ -1,6 +1,10 @@
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { env } from '../config';
+import { retry } from '../utils/retry';
+import { CircuitBreakerRegistry } from '../utils/circuitBreaker';
+import { LoggerService } from './logger.service';
+import { ExternalAPIError } from '../utils/errors';
 
 // Initialize Razorpay instance
 export const razorpayInstance = new Razorpay({
@@ -8,7 +12,15 @@ export const razorpayInstance = new Razorpay({
   key_secret: env.RAZORPAY_KEY_SECRET,
 });
 
-// Create Razorpay order
+// Initialize circuit breaker for Razorpay API
+const razorpayCircuitBreaker = CircuitBreakerRegistry.getOrCreate('razorpay', {
+  failureThreshold: 5,
+  successThreshold: 2,
+  timeout: 60000, // 1 minute
+  errorThresholdPercentage: 50,
+});
+
+// Create Razorpay order with retry and circuit breaker
 export const createRazorpayOrder = async (amount: number, requestId: string): Promise<any> => {
   const options = {
     amount: amount * 100, // Razorpay expects amount in paise
@@ -21,11 +33,46 @@ export const createRazorpayOrder = async (amount: number, requestId: string): Pr
   };
 
   try {
-    const order = await razorpayInstance.orders.create(options);
+    // Execute with circuit breaker and retry logic
+    const order = await razorpayCircuitBreaker.execute(async () => {
+      return await retry(
+        async () => {
+          const result = await razorpayInstance.orders.create(options);
+          LoggerService.info('Razorpay order created successfully', {
+            orderId: result.id,
+            requestId,
+            amount,
+          });
+          return result;
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 1000,
+          retryableErrors: ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND'],
+          onRetry: (error, attempt) => {
+            LoggerService.warn('Retrying Razorpay order creation', {
+              attempt,
+              error: error.message,
+              requestId,
+            });
+          },
+        }
+      );
+    });
+
     return order;
-  } catch (error) {
-    console.error('Razorpay order creation error:', error);
-    throw new Error('Failed to create Razorpay order');
+  } catch (error: any) {
+    LoggerService.error('Razorpay order creation failed', error, {
+      requestId,
+      amount,
+      circuitState: razorpayCircuitBreaker.getState(),
+    });
+
+    throw new ExternalAPIError(
+      'Razorpay',
+      `Failed to create order: ${error.message}`,
+      true
+    );
   }
 };
 
@@ -75,13 +122,52 @@ export const calculatePaymentDistribution = (amount: number): { platformFee: num
   };
 };
 
-// Fetch payment details from Razorpay
+// Fetch payment details from Razorpay with retry and circuit breaker
 export const fetchPaymentDetails = async (paymentId: string): Promise<any> => {
   try {
-    const payment = await razorpayInstance.payments.fetch(paymentId);
+    const payment = await razorpayCircuitBreaker.execute(async () => {
+      return await retry(
+        async () => {
+          const result = await razorpayInstance.payments.fetch(paymentId);
+          LoggerService.info('Fetched Razorpay payment details', {
+            paymentId,
+          });
+          return result;
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 1000,
+          retryableErrors: ['ETIMEDOUT', 'ECONNRESET'],
+        }
+      );
+    });
+
     return payment;
-  } catch (error) {
-    console.error('Failed to fetch payment details:', error);
-    throw new Error('Failed to fetch payment details from Razorpay');
+  } catch (error: any) {
+    LoggerService.error('Failed to fetch Razorpay payment details', error, {
+      paymentId,
+      circuitState: razorpayCircuitBreaker.getState(),
+    });
+
+    throw new ExternalAPIError(
+      'Razorpay',
+      `Failed to fetch payment details: ${error.message}`,
+      true
+    );
   }
+};
+
+/**
+ * Get Razorpay circuit breaker status
+ */
+export const getRazorpayCircuitStatus = () => {
+  return razorpayCircuitBreaker.getStats();
+};
+
+/**
+ * Reset Razorpay circuit breaker
+ */
+export const resetRazorpayCircuit = () => {
+  razorpayCircuitBreaker.reset();
+  LoggerService.info('Razorpay circuit breaker manually reset');
 };

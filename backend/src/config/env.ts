@@ -19,6 +19,13 @@ interface EnvConfig {
   REDIS_HOST: string;
   REDIS_PORT: number;
   REDIS_PASSWORD: string;
+  // Monitoring & Logging
+  SENTRY_DSN?: string;
+  LOGGLY_TOKEN?: string;
+  LOGGLY_SUBDOMAIN?: string;
+  LOG_LEVEL: string;
+  ENABLE_METRICS: boolean;
+  ENABLE_ALERTING: boolean;
 }
 
 const getEnvVariable = (key: string, defaultValue?: string): string => {
@@ -48,6 +55,13 @@ export const env: EnvConfig = {
   REDIS_HOST: getEnvVariable('REDIS_HOST', 'localhost'),
   REDIS_PORT: parseInt(getEnvVariable('REDIS_PORT', '6379'), 10),
   REDIS_PASSWORD: getEnvVariable('REDIS_PASSWORD', ''),
+  // Monitoring & Logging
+  SENTRY_DSN: process.env.SENTRY_DSN,
+  LOGGLY_TOKEN: process.env.LOGGLY_TOKEN,
+  LOGGLY_SUBDOMAIN: process.env.LOGGLY_SUBDOMAIN,
+  LOG_LEVEL: getEnvVariable('LOG_LEVEL', 'info'),
+  ENABLE_METRICS: getEnvVariable('ENABLE_METRICS', 'true') === 'true',
+  ENABLE_ALERTING: getEnvVariable('ENABLE_ALERTING', 'true') === 'true',
 };
 
 export const isDevelopment = env.NODE_ENV === 'development';
