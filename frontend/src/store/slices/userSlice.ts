@@ -39,25 +39,25 @@ const userSlice = createSlice({
   name: 'user',
   initialState,
   reducers: {
-    fetchProfileStart: (state) => {
+    fetchProfileStart: (state: UserState) => {
       state.loading = true;
       state.error = null;
     },
-    fetchProfileSuccess: (state, action: PayloadAction<ClientProfile | CAProfile>) => {
+    fetchProfileSuccess: (state: UserState, action: PayloadAction<ClientProfile | CAProfile>) => {
       state.loading = false;
       state.profile = action.payload;
       state.error = null;
     },
-    fetchProfileFailure: (state, action: PayloadAction<string>) => {
+    fetchProfileFailure: (state: UserState, action: PayloadAction<string>) => {
       state.loading = false;
       state.error = action.payload;
     },
-    updateProfile: (state, action: PayloadAction<Partial<ClientProfile | CAProfile>>) => {
+    updateProfile: (state: UserState, action: PayloadAction<Partial<ClientProfile | CAProfile>>) => {
       if (state.profile) {
         state.profile = { ...state.profile, ...action.payload };
       }
     },
-    clearProfile: (state) => {
+    clearProfile: (state: UserState) => {
       state.profile = null;
       state.error = null;
     },

@@ -6,6 +6,14 @@ interface TokenPayload {
   userId: string;
   email: string;
   role: string;
+  iat?: number;
+  exp?: number;
+}
+
+interface UserPayload {
+  userId: string;
+  email: string;
+  role: string;
 }
 
 interface TokenPair {
@@ -17,7 +25,8 @@ export class TokenService {
   /**
    * Generate access token (short-lived: 15 minutes)
    */
-  static generateAccessToken(payload: TokenPayload): string {
+  static generateAccessToken(payload: UserPayload): string {
+    // @ts-expect-error - JWT type overload resolution issue with env.JWT_SECRET
     return jwt.sign(payload, env.JWT_SECRET, {
       expiresIn: env.JWT_EXPIRES_IN,
     });
@@ -26,7 +35,8 @@ export class TokenService {
   /**
    * Generate refresh token (long-lived: 7 days)
    */
-  static generateRefreshToken(payload: TokenPayload): string {
+  static generateRefreshToken(payload: UserPayload): string {
+    // @ts-expect-error - JWT type overload resolution issue with env.JWT_REFRESH_SECRET
     return jwt.sign(payload, env.JWT_REFRESH_SECRET, {
       expiresIn: env.JWT_REFRESH_EXPIRES_IN,
     });
@@ -35,7 +45,7 @@ export class TokenService {
   /**
    * Generate both access and refresh tokens
    */
-  static generateTokenPair(payload: TokenPayload): TokenPair {
+  static generateTokenPair(payload: UserPayload): TokenPair {
     const accessToken = this.generateAccessToken(payload);
     const refreshToken = this.generateRefreshToken(payload);
 

@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { env } from '../config';
 import { AppError } from './errorHandler';
 import { TokenService } from '../services/token.service';
 

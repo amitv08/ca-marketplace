@@ -87,7 +87,7 @@ const serviceSlice = createSlice({
   initialState,
   reducers: {
     // Service Requests
-    fetchRequestsStart: (state) => {
+    fetchRequestsStart: (state: ServiceState) => {
       state.loading = true;
       state.error = null;
     },
@@ -117,7 +117,7 @@ const serviceSlice = createSlice({
     },
 
     // CA Listings
-    fetchCAsStart: (state) => {
+    fetchCAsStart: (state: ServiceState) => {
       state.loading = true;
       state.error = null;
     },
@@ -138,7 +138,7 @@ const serviceSlice = createSlice({
     },
 
     // Payments
-    fetchPaymentsStart: (state) => {
+    fetchPaymentsStart: (state: ServiceState) => {
       state.loading = true;
       state.error = null;
     },
@@ -155,10 +155,10 @@ const serviceSlice = createSlice({
       state.payments.unshift(action.payload);
     },
 
-    clearError: (state) => {
+    clearError: (state: ServiceState) => {
       state.error = null;
     },
-    clearServiceState: (state) => {
+    clearServiceState: (state: ServiceState) => {
       state.serviceRequests = [];
       state.currentRequest = null;
       state.caList = [];
