@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { AuthenticationError, AuthorizationError, ValidationError, ErrorCode } from '../utils/errors';
+import { AppError, AuthenticationError, AuthorizationError, ErrorCode } from '../utils/errors';
 import { TokenService } from '../services/token.service';
 
 export interface JwtPayload {
@@ -61,9 +61,9 @@ export const authenticate = async (
       throw new AuthenticationError('Invalid token', ErrorCode.TOKEN_INVALID, (req as any).correlationId);
     }
     if (error instanceof jwt.TokenExpiredError) {
-      throw new AppError('Token expired. Please refresh your session.', 401);
+      throw new AuthenticationError('Token expired. Please refresh your session.', ErrorCode.TOKEN_EXPIRED, (req as any).correlationId);
     }
-    throw new AppError('Authentication failed', 401);
+    throw new AuthenticationError('Authentication failed', ErrorCode.TOKEN_INVALID, (req as any).correlationId);
   }
 };
 
@@ -71,11 +71,11 @@ export const authenticate = async (
 export const authorize = (...allowedRoles: string[]) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
-      throw new AppError('Authentication required', 401);
+      throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      throw new AppError('Insufficient permissions', 403);
+      throw new AuthorizationError('Insufficient permissions', (req as any).correlationId);
     }
 
     next();
@@ -109,11 +109,11 @@ export const verifyToken = async (token: string): Promise<JwtPayload> => {
 export const logout = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     if (!req.token) {
-      throw new AppError('No token to logout', 400);
+      throw new AuthenticationError('No token to logout', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
     }
 
     if (!req.user) {
-      throw new AppError('User not authenticated', 401);
+      throw new AuthenticationError('User not authenticated', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
     }
 
     // Blacklist the access token

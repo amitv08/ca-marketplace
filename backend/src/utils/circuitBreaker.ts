@@ -363,8 +363,8 @@ export class CircuitBreakerRegistry {
  */
 export function WithCircuitBreaker(name: string, config?: CircuitBreakerConfig) {
   return function (
-    target: any,
-    propertyKey: string,
+    _target: any,
+    _propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;

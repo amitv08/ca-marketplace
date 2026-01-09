@@ -19,7 +19,7 @@ router.use(authorize('ADMIN'));
  */
 router.get(
   '/circuit-breakers',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const stats = CircuitBreakerRegistry.getAllStats();
 
     sendSuccess(res, {
@@ -59,7 +59,7 @@ router.post(
  */
 router.post(
   '/circuit-breakers/reset-all',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     CircuitBreakerRegistry.resetAll();
 
     sendSuccess(res, {
@@ -75,7 +75,7 @@ router.post(
  */
 router.get(
   '/queues',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const stats = FailedOperationQueue.getStats();
     const queueNames = FailedOperationQueue.getQueueNames();
 
@@ -129,7 +129,7 @@ router.delete(
  */
 router.post(
   '/process-failed-emails',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const result = await EmailService.processFailedEmails();
 
     sendSuccess(res, {
@@ -145,7 +145,7 @@ router.post(
  */
 router.get(
   '/email-status',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const circuitStatus = EmailService.getCircuitStatus();
     const queueSize = EmailService.getFailedEmailQueueSize();
 
@@ -194,7 +194,7 @@ router.post(
  */
 router.get(
   '/razorpay-status',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const status = getRazorpayCircuitStatus();
 
     sendSuccess(res, {
@@ -210,7 +210,7 @@ router.get(
  */
 router.post(
   '/razorpay/reset-circuit',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     resetRazorpayCircuit();
 
     sendSuccess(res, {
@@ -226,7 +226,7 @@ router.post(
  */
 router.get(
   '/transactions',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const stats = TransactionManager.getStats();
 
     sendSuccess(res, {
@@ -242,7 +242,7 @@ router.get(
  */
 router.delete(
   '/transactions/idempotency-cache',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     TransactionManager.clearIdempotencyCache();
 
     sendSuccess(res, {
@@ -258,7 +258,7 @@ router.delete(
  */
 router.get(
   '/summary',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const circuitBreakers = CircuitBreakerRegistry.getAllStats();
     const queues = FailedOperationQueue.getStats();
     const transactions = TransactionManager.getStats();

@@ -182,12 +182,9 @@ export async function retryWithPredicate<T>(
 ): Promise<T> {
   const config = { ...DEFAULT_RETRY_OPTIONS, ...options };
 
-  let lastResult: T;
-
   for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
     try {
       const result = await fn();
-      lastResult = result;
 
       // Check if result is valid
       if (predicate(result)) {
@@ -283,8 +280,8 @@ export async function retryBatch<T>(
  */
 export function Retryable(options: RetryOptions = {}) {
   return function (
-    target: any,
-    propertyKey: string,
+    _target: any,
+    _propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;

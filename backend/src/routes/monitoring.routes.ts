@@ -3,7 +3,7 @@ import { HealthService } from '../services/health.service';
 import { MetricsService } from '../services/metrics.service';
 import { AlertService } from '../services/alert.service';
 import { asyncHandler } from '../middleware';
-import { sendSuccess, sendError } from '../utils';
+import { sendSuccess } from '../utils';
 import { checkDatabaseHealth, getPoolStats } from '../config/database';
 import { prisma } from '../config/database';
 
@@ -15,7 +15,7 @@ const router = Router();
  */
 router.get(
   '/health',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const health = await HealthService.checkHealth();
 
     const statusCode = health.status === 'healthy' ? 200 : health.status === 'degraded' ? 200 : 503;
@@ -33,7 +33,7 @@ router.get(
  */
 router.get(
   '/health/quick',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const result = await HealthService.quickCheck();
 
     const statusCode = result.status === 'healthy' ? 200 : 503;
@@ -51,7 +51,7 @@ router.get(
  */
 router.get(
   '/metrics',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const metrics = await MetricsService.getMetrics();
 
     res.set('Content-Type', 'text/plain');
@@ -65,7 +65,7 @@ router.get(
  */
 router.get(
   '/metrics/json',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const metrics = await MetricsService.getMetricsJson();
 
     sendSuccess(res, metrics);
@@ -78,7 +78,7 @@ router.get(
  */
 router.get(
   '/alerts',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const activeAlerts = AlertService.getActiveAlerts();
     const stats = AlertService.getAlertStats();
 
@@ -112,7 +112,7 @@ router.get(
  */
 router.get(
   '/alerts/thresholds',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const thresholds = AlertService.getThresholds();
 
     sendSuccess(res, thresholds);
@@ -143,7 +143,7 @@ router.put(
  */
 router.get(
   '/dashboard',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     // Gather all monitoring data in parallel
     const [health, alertStats, activeAlerts, poolStats, businessMetrics] = await Promise.all([
       HealthService.checkHealth(),
@@ -237,7 +237,7 @@ router.get(
  */
 router.get(
   '/database/stats',
-  asyncHandler(async (req: Request, res: Response) => {
+  asyncHandler(async (_req: Request, res: Response) => {
     const [poolStats, dbHealth] = await Promise.all([
       getPoolStats(),
       checkDatabaseHealth(),

@@ -5,7 +5,6 @@ import { isDevelopment } from '../config';
 import { AppError, ErrorCategory, ErrorCode } from '../utils/errors';
 import { LoggerService } from '../services/logger.service';
 import { MetricsService } from '../services/metrics.service';
-import { AlertService } from '../services/alert.service';
 
 // Export for backward compatibility
 export interface ApiError extends Error {

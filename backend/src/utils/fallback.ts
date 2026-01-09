@@ -391,7 +391,7 @@ export class ConfigFallback {
   ): T {
     for (const source of sources) {
       try {
-        const value = typeof source === 'function' ? source() : source;
+        const value = typeof source === 'function' ? (source as () => T | undefined)() : source;
 
         if (value !== undefined && value !== null && value !== '') {
           return value;
@@ -483,8 +483,8 @@ export class ConfigFallback {
  */
 export function WithFallback<T>(options: FallbackOptions<T>) {
   return function (
-    target: any,
-    propertyKey: string,
+    _target: any,
+    _propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;

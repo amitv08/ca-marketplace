@@ -149,7 +149,6 @@ export class HealthService {
       const latency = Date.now() - start;
 
       // Get Redis info
-      const info = await redisClient.info('stats');
       const connections = await redisClient.info('clients');
 
       // Parse info
@@ -348,7 +347,7 @@ export class HealthService {
   /**
    * Helper for failed system checks
    */
-  private static failedSystemCheck(reason: any): SystemHealth {
+  private static failedSystemCheck(_reason: any): SystemHealth {
     return {
       status: 'critical',
       cpu: {
@@ -382,7 +381,7 @@ export class HealthService {
   static async quickCheck(): Promise<{ status: 'healthy' | 'unhealthy'; message: string }> {
     try {
       // Just check database and Redis
-      const [dbResult, redisResult] = await Promise.all([
+      const [, redisResult] = await Promise.all([
         prisma.$queryRaw`SELECT 1`,
         redisClient.ping(),
       ]);

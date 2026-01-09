@@ -364,7 +364,7 @@ export class TransactionManager {
     options: TransactionOptions = {}
   ): Promise<TransactionResult<T>> {
     return this.execute(async (tx) => {
-      const results: Partial<T> = [];
+      const results: Partial<T> = [] as any;
 
       for (const [index, operation] of operations.entries()) {
         results[index] = await operation(tx, results);
@@ -377,7 +377,7 @@ export class TransactionManager {
   /**
    * Batch insert with transaction and chunking
    */
-  static async batchInsert<T>(
+  static async batchInsert(
     model: string,
     data: any[],
     chunkSize: number = 1000,
@@ -434,8 +434,8 @@ export class TransactionManager {
  */
 export function WithTransaction(options: TransactionOptions = {}) {
   return function (
-    target: any,
-    propertyKey: string,
+    _target: any,
+    _propertyKey: string,
     descriptor: PropertyDescriptor
   ) {
     const originalMethod = descriptor.value;

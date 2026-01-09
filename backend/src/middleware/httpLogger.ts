@@ -83,7 +83,7 @@ const morganStream = {
     // Parse the log message
     const parts = cleanMessage.split(' - ');
     const [requestInfo] = parts;
-    const [method, url, status, ...rest] = requestInfo.split(' ');
+    const [method, url, status] = requestInfo.split(' ');
 
     // Extract correlation ID and user info from message
     const correlationIdMatch = cleanMessage.match(/correlation-id: ([^\s]+)/);
