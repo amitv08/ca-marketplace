@@ -1,6 +1,5 @@
 import { UserRole, Permission } from '@prisma/client';
 import { PermissionService } from '../services/permission.service';
-import { prisma } from '../__tests__/setup';
 
 describe('RBAC - Permission Service', () => {
   describe('hasPermission', () => {

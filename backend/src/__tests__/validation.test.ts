@@ -1,9 +1,8 @@
-import { Request, Response } from 'express';
-import { body, validationResult } from 'express-validator';
+import { Request } from 'express';
+import { validationResult, ValidationChain } from 'express-validator';
 import {
   registerValidation,
   loginValidation,
-  changePasswordValidation,
   caProfileValidation,
   createServiceRequestValidation,
   createPaymentValidation,
@@ -24,7 +23,7 @@ describe('Input Validation', () => {
 
       // Run all validations
       for (const validation of registerValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -42,7 +41,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of registerValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -60,7 +59,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of registerValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -78,7 +77,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of registerValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -97,7 +96,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of registerValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -116,7 +115,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of registerValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -134,7 +133,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of loginValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -149,7 +148,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of loginValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -164,7 +163,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of loginValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -187,7 +186,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of caProfileValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -205,7 +204,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of caProfileValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -223,7 +222,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of caProfileValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -241,7 +240,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of caProfileValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -265,7 +264,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createServiceRequestValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -282,7 +281,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createServiceRequestValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -303,7 +302,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createServiceRequestValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -321,7 +320,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createServiceRequestValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -339,7 +338,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createPaymentValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -355,7 +354,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createPaymentValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -371,7 +370,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createPaymentValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
@@ -387,7 +386,7 @@ describe('Input Validation', () => {
       } as Request;
 
       for (const validation of createPaymentValidation.slice(0, -1)) {
-        await validation.run(req);
+        await (validation as ValidationChain).run(req);
       }
 
       const errors = validationResult(req);
