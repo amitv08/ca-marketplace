@@ -17,6 +17,7 @@ yarn.lock
 .env.development
 .env.test
 .env.production
+.env.staging
 
 # Database
 *.db
@@ -52,6 +53,7 @@ docker-compose.override.yml
 
 # Backups
 backups/
+backend/backups/
 *.sql
 *.sql.gz
 
