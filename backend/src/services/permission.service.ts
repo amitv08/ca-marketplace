@@ -128,7 +128,7 @@ export class PermissionService {
       const adminRestrictedPermissions = [
         Permission.UPDATE_OWN_PROFILE,
         Permission.MANAGE_AVAILABILITY,
-      ];
+      ] as Permission[];
 
       if (!adminRestrictedPermissions.includes(permission)) {
         return this.hasPermission(userRole, permission);
@@ -150,7 +150,7 @@ export class PermissionService {
       Permission.UPDATE_OWN_PROFILE,
       Permission.MANAGE_AVAILABILITY,
       Permission.VIEW_OWN_EARNINGS,
-    ];
+    ] as Permission[];
 
     if (ownPermissions.includes(permission)) {
       return userId === resourceOwnerId;

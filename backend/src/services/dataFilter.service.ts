@@ -92,7 +92,7 @@ export class DataFilterService {
   /**
    * Get filter for reviews based on user role
    */
-  static getReviewFilter(userRole: UserRole, userId: string): Prisma.ReviewWhereInput {
+  static getReviewFilter(_userRole: UserRole, _userId: string): Prisma.ReviewWhereInput {
     // Everyone can see all reviews (public data)
     // But writing reviews is permission-controlled
     return {};

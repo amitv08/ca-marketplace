@@ -317,7 +317,7 @@ export function createLoaderContext(prisma: PrismaClient): LoaderContext {
  * Express middleware to attach loaders to request
  */
 export function batchLoaderMiddleware(prisma: PrismaClient) {
-  return (req: any, res: any, next: any) => {
+  return (req: any, _res: any, next: any) => {
     // Create fresh loader context for each request
     req.loaders = createLoaderContext(prisma);
     next();

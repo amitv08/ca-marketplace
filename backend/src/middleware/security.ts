@@ -57,7 +57,7 @@ export const securityHeaders = helmet({
 /**
  * Disable X-Powered-By header explicitly
  */
-export const disablePoweredBy = (req: Request, res: Response, next: NextFunction): void => {
+export const disablePoweredBy = (_req: Request, res: Response, next: NextFunction): void => {
   res.removeHeader('X-Powered-By');
   next();
 };
@@ -65,7 +65,7 @@ export const disablePoweredBy = (req: Request, res: Response, next: NextFunction
 /**
  * Add custom security headers
  */
-export const customSecurityHeaders = (req: Request, res: Response, next: NextFunction): void => {
+export const customSecurityHeaders = (_req: Request, res: Response, next: NextFunction): void => {
   // Permissions Policy (formerly Feature Policy)
   res.setHeader(
     'Permissions-Policy',
@@ -92,7 +92,7 @@ export const customSecurityHeaders = (req: Request, res: Response, next: NextFun
 /**
  * CORS security middleware
  */
-export const corsSecurityCheck = (req: Request, res: Response, next: NextFunction): void => {
+export const corsSecurityCheck = (req: Request, _res: Response, next: NextFunction): void => {
   const origin = req.headers.origin;
   const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim());
 
@@ -106,7 +106,7 @@ export const corsSecurityCheck = (req: Request, res: Response, next: NextFunctio
 /**
  * Sanitize request body to prevent XSS and injection attacks
  */
-export const sanitizeInput = (req: Request, res: Response, next: NextFunction): void => {
+export const sanitizeInput = (req: Request, _res: Response, next: NextFunction): void => {
   if (req.body) {
     req.body = sanitizeObject(req.body);
   }
@@ -156,7 +156,7 @@ function sanitizeString(str: string): string {
 /**
  * Prevent parameter pollution
  */
-export const preventParameterPollution = (req: Request, res: Response, next: NextFunction): void => {
+export const preventParameterPollution = (req: Request, _res: Response, next: NextFunction): void => {
   // Convert array parameters to single value (take last one)
   if (req.query) {
     Object.keys(req.query).forEach((key) => {
@@ -171,7 +171,7 @@ export const preventParameterPollution = (req: Request, res: Response, next: Nex
 /**
  * Security audit logger
  */
-export const securityLogger = (req: Request, res: Response, next: NextFunction): void => {
+export const securityLogger = (req: Request, _res: Response, next: NextFunction): void => {
   const sensitiveRoutes = ['/api/auth/login', '/api/auth/register', '/api/payments'];
   const isSensitive = sensitiveRoutes.some((route) => req.path.includes(route));
 
