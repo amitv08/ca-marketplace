@@ -1,0 +1,86 @@
+# Node.js
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json.bak
+.pnpm-debug.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE & Editors
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage
+.nyc_output
+src/**/*.test.tsx
+src/**/*.test.ts
+src/**/*.spec.tsx
+src/**/*.spec.ts
+src/__tests__
+src/__mocks__
+
+# Build output (will be created fresh)
+build
+dist
+.cache
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+nginx.conf.local
+
+# Development
+.eslintrc*
+.prettierrc*
+.editorconfig
+tsconfig.json.bak
+
+# Storybook
+storybook-static
+.storybook
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.eslintcache
+.stylelintcache
+public/mockServiceWorker.js

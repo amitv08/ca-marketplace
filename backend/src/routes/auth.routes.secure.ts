@@ -1,4 +1,4 @@
-import { Router, Request, Response, NextFunction } from 'express';
+import { Router, Request, Response } from 'express';
 import { prisma } from '../config';
 import { authenticate, logout as logoutMiddleware, generateTokenPair } from '../middleware/auth';
 import { TokenService } from '../services/token.service';
@@ -285,14 +285,12 @@ router.post(
     if (user) {
       console.log(`Password reset requested for user: ${user.email}`);
 
-      // Generate password reset token (valid for 1 hour)
-      const resetToken = TokenService.generateAccessToken({
-        userId: user.id,
-        email: user.email,
-        role: 'RESET', // Special role for reset tokens
-      });
-
-      // TODO: Send email with reset link containing token
+      // TODO: Generate password reset token and send email with reset link
+      // const resetToken = TokenService.generateAccessToken({
+      //   userId: user.id,
+      //   email: user.email,
+      //   role: 'RESET',
+      // });
       // Example: https://yourdomain.com/reset-password?token=${resetToken}
     }
   })

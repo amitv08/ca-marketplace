@@ -2,7 +2,7 @@
  * Service Request Test Fixtures
  */
 
-import { ServiceType, RequestStatus } from '@prisma/client';
+import { ServiceType, ServiceRequestStatus } from '@prisma/client';
 import { testUsers } from './users.fixture';
 import { testCAs } from './cas.fixture';
 
@@ -31,8 +31,8 @@ export const testServiceRequests = {
     id: '40000000-0000-0000-0000-000000000001',
     clientId: testClients.client1.id,
     caId: testCAs.ca1.id,
-    serviceType: ServiceType.TAX_FILING,
-    status: RequestStatus.ACCEPTED,
+    serviceType: ServiceType.INCOME_TAX_RETURN,
+    status: ServiceRequestStatus.ACCEPTED,
     title: 'Annual Tax Filing 2024',
     description: 'Need help with annual tax filing for FY 2023-24',
     budget: 10000,
@@ -44,8 +44,8 @@ export const testServiceRequests = {
     id: '40000000-0000-0000-0000-000000000002',
     clientId: testClients.client2.id,
     caId: testCAs.ca2.id,
-    serviceType: ServiceType.GST,
-    status: RequestStatus.IN_PROGRESS,
+    serviceType: ServiceType.GST_FILING,
+    status: ServiceRequestStatus.IN_PROGRESS,
     title: 'GST Return Filing',
     description: 'Monthly GST return filing assistance',
     budget: 5000,
@@ -58,7 +58,7 @@ export const testServiceRequests = {
     clientId: testClients.client1.id,
     caId: null,
     serviceType: ServiceType.AUDIT,
-    status: RequestStatus.PENDING,
+    status: ServiceRequestStatus.PENDING,
     title: 'Internal Audit Services',
     description: 'Looking for CA to conduct internal audit',
     budget: 25000,
@@ -70,8 +70,8 @@ export const testServiceRequests = {
     id: '40000000-0000-0000-0000-000000000004',
     clientId: testClients.client2.id,
     caId: testCAs.ca1.id,
-    serviceType: ServiceType.BOOKKEEPING,
-    status: RequestStatus.COMPLETED,
+    serviceType: ServiceType.ACCOUNTING,
+    status: ServiceRequestStatus.COMPLETED,
     title: 'Bookkeeping Services',
     description: 'Monthly bookkeeping completed',
     budget: 8000,

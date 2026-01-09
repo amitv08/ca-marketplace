@@ -180,7 +180,7 @@ export class QueryService {
     prisma: PrismaClient,
     filters: ServiceRequestFilters = {},
     pagination: PaginationOptions = {},
-    userRole?: UserRole
+    _userRole?: UserRole
   ): Promise<PaginatedResult<any>> {
     const { page = 1, limit = 20 } = pagination;
     const skip = (page - 1) * limit;

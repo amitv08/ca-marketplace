@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, Prisma } from '@prisma/client';
+import { PrismaClient, UserRole } from '@prisma/client';
 
 /**
  * Row Level Security Service

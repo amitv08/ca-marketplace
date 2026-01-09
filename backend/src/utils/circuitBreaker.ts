@@ -25,7 +25,7 @@ export interface CircuitBreakerConfig {
 /**
  * Circuit breaker statistics
  */
-interface CircuitStats {
+export interface CircuitStats {
   totalRequests: number;
   successfulRequests: number;
   failedRequests: number;

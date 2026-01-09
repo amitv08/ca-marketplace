@@ -2,7 +2,7 @@
  * User Test Fixtures
  */
 
-import { Role } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 export const testUsers = {
@@ -12,7 +12,7 @@ export const testUsers = {
     password: 'Admin@123',
     passwordHash: '', // Will be set below
     name: 'Test Admin',
-    role: Role.ADMIN,
+    role: UserRole.ADMIN,
     phoneNumber: '+919876543210',
     address: 'Admin Address',
     isEmailVerified: true,
@@ -25,7 +25,7 @@ export const testUsers = {
     password: 'CA@123',
     passwordHash: '',
     name: 'John CA',
-    role: Role.CA,
+    role: UserRole.CA,
     phoneNumber: '+919876543211',
     address: 'CA Address 1',
     isEmailVerified: true,
@@ -38,7 +38,7 @@ export const testUsers = {
     password: 'CA@123',
     passwordHash: '',
     name: 'Jane CA',
-    role: Role.CA,
+    role: UserRole.CA,
     phoneNumber: '+919876543212',
     address: 'CA Address 2',
     isEmailVerified: true,
@@ -51,7 +51,7 @@ export const testUsers = {
     password: 'Client@123',
     passwordHash: '',
     name: 'Test Client 1',
-    role: Role.CLIENT,
+    role: UserRole.CLIENT,
     phoneNumber: '+919876543213',
     address: 'Client Address 1',
     isEmailVerified: true,
@@ -64,7 +64,7 @@ export const testUsers = {
     password: 'Client@123',
     passwordHash: '',
     name: 'Test Client 2',
-    role: Role.CLIENT,
+    role: UserRole.CLIENT,
     phoneNumber: '+919876543214',
     address: 'Client Address 2',
     isEmailVerified: true,
@@ -77,7 +77,7 @@ export const testUsers = {
     password: 'User@123',
     passwordHash: '',
     name: 'Unverified User',
-    role: Role.CLIENT,
+    role: UserRole.CLIENT,
     phoneNumber: '+919876543215',
     address: 'Unverified Address',
     isEmailVerified: false,

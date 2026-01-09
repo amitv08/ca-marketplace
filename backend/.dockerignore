@@ -1,0 +1,97 @@
+# Node.js
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json.bak
+.pnpm-debug.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE & Editors
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+coverage
+.nyc_output
+test-results
+tests
+*.test.ts
+*.spec.ts
+jest.config.js
+.jest
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+
+# Docker
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+.dockerignore
+
+# Build artifacts (dev)
+dist.dev
+build.old
+*.log
+
+# Temporary files
+tmp
+temp
+.cache
+
+# Database
+*.sql
+*.sqlite
+*.db
+backups
+
+# Uploads (don't copy local uploads to image)
+uploads/*
+!uploads/.gitkeep
+
+# Prisma
+prisma/migrations/.keep
+prisma/dev.db
+
+# Monitoring & Debugging
+.prom
+prometheus
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.eslintcache
+.stylelintcache

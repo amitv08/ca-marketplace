@@ -8,7 +8,7 @@ import { AuthenticationError, AuthorizationError, ValidationError, ErrorCode } f
  * Middleware to require specific permissions
  */
 export const requirePermission = (...permissions: Permission[]) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
         throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
@@ -45,7 +45,7 @@ export const requirePermission = (...permissions: Permission[]) => {
  * Middleware to require specific role(s)
  */
 export const requireRole = (...roles: UserRole[]) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
         throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
@@ -79,15 +79,14 @@ export const requireRole = (...roles: UserRole[]) => {
  * Middleware to check resource ownership
  * Ensures user can only access/modify their own resources
  */
-export const requireOwnership = (resourceIdParam: string = 'id', userIdField: string = 'userId') => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+export const requireOwnership = (resourceIdParam: string = 'id', _userIdField: string = 'userId') => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
         throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
       }
 
       const userRole = req.user.role as UserRole;
-      const userId = req.user.userId;
 
       // Super admins bypass ownership checks
       if (userRole === UserRole.SUPER_ADMIN) {
@@ -122,12 +121,12 @@ export const requireOwnership = (resourceIdParam: string = 'id', userIdField: st
  */
 export const canAccessServiceRequest = async (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     if (!req.user) {
-      throw new AppError('Authentication required', 401);
+      throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
     }
 
     const userRole = req.user.role as UserRole;
@@ -187,12 +186,12 @@ export const canAccessServiceRequest = async (
  */
 export const canMessageUser = async (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
     if (!req.user) {
-      throw new AppError('Authentication required', 401);
+      throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
     }
 
     const userRole = req.user.role as UserRole;
@@ -230,7 +229,7 @@ export const canMessageUser = async (
  * Used for admin management endpoints
  */
 export const canManageRole = (targetRoleParam: string = 'role') => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
         throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
@@ -270,7 +269,7 @@ export const canManageRole = (targetRoleParam: string = 'role') => {
  * Middleware to audit log an action
  */
 export const auditLog = (action: string, resource: string) => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       const resourceId = req.params.id || req.params.requestId || req.params.userId;
 
@@ -300,7 +299,7 @@ export const auditLog = (action: string, resource: string) => {
  * This adds Prisma where clauses to ensure users only see their data
  */
 export const injectDataFilter = (resourceType: 'serviceRequest' | 'payment' | 'message') => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
         throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
@@ -354,7 +353,7 @@ export const combineFilters = (req: Request, queryFilter: any = {}): any => {
  * Middleware to prevent self-modification for certain actions
  */
 export const preventSelfAction = (action: 'delete' | 'role-change' | 'verify') => {
-  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  return async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
     try {
       if (!req.user) {
         throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
