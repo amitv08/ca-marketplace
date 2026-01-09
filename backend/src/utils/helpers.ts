@@ -37,8 +37,9 @@ export const parsePaginationParams = (
   const pageNum = parseInt(page || '1', 10);
   const limitNum = parseInt(limit || '10', 10);
 
-  const validPage = Math.max(1, pageNum);
-  const validLimit = Math.min(Math.max(1, limitNum), 100);
+  // Handle NaN from parseInt with invalid strings
+  const validPage = Math.max(1, isNaN(pageNum) ? 1 : pageNum);
+  const validLimit = Math.min(Math.max(1, isNaN(limitNum) ? 10 : limitNum), 100);
 
   return {
     skip: (validPage - 1) * validLimit,
@@ -83,10 +84,10 @@ export const calculateAverageRating = (ratings: number[]): number => {
   return Math.round((sum / ratings.length) * 10) / 10; // Round to 1 decimal
 };
 
-// Validate UUID format
+// Validate UUID format (supports nil UUID and versions 1-5)
 export const isValidUUID = (uuid: string): boolean => {
   const uuidRegex =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[89ab0][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(uuid);
 };
 
