@@ -187,7 +187,7 @@ export function applyCacheHeaders(
  * Cache headers middleware factory
  */
 export function cacheHeaders(preset: keyof typeof CachePresets | CacheOptions) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (_req: Request, res: Response, next: NextFunction) => {
     const options = typeof preset === 'string'
       ? CachePresets[preset]
       : preset;
@@ -325,7 +325,7 @@ export function cdnBypassMiddleware(req: Request, res: Response, next: NextFunct
  * Cache warming hints
  * Adds headers to tell CDN to prefetch related resources
  */
-export function cacheWarmingMiddleware(req: Request, res: Response, next: NextFunction) {
+export function cacheWarmingMiddleware(_req: Request, res: Response, next: NextFunction) {
   const originalJson = res.json.bind(res);
 
   res.json = function(data: any) {

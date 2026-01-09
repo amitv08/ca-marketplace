@@ -363,7 +363,7 @@ export function advancedMonitoringMiddleware(
   next: NextFunction
 ) {
   const startTime = Date.now();
-  const startMemory = process.memoryUsage();
+  const _startMemory = process.memoryUsage();
   const startCpu = process.cpuUsage();
 
   // Capture original end function
@@ -391,7 +391,7 @@ export function advancedMonitoringMiddleware(
     res.setHeader('X-Response-Time', `${duration}ms`);
     res.setHeader('X-Memory-Used', `${Math.round(endMemory.heapUsed / 1024 / 1024)}MB`);
 
-    return originalEnd.apply(res, args);
+    return originalEnd.apply(res, args as any);
   };
 
   next();
@@ -413,7 +413,7 @@ export function getPerformanceStats(req: Request, res: Response) {
 /**
  * Performance report endpoint
  */
-export function getPerformanceReport(req: Request, res: Response) {
+export function getPerformanceReport(_req: Request, res: Response) {
   const report = performanceMonitor.generateReport();
 
   res.setHeader('Content-Type', 'text/plain');
@@ -433,7 +433,7 @@ export function getSlowRequests(req: Request, res: Response) {
 /**
  * Endpoint stats
  */
-export function getEndpointStats(req: Request, res: Response) {
+export function getEndpointStats(_req: Request, res: Response) {
   const stats = performanceMonitor.getEndpointStats();
   const statsArray = Array.from(stats.entries()).map(([endpoint, data]) => ({
     endpoint,
@@ -446,7 +446,7 @@ export function getEndpointStats(req: Request, res: Response) {
 /**
  * System metrics endpoint
  */
-export function getSystemMetrics(req: Request, res: Response) {
+export function getSystemMetrics(_req: Request, res: Response) {
   const metrics = performanceMonitor.getSystemMetrics();
   res.json(metrics);
 }
