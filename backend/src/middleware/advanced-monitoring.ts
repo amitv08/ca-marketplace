@@ -363,7 +363,6 @@ export function advancedMonitoringMiddleware(
   next: NextFunction
 ) {
   const startTime = Date.now();
-  const _startMemory = process.memoryUsage();
   const startCpu = process.cpuUsage();
 
   // Capture original end function

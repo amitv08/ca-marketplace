@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 
 /**
  * Field Selection Middleware
@@ -308,8 +308,8 @@ export function parsePaginationParams(req: any): PaginationParams {
   return {
     page,
     limit,
-    fields,
-    expand,
+    fields: fields || undefined,
+    expand: expand || undefined,
     sortBy,
     sortOrder,
   };

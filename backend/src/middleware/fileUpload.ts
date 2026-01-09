@@ -88,7 +88,7 @@ function generateUniqueFilename(originalFilename: string): string {
  * File filter function for multer
  */
 const fileFilter = (allowedTypes: string[]) => {
-  return (req: Request, file: Express.Multer.File, callback: multer.FileFilterCallback) => {
+  return (_req: Request, file: Express.Multer.File, callback: multer.FileFilterCallback) => {
     // Check MIME type
     if (!allowedTypes.includes(file.mimetype)) {
       return callback(new Error(`Invalid file type. Allowed types: ${allowedTypes.join(', ')}`));
@@ -110,7 +110,7 @@ const fileFilter = (allowedTypes: string[]) => {
  * Storage configuration for multer
  */
 const storage = multer.diskStorage({
-  destination: (req, file, callback) => {
+  destination: (_req, _file, callback) => {
     const uploadDir = path.join(__dirname, '../../uploads');
 
     // Create uploads directory if it doesn't exist
@@ -120,7 +120,7 @@ const storage = multer.diskStorage({
 
     callback(null, uploadDir);
   },
-  filename: (req, file, callback) => {
+  filename: (_req, file, callback) => {
     const uniqueFilename = generateUniqueFilename(file.originalname);
     callback(null, uniqueFilename);
   },

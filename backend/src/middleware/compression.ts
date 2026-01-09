@@ -53,7 +53,6 @@ const compressionOptions: compression.CompressionOptions = {
   // Brotli options (when available)
   // @ts-ignore - compression types may not include brotli
   brotli: {
-    enabled: true,
     // Brotli quality (0-11, default: 4)
     // Higher = better compression but slower
     params: {
@@ -112,7 +111,7 @@ export function compressionStatsMiddleware(req: Request, res: Response, next: Fu
  * Precompression check middleware
  * Serves precompressed files if available (.gz, .br)
  */
-export function precompressionMiddleware(req: Request, res: Response, next: Function) {
+export function precompressionMiddleware(req: Request, _res: Response, next: Function) {
   // Only for static file requests
   if (!req.path.match(/\.(js|css|html|json|svg)$/)) {
     return next();
@@ -137,7 +136,7 @@ export function precompressionMiddleware(req: Request, res: Response, next: Func
  * Response size header middleware
  * Adds X-Response-Size header for monitoring
  */
-export function responseSizeMiddleware(req: Request, res: Response, next: Function) {
+export function responseSizeMiddleware(_req: Request, res: Response, next: Function) {
   const originalSend = res.send;
 
   res.send = function(data: any): Response {
