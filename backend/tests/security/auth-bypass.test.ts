@@ -3,12 +3,10 @@
  */
 
 import request from 'supertest';
-import { Express } from 'express';
+import app from '../../src/server';
 import { clearDatabase, seedDatabase } from '../utils/database.utils';
 import { testAuthHeaders, generateExpiredToken, generateInvalidToken } from '../utils/auth.utils';
 import { testUsers } from '../fixtures/users.fixture';
-
-let app: Express;
 
 describe('Security Tests - Authentication Bypass', () => {
   beforeAll(async () => {

@@ -3,12 +3,10 @@
  */
 
 import request from 'supertest';
-import { Express } from 'express';
+import app from '../../src/server';
 import { clearDatabase, seedDatabase } from '../utils/database.utils';
 import { testAuthHeaders } from '../utils/auth.utils';
 import { testServiceRequests } from '../fixtures/requests.fixture';
-
-let app: Express;
 
 describe('Service Requests API', () => {
   beforeAll(async () => {

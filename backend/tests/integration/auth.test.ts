@@ -3,13 +3,9 @@
  */
 
 import request from 'supertest';
-import { Express } from 'express';
+import app from '../../src/server';
 import { clearDatabase, seedDatabase } from '../utils/database.utils';
 import { testUsers, getUserCredentials } from '../fixtures/users.fixture';
-
-// Import app (you'll need to export the app from server.ts)
-// For now, we'll use a placeholder
-let app: Express;
 
 describe('Authentication API', () => {
   beforeAll(async () => {

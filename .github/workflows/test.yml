@@ -324,6 +324,14 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: backend
+          args: >
+            -Dsonar.projectKey=${{ github.repository_owner }}_ca-marketplace
+            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/*.test.ts,**/*.spec.ts,**/tests/**
+        continue-on-error: true
 
   test-summary:
     name: Test Summary

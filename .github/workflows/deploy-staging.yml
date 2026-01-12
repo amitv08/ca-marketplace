@@ -94,7 +94,7 @@ jobs:
     needs: [pre-deploy-checks, database-migration]
     environment:
       name: staging
-      url: ${{ secrets.STAGING_URL || 'http://staging.camarketplace.com' }}
+      url: ${{ vars.STAGING_URL || 'http://staging.camarketplace.com' }}
 
     steps:
       - name: Checkout code
@@ -281,7 +281,7 @@ jobs:
         if: needs.post-deploy-verification.result == 'success'
         run: |
           echo "✓ Staging deployment completed successfully"
-          echo "Environment URL: ${{ secrets.STAGING_URL }}"
+          echo "Environment URL: ${{ vars.STAGING_URL || 'http://staging.camarketplace.com' }}"
 
       - name: Deployment Failure
         if: needs.post-deploy-verification.result != 'success'

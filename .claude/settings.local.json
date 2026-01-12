@@ -18,7 +18,32 @@
       "Bash(__NEW_LINE__ echo \"=== Test 2: Get all CAs \\(should return our newly created CA\\) ===\")",
       "Bash(__NEW_LINE__ echo \"=== Test 3: Create Client Profile ===\")",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(./scripts/start.sh:*)",
+      "Bash(./scripts/status.sh:*)",
+      "Bash(./scripts/logs.sh:*)",
+      "Bash(./scripts/restart.sh:*)",
+      "Bash(docker-compose stop:*)",
+      "Bash(docker-compose rm:*)",
+      "Bash(gh run view:*)",
+      "Bash(git push:*)",
+      "Bash(gh run list:*)",
+      "Bash(npx tsc:*)",
+      "Bash(gh run watch:*)",
+      "Bash(chmod:*)",
+      "Bash(docker ps:*)",
+      "Bash(DATABASE_URL=\"postgresql://caadmin:CaSecure123!@localhost:5432/camarketplace\" ./scripts/db-health-check.sh:*)",
+      "Bash(sudo apt-get update:*)",
+      "Bash(sudo apt-get install:*)",
+      "Bash(./scripts/smoke-tests.sh:*)",
+      "Bash(response=400)",
+      "Bash(expected_code=\"400|401\")",
+      "Bash(echo:*)",
+      "Bash(bash -c '\ncheck_http\\(\\) {\n    local url=\"\"$1\"\"\n    local expected_code=\"\"${2:-200}\"\"\n\n    response=$\\(curl -s -o /dev/null -w \"\"%{http_code}\"\" --max-time 10 \"\"$url\"\"\\)\n\n    if [[ \"\"$expected_code\"\" == *\"\"|\"\"* ]]; then\n        echo \"\"$expected_code\"\" | grep -q -E \"\"\\(^|\\\\\\\\|\\)${response}\\(\\\\\\\\||$\\)\"\"\n    else\n        [ \"\"$response\"\" = \"\"$expected_code\"\" ]\n    fi\n}\n\ncheck_http \"\"http://localhost:5000/api/auth/login\"\" \"\"400|401\"\" && echo \"\"PASS\"\" || echo \"\"FAIL\"\"\n')",
+      "Bash(bash -c '\nurl=\"\"http://localhost:5000/api/auth/login\"\"\nexpected_code=\"\"400|401\"\"\n\nresponse=$\\(curl -s -o /dev/null -w \"\"%{http_code}\"\" --max-time 10 \"\"$url\"\"\\)\necho \"\"Response: $response\"\"\necho \"\"Expected: $expected_code\"\"\n\necho \"\"$expected_code\"\" | grep -q -E \"\"\\(^|\\\\\\\\|\\)${response}\\(\\\\\\\\||$\\)\"\" && echo \"\"MATCH\"\" || echo \"\"NO MATCH\"\"\n')",
+      "Bash(git checkout:*)",
+      "Bash(gh api:*)",
+      "Bash(python3:*)"
     ]
   }
 }
