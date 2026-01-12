@@ -75,13 +75,10 @@ export async function seedDatabase() {
       data: {
         id: '00000000-0000-0000-0000-000000000007',
         email: 'unverifiedca@test.com',
-        passwordHash: await require('bcrypt').hash('CA@123', 10),
+        password: await require('bcrypt').hash('CA@123', 10),
         name: 'Unverified CA User',
         role: 'CA',
-        phoneNumber: '+919876543216',
-        address: 'Unverified CA Address',
-        isEmailVerified: false,
-        isPhoneVerified: false,
+        phone: '+919876543216',
       },
     });
 
