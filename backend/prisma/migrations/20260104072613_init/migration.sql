@@ -17,7 +17,7 @@ CREATE TYPE "ServiceRequestStatus" AS ENUM ('PENDING', 'ACCEPTED', 'IN_PROGRESS'
 CREATE TYPE "PaymentStatus" AS ENUM ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED', 'REFUNDED');
 
 -- CreateEnum
-CREATE TYPE "PaymentMethod" AS ENUM ('CREDIT_CARD', 'DEBIT_CARD', 'NET_BANKING', 'UPI', 'WALLET', 'CASH');
+CREATE TYPE "PaymentMethod" AS ENUM ('CREDIT_CARD', 'DEBIT_CARD', 'NET_BANKING', 'UPI', 'WALLET', 'CASH', 'RAZORPAY');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -116,9 +116,16 @@ CREATE TABLE "Payment" (
     "caId" TEXT NOT NULL,
     "requestId" TEXT NOT NULL,
     "amount" DOUBLE PRECISION NOT NULL,
+    "platformFee" DOUBLE PRECISION,
+    "caAmount" DOUBLE PRECISION,
     "status" "PaymentStatus" NOT NULL DEFAULT 'PENDING',
     "paymentMethod" "PaymentMethod" NOT NULL,
     "transactionId" TEXT,
+    "razorpayOrderId" TEXT,
+    "razorpayPaymentId" TEXT,
+    "razorpaySignature" TEXT,
+    "releasedToCA" BOOLEAN NOT NULL DEFAULT false,
+    "releasedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -212,6 +219,12 @@ CREATE INDEX "Review_rating_idx" ON "Review"("rating");
 CREATE UNIQUE INDEX "Payment_transactionId_key" ON "Payment"("transactionId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Payment_razorpayOrderId_key" ON "Payment"("razorpayOrderId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Payment_razorpayPaymentId_key" ON "Payment"("razorpayPaymentId");
+
+-- CreateIndex
 CREATE INDEX "Payment_clientId_idx" ON "Payment"("clientId");
 
 -- CreateIndex
@@ -225,6 +238,15 @@ CREATE INDEX "Payment_status_idx" ON "Payment"("status");
 
 -- CreateIndex
 CREATE INDEX "Payment_transactionId_idx" ON "Payment"("transactionId");
+
+-- CreateIndex
+CREATE INDEX "Payment_razorpayOrderId_idx" ON "Payment"("razorpayOrderId");
+
+-- CreateIndex
+CREATE INDEX "Payment_razorpayPaymentId_idx" ON "Payment"("razorpayPaymentId");
+
+-- CreateIndex
+CREATE INDEX "Payment_releasedToCA_idx" ON "Payment"("releasedToCA");
 
 -- CreateIndex
 CREATE INDEX "Availability_caId_idx" ON "Availability"("caId");
