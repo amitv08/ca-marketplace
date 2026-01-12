@@ -32,7 +32,7 @@ export const authenticate = async (
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new AuthenticationError('No token provided', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
+      return next(new AuthenticationError('No token provided', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId));
     }
 
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
@@ -44,7 +44,7 @@ export const authenticate = async (
     if (decoded.iat) {
       const areRevoked = await TokenService.areUserTokensBlacklisted(decoded.userId, decoded.iat);
       if (areRevoked) {
-        throw new AuthenticationError('Session has been revoked. Please login again.', ErrorCode.TOKEN_INVALID, (req as any).correlationId);
+        return next(new AuthenticationError('Session has been revoked. Please login again.', ErrorCode.TOKEN_INVALID, (req as any).correlationId));
       }
     }
 
@@ -55,15 +55,15 @@ export const authenticate = async (
     next();
   } catch (error) {
     if (error instanceof AppError) {
-      throw error;
+      return next(error);
     }
     if (error instanceof jwt.JsonWebTokenError) {
-      throw new AuthenticationError('Invalid token', ErrorCode.TOKEN_INVALID, (req as any).correlationId);
+      return next(new AuthenticationError('Invalid token', ErrorCode.TOKEN_INVALID, (req as any).correlationId));
     }
     if (error instanceof jwt.TokenExpiredError) {
-      throw new AuthenticationError('Token expired. Please refresh your session.', ErrorCode.TOKEN_EXPIRED, (req as any).correlationId);
+      return next(new AuthenticationError('Token expired. Please refresh your session.', ErrorCode.TOKEN_EXPIRED, (req as any).correlationId));
     }
-    throw new AuthenticationError('Authentication failed', ErrorCode.TOKEN_INVALID, (req as any).correlationId);
+    return next(new AuthenticationError('Authentication failed', ErrorCode.TOKEN_INVALID, (req as any).correlationId));
   }
 };
 
@@ -71,11 +71,11 @@ export const authenticate = async (
 export const authorize = (...allowedRoles: string[]) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
-      throw new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId);
+      return next(new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId));
     }
 
     if (!allowedRoles.includes(req.user.role)) {
-      throw new AuthorizationError('Insufficient permissions', (req as any).correlationId);
+      return next(new AuthorizationError('Insufficient permissions', (req as any).correlationId));
     }
 
     next();
