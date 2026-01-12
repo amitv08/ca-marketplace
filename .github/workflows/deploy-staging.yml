@@ -1,5 +1,17 @@
 name: Deploy to Staging
 
+# Required GitHub Secrets (configure in repository settings):
+# - STAGING_DATABASE_URL: PostgreSQL connection string for staging database
+# - STAGING_JWT_SECRET: JWT signing secret for staging environment
+# - STAGING_POSTGRES_DB: PostgreSQL database name
+# - STAGING_POSTGRES_USER: PostgreSQL username
+# - STAGING_POSTGRES_PASSWORD: PostgreSQL password
+# - STAGING_REDIS_PASSWORD: Redis password (optional)
+# - STAGING_RAZORPAY_KEY_ID: Razorpay API key ID (optional)
+# - STAGING_RAZORPAY_KEY_SECRET: Razorpay API key secret (optional)
+# - STAGING_SENTRY_DSN: Sentry DSN for error tracking (optional)
+# - STAGING_API_URL: Backend API URL (optional, defaults to http://localhost:5001/api)
+
 on:
   push:
     branches:
@@ -92,9 +104,6 @@ jobs:
     name: Deploy to Staging Environment
     runs-on: ubuntu-latest
     needs: [pre-deploy-checks, database-migration]
-    environment:
-      name: staging
-      url: ${{ secrets.STAGING_URL || 'http://staging.camarketplace.com' }}
 
     steps:
       - name: Checkout code
@@ -281,7 +290,7 @@ jobs:
         if: needs.post-deploy-verification.result == 'success'
         run: |
           echo "✓ Staging deployment completed successfully"
-          echo "Environment URL: ${{ secrets.STAGING_URL }}"
+          echo "Environment URL: http://staging.camarketplace.com"
 
       - name: Deployment Failure
         if: needs.post-deploy-verification.result != 'success'
