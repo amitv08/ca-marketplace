@@ -35,17 +35,31 @@ export async function clearDatabase() {
     'User',
   ];
 
-  // Disable foreign key checks
-  await prisma.$executeRaw`SET session_replication_role = 'replica';`;
+  try {
+    // Disable foreign key checks
+    await prisma.$executeRaw`SET session_replication_role = 'replica';`;
 
-  for (const table of tables) {
-    await prisma.$executeRawUnsafe(
-      `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`
-    );
+    for (const table of tables) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`
+        );
+      } catch (error: any) {
+        // Ignore "table does not exist" errors (happens on first run before migrations)
+        if (error.code !== '42P01') {
+          throw error;
+        }
+      }
+    }
+
+    // Re-enable foreign key checks
+    await prisma.$executeRaw`SET session_replication_role = 'origin';`;
+  } catch (error: any) {
+    // If the error is "table does not exist", it's likely the first run, so just ignore it
+    if (error.code !== '42P01') {
+      throw error;
+    }
   }
-
-  // Re-enable foreign key checks
-  await prisma.$executeRaw`SET session_replication_role = 'origin';`;
 }
 
 /**
