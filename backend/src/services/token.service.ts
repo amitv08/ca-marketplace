@@ -56,36 +56,30 @@ export class TokenService {
    * Verify access token
    */
   static async verifyAccessToken(token: string): Promise<TokenPayload> {
-    try {
-      // Check if token is blacklisted
-      const isBlacklisted = await this.isTokenBlacklisted(token);
-      if (isBlacklisted) {
-        throw new Error('Token has been revoked');
-      }
-
-      const decoded = jwt.verify(token, env.JWT_SECRET) as TokenPayload;
-      return decoded;
-    } catch (error) {
-      throw new Error('Invalid or expired access token');
+    // Check if token is blacklisted
+    const isBlacklisted = await this.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      throw new Error('Token has been revoked');
     }
+
+    // Verify token - let JWT errors propagate for proper error handling
+    const decoded = jwt.verify(token, env.JWT_SECRET) as TokenPayload;
+    return decoded;
   }
 
   /**
    * Verify refresh token
    */
   static async verifyRefreshToken(token: string): Promise<TokenPayload> {
-    try {
-      // Check if token is blacklisted
-      const isBlacklisted = await this.isTokenBlacklisted(token);
-      if (isBlacklisted) {
-        throw new Error('Token has been revoked');
-      }
-
-      const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as TokenPayload;
-      return decoded;
-    } catch (error) {
-      throw new Error('Invalid or expired refresh token');
+    // Check if token is blacklisted
+    const isBlacklisted = await this.isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      throw new Error('Token has been revoked');
     }
+
+    // Verify token - let JWT errors propagate for proper error handling
+    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET) as TokenPayload;
+    return decoded;
   }
 
   /**

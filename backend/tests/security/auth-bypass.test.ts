@@ -31,7 +31,7 @@ describe('Security Tests - Authentication Bypass', () => {
         .set('Authorization', `Bearer ${expiredToken}`);
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toContain('expired');
+      expect(response.body.error.message).toContain('expired');
     });
 
     it('should reject invalid JWT signature', async () => {

@@ -57,11 +57,12 @@ export const authenticate = async (
     if (error instanceof AppError) {
       return next(error);
     }
-    if (error instanceof jwt.JsonWebTokenError) {
-      return next(new AuthenticationError('Invalid token', ErrorCode.TOKEN_INVALID, (req as any).correlationId));
-    }
+    // Check TokenExpiredError first since it extends JsonWebTokenError
     if (error instanceof jwt.TokenExpiredError) {
       return next(new AuthenticationError('Token expired. Please refresh your session.', ErrorCode.TOKEN_EXPIRED, (req as any).correlationId));
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      return next(new AuthenticationError('Invalid token', ErrorCode.TOKEN_INVALID, (req as any).correlationId));
     }
     return next(new AuthenticationError('Authentication failed', ErrorCode.TOKEN_INVALID, (req as any).correlationId));
   }
