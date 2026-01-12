@@ -121,15 +121,6 @@ export const testReviews = {
     rating: 5,
     comment: 'Excellent service, very professional',
   },
-
-  review2: {
-    id: '60000000-0000-0000-0000-000000000002',
-    requestId: '40000000-0000-0000-0000-000000000005', // Another completed request
-    clientId: testClients.client1.id,
-    caId: testCAs.ca2.id,
-    rating: 4,
-    comment: 'Good work, delivered on time',
-  },
 };
 
 export async function getReviewsForSeeding() {
