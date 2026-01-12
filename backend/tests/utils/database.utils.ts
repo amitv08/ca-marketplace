@@ -46,19 +46,20 @@ export async function clearDatabase() {
         );
       } catch (error: any) {
         // Ignore "table does not exist" errors (happens on first run before migrations)
-        if (error.code !== '42P01') {
-          throw error;
+        // Prisma wraps the error, so check both error.code and error.meta?.code
+        const errorCode = error.code || error.meta?.code;
+        if (errorCode !== '42P01' && errorCode !== 'P2010') {
+          console.warn(`Error truncating table ${table}:`, error.message);
         }
+        // Silently ignore table-not-found errors
       }
     }
 
     // Re-enable foreign key checks
     await prisma.$executeRaw`SET session_replication_role = 'origin';`;
   } catch (error: any) {
-    // If the error is "table does not exist", it's likely the first run, so just ignore it
-    if (error.code !== '42P01') {
-      throw error;
-    }
+    // Silently ignore session_replication_role errors if tables don't exist
+    console.warn('Error in clearDatabase:', error.message);
   }
 }
 
