@@ -11,6 +11,9 @@ module.exports = {
       isolatedModules: true,
     }],
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!(uuid)/)',
+  ],
   collectCoverageFrom: [
     'src/**/*.ts',
     '!src/**/*.d.ts',
