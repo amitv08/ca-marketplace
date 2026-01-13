@@ -87,9 +87,11 @@ export async function seedDatabase() {
   console.log('🌱 Seeding test database...');
 
   try {
-    // Create additional user for unverified CA
-    await prisma.user.create({
-      data: {
+    // Create additional user for unverified CA (use upsert to avoid duplicates)
+    await prisma.user.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000007' },
+      update: {},
+      create: {
         id: '00000000-0000-0000-0000-000000000007',
         email: 'unverifiedca@test.com',
         password: await require('bcrypt').hash('CA@123', 10),
@@ -99,52 +101,80 @@ export async function seedDatabase() {
       },
     });
 
-    // Seed users
+    // Seed users (use upsert to avoid duplicates)
     const users = await getUsersForSeeding();
     for (const user of users) {
-      await prisma.user.create({ data: user });
+      await prisma.user.upsert({
+        where: { id: user.id },
+        update: {},
+        create: user,
+      });
     }
     console.log('✓ Users seeded');
 
-    // Seed CAs
+    // Seed CAs (use upsert to avoid duplicates)
     const cas = await getCAsForSeeding();
     for (const ca of cas) {
-      await prisma.charteredAccountant.create({ data: ca });
+      await prisma.charteredAccountant.upsert({
+        where: { id: ca.id },
+        update: {},
+        create: ca,
+      });
     }
     console.log('✓ CAs seeded');
 
-    // Seed availability
+    // Seed availability (use upsert to avoid duplicates)
     const availability = await getAvailabilityForSeeding();
     for (const avail of availability) {
-      await prisma.availability.create({ data: avail });
+      await prisma.availability.upsert({
+        where: { id: avail.id },
+        update: {},
+        create: avail,
+      });
     }
     console.log('✓ Availability seeded');
 
-    // Seed clients
+    // Seed clients (use upsert to avoid duplicates)
     const clients = await getClientsForSeeding();
     for (const client of clients) {
-      await prisma.client.create({ data: client });
+      await prisma.client.upsert({
+        where: { id: client.id },
+        update: {},
+        create: client,
+      });
     }
     console.log('✓ Clients seeded');
 
-    // Seed service requests
+    // Seed service requests (use upsert to avoid duplicates)
     const requests = await getServiceRequestsForSeeding();
     for (const request of requests) {
-      await prisma.serviceRequest.create({ data: request });
+      await prisma.serviceRequest.upsert({
+        where: { id: request.id },
+        update: {},
+        create: request,
+      });
     }
     console.log('✓ Service requests seeded');
 
-    // Seed payments
+    // Seed payments (use upsert to avoid duplicates)
     const payments = await getPaymentsForSeeding();
     for (const payment of payments) {
-      await prisma.payment.create({ data: payment });
+      await prisma.payment.upsert({
+        where: { id: payment.id },
+        update: {},
+        create: payment,
+      });
     }
     console.log('✓ Payments seeded');
 
-    // Seed reviews
+    // Seed reviews (use upsert to avoid duplicates)
     const reviews = await getReviewsForSeeding();
     for (const review of reviews) {
-      await prisma.review.create({ data: review });
+      await prisma.review.upsert({
+        where: { id: review.id },
+        update: {},
+        create: review,
+      });
     }
     console.log('✓ Reviews seeded');
 
