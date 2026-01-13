@@ -180,36 +180,40 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
-  codeql-analysis:
-    name: CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
+  # codeql-analysis:
+  #   name: CodeQL Analysis
+  #   runs-on: ubuntu-latest
+  #   permissions:
+  #     actions: read
+  #     contents: read
+  #     security-events: write
+  #
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       language: ['javascript']
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Initialize CodeQL
+  #       uses: github/codeql-action/init@v3
+  #       with:
+  #         languages: ${{ matrix.language }}
+  #         queries: security-extended,security-and-quality
+  #
+  #     - name: Autobuild
+  #       uses: github/codeql-action/autobuild@v3
+  #
+  #     - name: Perform CodeQL Analysis
+  #       uses: github/codeql-action/analyze@v3
+  #       with:
+  #         category: "/language:${{ matrix.language }}"
 
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ['javascript']
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: ${{ matrix.language }}
-          queries: security-extended,security-and-quality
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:${{ matrix.language }}"
+  # NOTE: CodeQL analysis is disabled here because GitHub's default CodeQL setup is enabled
+  # in repository settings. Using both causes SARIF upload conflicts.
+  # CodeQL scans are running automatically via GitHub's default setup.
 
   license-check:
     name: License Compliance
@@ -252,7 +256,7 @@ jobs:
   security-summary:
     name: Security Summary
     runs-on: ubuntu-latest
-    needs: [snyk-scan, owasp-dependency-check, npm-audit, secret-scanning, codeql-analysis, license-check]
+    needs: [snyk-scan, owasp-dependency-check, npm-audit, secret-scanning, license-check]
     if: always()
     continue-on-error: true
 
@@ -267,7 +271,7 @@ jobs:
           echo "| OWASP Dependency Check | ${{ needs.owasp-dependency-check.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| NPM Audit | ${{ needs.npm-audit.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Secret Scanning | ${{ needs.secret-scanning.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| CodeQL Analysis | ${{ needs.codeql-analysis.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| License Check | ${{ needs.license-check.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** CodeQL analysis runs automatically via GitHub's default setup." >> $GITHUB_STEP_SUMMARY
           echo "**For detailed vulnerability reports, check the Security tab.**" >> $GITHUB_STEP_SUMMARY

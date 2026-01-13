@@ -36,7 +36,8 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
   verbose: true,
-  forceExit: true,
+  forceExit: true,  // Force exit to prevent hanging in CI
+  // detectOpenHandles: true,  // Enable locally for debugging, but slows down CI
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
