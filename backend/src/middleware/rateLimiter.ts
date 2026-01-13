@@ -2,9 +2,19 @@ import rateLimit from 'express-rate-limit';
 import RedisStore from 'rate-limit-redis';
 import { Request, Response, NextFunction } from 'express';
 import { redisClient } from '../config/redis';
+import { env } from '../config';
+
+// Helper function to create a no-op rate limiter for test environment
+const createRateLimiter = (config: any) => {
+  // In test environment, bypass rate limiting
+  if (env.NODE_ENV === 'test') {
+    return (req: Request, res: Response, next: NextFunction) => next();
+  }
+  return rateLimit(config);
+};
 
 // General API rate limiter - 100 requests per 15 minutes per IP
-export const apiLimiter = rateLimit({
+export const apiLimiter = createRateLimiter({
   store: new RedisStore({
     // @ts-ignore - Known typing issue with rate-limit-redis
     sendCommand: (...args: string[]) => redisClient.call(...args),
@@ -20,7 +30,7 @@ export const apiLimiter = rateLimit({
 });
 
 // Strict rate limiter for authentication endpoints - 5 requests per 15 minutes
-export const authLimiter = rateLimit({
+export const authLimiter = createRateLimiter({
   store: new RedisStore({
     // @ts-ignore
     sendCommand: (...args: string[]) => redisClient.call(...args),
@@ -121,6 +131,11 @@ export const checkLoginAttempts = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  // Skip in test environment
+  if (env.NODE_ENV === 'test') {
+    return next();
+  }
+
   try {
     const { email } = req.body;
 
@@ -149,7 +164,7 @@ export const checkLoginAttempts = async (
 };
 
 // Payment endpoint rate limiter - Stricter limits
-export const paymentLimiter = rateLimit({
+export const paymentLimiter = createRateLimiter({
   store: new RedisStore({
     // @ts-ignore
     sendCommand: (...args: string[]) => redisClient.call(...args),
@@ -163,7 +178,7 @@ export const paymentLimiter = rateLimit({
 });
 
 // File upload rate limiter
-export const uploadLimiter = rateLimit({
+export const uploadLimiter = createRateLimiter({
   store: new RedisStore({
     // @ts-ignore
     sendCommand: (...args: string[]) => redisClient.call(...args),
