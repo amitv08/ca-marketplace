@@ -100,13 +100,10 @@ export async function getUsersForSeeding() {
   return Object.values(testUsers).map(user => ({
     id: user.id,
     email: user.email,
-    passwordHash: user.passwordHash,
+    password: user.passwordHash,
     name: user.name,
     role: user.role,
-    phoneNumber: user.phoneNumber,
-    address: user.address,
-    isEmailVerified: user.isEmailVerified,
-    isPhoneVerified: user.isPhoneVerified,
+    phone: user.phoneNumber,
   }));
 }
 

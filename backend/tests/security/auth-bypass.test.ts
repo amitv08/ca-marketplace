@@ -3,12 +3,10 @@
  */
 
 import request from 'supertest';
-import { Express } from 'express';
+import app from '../../src/server';
 import { clearDatabase, seedDatabase } from '../utils/database.utils';
 import { testAuthHeaders, generateExpiredToken, generateInvalidToken } from '../utils/auth.utils';
 import { testUsers } from '../fixtures/users.fixture';
-
-let app: Express;
 
 describe('Security Tests - Authentication Bypass', () => {
   beforeAll(async () => {
@@ -33,7 +31,7 @@ describe('Security Tests - Authentication Bypass', () => {
         .set('Authorization', `Bearer ${expiredToken}`);
 
       expect(response.status).toBe(401);
-      expect(response.body.error).toContain('expired');
+      expect(response.body.error.message).toContain('expired');
     });
 
     it('should reject invalid JWT signature', async () => {

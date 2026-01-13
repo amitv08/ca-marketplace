@@ -25,4 +25,4 @@ yarn-error.log*
 Thumbs.db
 
 # Prisma
-prisma/migrations/
+# Note: Migrations should be committed to git for CI/CD

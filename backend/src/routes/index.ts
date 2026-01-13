@@ -1,5 +1,5 @@
 import { Express, Router, Request, Response } from 'express';
-import authRoutes from './auth.routes';
+import authRoutes from './auth.routes.secure';
 import userRoutes from './user.routes';
 import caRoutes from './ca.routes';
 import serviceRequestRoutes from './serviceRequest.routes';

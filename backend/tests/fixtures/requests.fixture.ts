@@ -2,7 +2,7 @@
  * Service Request Test Fixtures
  */
 
-import { ServiceType, ServiceRequestStatus } from '@prisma/client';
+import { ServiceType, ServiceRequestStatus, PaymentStatus, PaymentMethod } from '@prisma/client';
 import { testUsers } from './users.fixture';
 import { testCAs } from './cas.fixture';
 
@@ -11,18 +11,16 @@ export const testClients = {
     id: '30000000-0000-0000-0000-000000000001',
     userId: testUsers.client1.id,
     companyName: 'Test Company 1',
-    gstNumber: 'GST123456789',
-    panNumber: 'ABCDE1234F',
-    businessType: 'Private Limited',
+    address: 'Test Address 1, City, State - 123456',
+    taxNumber: 'GST123456789',
   },
 
   client2: {
     id: '30000000-0000-0000-0000-000000000002',
     userId: testUsers.client2.id,
     companyName: 'Test Company 2',
-    gstNumber: 'GST987654321',
-    panNumber: 'FGHIJ5678K',
-    businessType: 'Partnership',
+    address: 'Test Address 2, City, State - 654321',
+    taxNumber: 'GST987654321',
   },
 };
 
@@ -33,11 +31,9 @@ export const testServiceRequests = {
     caId: testCAs.ca1.id,
     serviceType: ServiceType.INCOME_TAX_RETURN,
     status: ServiceRequestStatus.ACCEPTED,
-    title: 'Annual Tax Filing 2024',
-    description: 'Need help with annual tax filing for FY 2023-24',
-    budget: 10000,
-    deadline: new Date('2024-03-31'),
-    documents: ['tax_doc1.pdf', 'tax_doc2.pdf'],
+    description: 'Annual Tax Filing 2024: Need help with annual tax filing for FY 2023-24',
+    deadline: new Date('2026-03-31'),
+    estimatedHours: 10,
   },
 
   request2: {
@@ -46,11 +42,9 @@ export const testServiceRequests = {
     caId: testCAs.ca2.id,
     serviceType: ServiceType.GST_FILING,
     status: ServiceRequestStatus.IN_PROGRESS,
-    title: 'GST Return Filing',
-    description: 'Monthly GST return filing assistance',
-    budget: 5000,
-    deadline: new Date('2024-02-10'),
-    documents: ['gst_doc1.pdf'],
+    description: 'GST Return Filing: Monthly GST return filing assistance',
+    deadline: new Date('2026-02-10'),
+    estimatedHours: 5,
   },
 
   pendingRequest: {
@@ -59,11 +53,9 @@ export const testServiceRequests = {
     caId: null,
     serviceType: ServiceType.AUDIT,
     status: ServiceRequestStatus.PENDING,
-    title: 'Internal Audit Services',
-    description: 'Looking for CA to conduct internal audit',
-    budget: 25000,
-    deadline: new Date('2024-04-30'),
-    documents: [],
+    description: 'Internal Audit Services: Looking for CA to conduct internal audit',
+    deadline: new Date('2026-04-30'),
+    estimatedHours: 40,
   },
 
   completedRequest: {
@@ -72,11 +64,9 @@ export const testServiceRequests = {
     caId: testCAs.ca1.id,
     serviceType: ServiceType.ACCOUNTING,
     status: ServiceRequestStatus.COMPLETED,
-    title: 'Bookkeeping Services',
-    description: 'Monthly bookkeeping completed',
-    budget: 8000,
-    deadline: new Date('2024-01-31'),
-    documents: ['books1.pdf'],
+    description: 'Bookkeeping Services: Monthly bookkeeping completed',
+    deadline: new Date('2026-01-31'),
+    estimatedHours: 8,
   },
 };
 
@@ -93,11 +83,12 @@ export const testPayments = {
     id: '50000000-0000-0000-0000-000000000001',
     requestId: testServiceRequests.request1.id,
     clientId: testClients.client1.id,
+    caId: testCAs.ca1.id,
     amount: 10000,
     platformFee: 1000,
     caAmount: 9000,
-    status: 'COMPLETED' as any,
-    paymentMethod: 'razorpay',
+    status: PaymentStatus.COMPLETED,
+    paymentMethod: PaymentMethod.RAZORPAY,
     transactionId: 'txn_test123456',
     releasedToCA: false,
   },
@@ -106,11 +97,12 @@ export const testPayments = {
     id: '50000000-0000-0000-0000-000000000002',
     requestId: testServiceRequests.completedRequest.id,
     clientId: testClients.client2.id,
+    caId: testCAs.ca1.id,
     amount: 8000,
     platformFee: 800,
     caAmount: 7200,
-    status: 'COMPLETED' as any,
-    paymentMethod: 'razorpay',
+    status: PaymentStatus.COMPLETED,
+    paymentMethod: PaymentMethod.RAZORPAY,
     transactionId: 'txn_test789012',
     releasedToCA: true,
   },
@@ -128,15 +120,6 @@ export const testReviews = {
     caId: testCAs.ca1.id,
     rating: 5,
     comment: 'Excellent service, very professional',
-  },
-
-  review2: {
-    id: '60000000-0000-0000-0000-000000000002',
-    requestId: '40000000-0000-0000-0000-000000000005', // Another completed request
-    clientId: testClients.client1.id,
-    caId: testCAs.ca2.id,
-    rating: 4,
-    comment: 'Good work, delivered on time',
   },
 };
 

@@ -69,6 +69,7 @@ router.post(
       res,
       {
         user: userData,
+        token: accessToken, // Backwards compatibility
         accessToken,
         refreshToken,
         expiresIn: 900, // 15 minutes in seconds
@@ -126,6 +127,7 @@ router.post(
       res,
       {
         user: userData,
+        token: accessToken, // Backwards compatibility
         accessToken,
         refreshToken,
         expiresIn: 900, // 15 minutes in seconds
@@ -201,20 +203,20 @@ router.get(
 router.post('/logout', authenticate, logoutMiddleware);
 
 /**
- * @route   POST /api/auth/change-password
+ * @route   PUT /api/auth/change-password
  * @desc    Change user password with validation and history tracking
  * @access  Private
  */
-router.post(
+router.put(
   '/change-password',
   authenticate,
   changePasswordValidation,
   asyncHandler(async (req: Request, res: Response) => {
-    const { currentPassword, password } = req.body;
+    const { currentPassword, newPassword } = req.body;
     const userId = req.user!.userId;
 
     // Change password using PasswordService
-    const result = await PasswordService.changePassword(userId, currentPassword, password);
+    const result = await PasswordService.changePassword(userId, currentPassword, newPassword);
 
     if (!result.success) {
       return sendError(res, result.errors?.join(', ') || 'Failed to change password', 400);
