@@ -78,27 +78,56 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y postgresql-client
 
+      - name: Validate DATABASE_URL format
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+        run: |
+          echo "Checking DATABASE_URL format (without exposing sensitive data)..."
+          if [[ ! "$DATABASE_URL" =~ ^postgresql://[^:]+:[^@]+@[^:]+:[0-9]+/.+ ]]; then
+            echo "ERROR: DATABASE_URL format is invalid"
+            echo "Expected format: postgresql://user:password@host:port/database"
+            echo "Detected issues:"
+            if [[ ! "$DATABASE_URL" =~ :[0-9]+/ ]]; then
+              echo "  - Port number missing or invalid"
+            fi
+            exit 1
+          fi
+          echo "✓ DATABASE_URL format is valid"
+
       - name: Create backup
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: |
-          chmod +x backend/scripts/backup-db.sh
-          ./backend/scripts/backup-db.sh staging-pre-deploy || true
+          if [ -f backend/scripts/backup-db.sh ]; then
+            chmod +x backend/scripts/backup-db.sh
+            ./backend/scripts/backup-db.sh staging-pre-deploy || echo "Backup skipped or failed (non-blocking)"
+          else
+            echo "Backup script not found, skipping..."
+          fi
 
       - name: Run migrations
         working-directory: ./backend
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: |
+          echo "Running Prisma migrations..."
           npx prisma migrate deploy
+          echo "Generating Prisma client..."
           npx prisma generate
+          echo "✓ Migrations completed successfully"
 
       - name: Verify database health
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
         run: |
-          chmod +x backend/scripts/db-health-check.sh
-          ./backend/scripts/db-health-check.sh
+          if [ -f backend/scripts/db-health-check.sh ]; then
+            chmod +x backend/scripts/db-health-check.sh
+            ./backend/scripts/db-health-check.sh
+          else
+            echo "Health check script not found, performing basic check..."
+            cd backend
+            npx prisma db execute --stdin <<< "SELECT 1;" > /dev/null && echo "✓ Database connection successful"
+          fi
 
   deploy-staging:
     name: Deploy to Staging Environment
