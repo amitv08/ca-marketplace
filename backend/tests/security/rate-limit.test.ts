@@ -86,7 +86,7 @@ describe('Security Tests - Rate Limiting', () => {
             .send({
               name: `Test User ${i}`,
               email: `test${i}@test.com`,
-              password: 'ValidPassword@123',
+              password: 'ValidPassword@24!',
               role: 'CLIENT',
             })
         );

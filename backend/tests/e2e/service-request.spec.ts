@@ -9,7 +9,7 @@ test.describe('Service Request Creation Flow', () => {
     // Login as client
     await page.goto('/login');
     await page.fill('input[name="email"]', 'client1@test.com');
-    await page.fill('input[name="password"]', 'Client@123');
+    await page.fill('input[name="password"]', 'ClientTestPass@68!');
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
   });
@@ -184,7 +184,7 @@ test.describe('CA Service Request Acceptance Flow', () => {
     // Login as CA
     await page.goto('/login');
     await page.fill('input[name="email"]', 'ca1@test.com');
-    await page.fill('input[name="password"]', 'CA@123');
+    await page.fill('input[name="password"]', 'CATestingPass@95!');
     await page.click('button[type="submit"]');
     await page.waitForURL('/dashboard');
   });

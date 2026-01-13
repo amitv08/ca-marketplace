@@ -35,9 +35,9 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
 // Test data
 const users = [
-  { email: 'client1@test.com', password: 'Client@123', role: 'CLIENT' },
-  { email: 'ca1@test.com', password: 'CA@123', role: 'CA' },
-  { email: 'admin@test.com', password: 'Admin@123', role: 'ADMIN' },
+  { email: 'client1@test.com', password: 'ClientTestPass@68!', role: 'CLIENT' },
+  { email: 'ca1@test.com', password: 'CATestingPass@95!', role: 'CA' },
+  { email: 'admin@test.com', password: 'AdminTestPass@24!', role: 'ADMIN' },
 ];
 
 /**

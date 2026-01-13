@@ -240,7 +240,7 @@ describe('Security Tests - Authentication Bypass', () => {
         .post('/api/auth/reset-password')
         .send({
           token: 'invalid-reset-token',
-          password: 'NewPassword@123',
+          password: 'NewPassword@24!',
         });
 
       expect(response.status).toBe(400);
@@ -255,7 +255,7 @@ describe('Security Tests - Authentication Bypass', () => {
         .post('/api/auth/reset-password')
         .send({
           token: expiredResetToken,
-          password: 'NewPassword@123',
+          password: 'NewPassword@24!',
         });
 
       expect(response.status).toBe(400);
@@ -294,7 +294,7 @@ describe('Security Tests - Authentication Bypass', () => {
         .send({
           name: 'Lockout Test',
           email,
-          password: 'ValidPassword@123',
+          password: 'ValidPassword@24!',
           role: 'CLIENT',
         });
 
@@ -313,7 +313,7 @@ describe('Security Tests - Authentication Bypass', () => {
         .post('/api/auth/login')
         .send({
           email,
-          password: 'ValidPassword@123',
+          password: 'ValidPassword@24!',
         });
 
       // Account should be locked (if implemented)

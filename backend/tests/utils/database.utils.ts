@@ -94,7 +94,7 @@ export async function seedDatabase() {
       create: {
         id: '00000000-0000-0000-0000-000000000007',
         email: 'unverifiedca@test.com',
-        password: await require('bcrypt').hash('CA@123', 10),
+        password: await require('bcrypt').hash('CATestingPass@95!', 10),
         name: 'Unverified CA User',
         role: 'CA',
         phone: '+919876543216',
