@@ -110,19 +110,40 @@ global.testUtils = {
 // Cleanup after all tests
 afterAll(async () => {
   try {
-    await global.prisma.$disconnect();
-    console.log('✓ Prisma disconnected');
+    console.log('🧹 Starting cleanup...');
 
-    // Close Redis connection if it exists
-    const redis = require('../src/config/redis').default;
-    if (redis && redis.disconnect) {
-      await redis.disconnect();
-      console.log('✓ Redis disconnected');
+    // Close Prisma connection
+    if (global.prisma) {
+      await global.prisma.$disconnect();
+      console.log('✓ Prisma disconnected');
     }
+
+    // Close Redis connection
+    try {
+      const { redisClient } = require('../src/config/redis');
+      if (redisClient && redisClient.status === 'ready') {
+        await redisClient.quit();
+        console.log('✓ Redis disconnected');
+      }
+    } catch (error) {
+      console.log('Redis not initialized or already closed');
+    }
+
+    // Close any other connections from database utils
+    try {
+      const { closeDatabaseConnections } = require('./utils/database.utils');
+      if (closeDatabaseConnections) {
+        await closeDatabaseConnections();
+      }
+    } catch (error) {
+      // Function might not exist yet
+    }
+
+    console.log('✅ Cleanup complete');
   } catch (error) {
-    console.warn('Cleanup warning:', error);
+    console.warn('⚠️  Cleanup warning:', error);
   }
 
-  // Give time for connections to close
-  await new Promise(resolve => setTimeout(resolve, 500));
+  // Small delay to ensure all connections are fully closed
+  await new Promise(resolve => setTimeout(resolve, 100));
 });

@@ -258,4 +258,16 @@ export async function disconnectDatabase() {
   await prisma.$disconnect();
 }
 
+/**
+ * Close all database-related connections
+ * This is called at the end of test suites to prevent hanging
+ */
+export async function closeDatabaseConnections() {
+  try {
+    await prisma.$disconnect();
+  } catch (error) {
+    console.warn('Error disconnecting Prisma:', error);
+  }
+}
+
 export { prisma };
