@@ -7,12 +7,14 @@ import { Request, Response, NextFunction } from 'express';
 export const handleValidationErrors = (req: Request, res: Response, next: NextFunction): void => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+    const errorDetails = errors.array().map((err) => ({
+      field: err.type === 'field' ? err.path : 'unknown',
+      message: err.msg,
+    }));
     res.status(400).json({
       error: 'Validation failed',
-      details: errors.array().map((err) => ({
-        field: err.type === 'field' ? err.path : 'unknown',
-        message: err.msg,
-      })),
+      errors: errorDetails,  // Use 'errors' for backwards compatibility
+      details: errorDetails, // Keep 'details' for new code
     });
     return;
   }

@@ -30,7 +30,7 @@ router.post(
     // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {
-      return sendError(res, 'Email already registered', 400);
+      return sendError(res, 'User with this email already exists', 400);
     }
 
     // Validate and hash password
