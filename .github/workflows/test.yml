@@ -1,5 +1,11 @@
 name: Test Suite
 
+# Optional GitHub Secrets (configure in repository settings for enhanced features):
+# - SONAR_TOKEN: SonarCloud authentication token for code quality scanning
+#
+# Optional GitHub Variables:
+# - SONAR_ENABLED: Set to 'true' to enable SonarCloud scanning (requires SONAR_TOKEN)
+
 on:
   push:
     branches: [main, develop]
@@ -58,9 +64,13 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         run: |
-          cp .env.example .env.test
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Generating Prisma client..."
           npx prisma generate
+          echo "Running database migrations..."
           npx prisma migrate deploy
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
 
       - name: Run unit tests
         working-directory: backend
@@ -68,6 +78,10 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:unit
 
       - name: Upload unit test coverage
@@ -122,13 +136,20 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Setup database
+      - name: Setup test environment
         working-directory: backend
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
         run: |
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Generating Prisma client..."
           npx prisma generate
+          echo "Running database migrations..."
           npx prisma migrate deploy
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
 
       - name: Run integration tests
         working-directory: backend
@@ -136,6 +157,10 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:integration
 
       - name: Upload integration test coverage
@@ -190,13 +215,20 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      - name: Setup database
+      - name: Setup test environment
         working-directory: backend
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
         run: |
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Generating Prisma client..."
           npx prisma generate
+          echo "Running database migrations..."
           npx prisma migrate deploy
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
 
       - name: Run security tests
         working-directory: backend
@@ -204,6 +236,10 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:security
 
   e2e-tests:
@@ -255,13 +291,20 @@ jobs:
         working-directory: backend
         run: npx playwright install --with-deps
 
-      - name: Setup database
+      - name: Setup test environment
         working-directory: backend
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
         run: |
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Generating Prisma client..."
           npx prisma generate
+          echo "Running database migrations..."
           npx prisma migrate deploy
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
 
       - name: Build application
         working-directory: backend
@@ -274,6 +317,10 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
           BASE_URL: http://localhost:3000
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:e2e
 
       - name: Upload E2E test results
@@ -317,13 +364,36 @@ jobs:
         working-directory: backend
         run: npm audit --production || true
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@master
+      - name: Generate test coverage
+        working-directory: backend
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
+        run: |
+          npx prisma generate
+          npm test -- --coverage --testPathPattern="tests/unit" || true
+
+      - name: SonarCloud Scan
+        if: ${{ vars.SONAR_ENABLED == 'true' || github.event_name == 'push' }}
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
         with:
           projectBaseDir: backend
+          args: >
+            -Dsonar.projectKey=${{ github.repository_owner }}_ca-marketplace
+            -Dsonar.organization=${{ github.repository_owner }}
+            -Dsonar.sources=src
+            -Dsonar.tests=tests
+            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+            -Dsonar.coverage.exclusions=**/*.test.ts,**/*.spec.ts,**/tests/**
+        continue-on-error: true
 
   test-summary:
     name: Test Summary

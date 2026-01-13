@@ -48,6 +48,32 @@ global.prisma = new PrismaClient({
   },
 });
 
+// Ensure database is ready before running tests
+beforeAll(async () => {
+  try {
+    // Verify database connection and schema
+    await global.prisma.$connect();
+    console.log('✓ Database connected');
+
+    // Check if migrations have been applied by checking for User table
+    const result = await global.prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'User'
+      );
+    `;
+
+    if (!result || !(result as any)[0]?.exists) {
+      console.warn('⚠ Database tables not found. Run migrations with: npx prisma migrate deploy');
+    } else {
+      console.log('✓ Database schema verified');
+    }
+  } catch (error) {
+    console.error('✗ Database setup error:', error);
+  }
+});
+
 // Test utilities
 global.testUtils = {
   /**
@@ -85,6 +111,3 @@ global.testUtils = {
 afterAll(async () => {
   await global.prisma.$disconnect();
 });
-
-// Export for use in tests
-export { global as testGlobals };
