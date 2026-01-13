@@ -65,12 +65,14 @@ jobs:
           NODE_ENV: test
         run: |
           cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
           echo "Generating Prisma client..."
           npx prisma generate
           echo "Running database migrations..."
-          npx prisma migrate deploy
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
           echo "Verifying database schema..."
-          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Run unit tests
         working-directory: backend
@@ -144,12 +146,14 @@ jobs:
           NODE_ENV: test
         run: |
           cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
           echo "Generating Prisma client..."
           npx prisma generate
           echo "Running database migrations..."
-          npx prisma migrate deploy
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
           echo "Verifying database schema..."
-          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Run integration tests
         working-directory: backend
@@ -223,12 +227,14 @@ jobs:
           NODE_ENV: test
         run: |
           cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
           echo "Generating Prisma client..."
           npx prisma generate
           echo "Running database migrations..."
-          npx prisma migrate deploy
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
           echo "Verifying database schema..."
-          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Run security tests
         working-directory: backend
@@ -299,12 +305,14 @@ jobs:
           NODE_ENV: test
         run: |
           cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
           echo "Generating Prisma client..."
           npx prisma generate
           echo "Running database migrations..."
-          npx prisma migrate deploy
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
           echo "Verifying database schema..."
-          npx prisma db execute --stdin <<< "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" || echo "Could not verify schema"
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Build application
         working-directory: backend
