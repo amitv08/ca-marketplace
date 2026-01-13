@@ -8,7 +8,7 @@ import { env } from '../config';
 const createRateLimiter = (config: any) => {
   // In test environment, bypass rate limiting
   if (env.NODE_ENV === 'test') {
-    return (req: Request, res: Response, next: NextFunction) => next();
+    return (_req: Request, _res: Response, next: NextFunction) => next();
   }
   return rateLimit(config);
 };
