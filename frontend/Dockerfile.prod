@@ -49,17 +49,8 @@ COPY --from=builder /app/build /usr/share/nginx/html
 # Add healthcheck endpoint
 RUN echo "OK" > /usr/share/nginx/html/health
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nginx_user && \
-    adduser -S nginx_user -u 1001 && \
-    chown -R nginx_user:nginx_user /usr/share/nginx/html && \
-    chown -R nginx_user:nginx_user /var/cache/nginx && \
-    chown -R nginx_user:nginx_user /var/log/nginx && \
-    touch /var/run/nginx.pid && \
-    chown -R nginx_user:nginx_user /var/run/nginx.pid
-
-# Switch to non-root user
-USER nginx_user
+# For production, consider running nginx as non-root with proper permissions
+# For local staging testing, we run as root for simplicity
 
 # Expose HTTP port
 EXPOSE 80

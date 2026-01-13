@@ -24,6 +24,7 @@
     "test:perf:api": "k6 run tests/performance/api-performance.js",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:security",
     "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "lint": "tsc --noEmit",
     "db:maintenance": "ts-node src/scripts/db-maintenance.ts",
     "db:analyze": "ts-node src/scripts/db-maintenance.ts analyze",
     "db:vacuum": "ts-node src/scripts/db-maintenance.ts vacuum",
@@ -58,7 +59,7 @@
     "socket.io": "^4.8.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3",
-    "uuid": "^13.0.0",
+    "uuid": "^9.0.1",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   },

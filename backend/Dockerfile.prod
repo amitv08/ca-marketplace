@@ -11,8 +11,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production --ignore-scripts && \
+# Install production dependencies only (without --ignore-scripts to build native modules like bcrypt)
+RUN npm ci --only=production && \
     npm cache clean --force
 
 # ============================================
@@ -70,12 +70,16 @@ COPY --from=dependencies --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 
+# Copy Prisma generated client from builder stage (overwrite @prisma/client from dependencies)
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
 # Copy package files
 COPY --chown=nodejs:nodejs package*.json ./
 
-# Create uploads directory with proper permissions
-RUN mkdir -p /app/uploads && \
-    chown -R nodejs:nodejs /app/uploads
+# Create uploads and logs directories with proper permissions
+RUN mkdir -p /app/uploads /app/logs && \
+    chown -R nodejs:nodejs /app/uploads /app/logs
 
 # Switch to non-root user
 USER nodejs

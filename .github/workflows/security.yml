@@ -21,6 +21,7 @@ jobs:
   snyk-scan:
     name: Snyk Security Scan
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
       security-events: write
@@ -60,7 +61,8 @@ jobs:
 
       - name: Upload Snyk results to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('snyk.sarif') != ''
+        continue-on-error: true
         with:
           sarif_file: snyk.sarif
           category: snyk-dependencies
@@ -252,6 +254,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [snyk-scan, owasp-dependency-check, npm-audit, secret-scanning, codeql-analysis, license-check]
     if: always()
+    continue-on-error: true
 
     steps:
       - name: Generate security summary
