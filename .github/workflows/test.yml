@@ -80,8 +80,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:unit
@@ -161,8 +161,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:integration
@@ -242,8 +242,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:security
@@ -325,8 +325,8 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
           BASE_URL: http://localhost:3000
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:e2e
@@ -378,8 +378,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: |
