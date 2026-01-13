@@ -13,10 +13,12 @@ name: Deploy to Staging
 # - STAGING_API_URL: Backend API URL (optional, defaults to http://localhost:5001/api)
 
 on:
-  push:
-    branches:
-      - develop
-  workflow_dispatch:  # Allow manual trigger
+  # DISABLED: Auto-deployment disabled - focus on development/testing
+  # Uncomment 'push' trigger when ready to deploy to staging environment
+  # push:
+  #   branches:
+  #     - develop
+  workflow_dispatch:  # Manual trigger only
 
 env:
   REGISTRY: ghcr.io

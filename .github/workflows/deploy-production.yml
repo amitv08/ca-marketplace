@@ -9,15 +9,17 @@ name: Deploy to Production
 # - Automatic rollback on failure
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'  # Trigger on version tags (e.g., v1.0.0)
+  # DISABLED: Production deployment disabled - focus on development/testing
+  # Uncomment when ready for production deployments
+  # push:
+  #   tags:
+  #     - 'v*.*.*'  # Trigger on version tags (e.g., v1.0.0)
   workflow_dispatch:
     inputs:
       skip_tests:
         description: 'Skip pre-deployment tests (emergency only)'
         required: false
-        default: 'false'
+        default: false
         type: boolean
       rollback_version:
         description: 'Rollback to version (leave empty for new deployment)'
