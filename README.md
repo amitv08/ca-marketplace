@@ -119,13 +119,18 @@ ca-marketplace/
    ```
 
    This will start:
-   - PostgreSQL database (port 5432)
-   - Backend API (port 5000)
-   - Frontend app (port 3000)
+   - PostgreSQL database (external port 54320, internal 5432)
+   - Redis cache (external port 63790, internal 6379)
+   - Backend API (external port 8080, internal 5000)
+   - Frontend app (external port 3001, internal 3000)
+   - PGAdmin (external port 5051, internal 80)
+
+   **Note**: Non-standard external ports are used for security (avoiding well-known port attacks).
 
 3. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5000/api
+   - Frontend: http://localhost:3001
+   - Backend API: http://localhost:8080/api
+   - PGAdmin: http://localhost:5051
    - API Documentation: See [backend/API_ROUTES.md](backend/API_ROUTES.md)
 
 ### Manual Setup (Without Docker)
@@ -154,17 +159,20 @@ ca-marketplace/
 
 ### Backend (.env)
 ```env
-DATABASE_URL=postgresql://user:password@localhost:5432/ca_marketplace
+DATABASE_URL=postgresql://user:password@localhost:54320/ca_marketplace
 JWT_SECRET=your-secret-key
 RAZORPAY_KEY_ID=your-razorpay-key
 RAZORPAY_KEY_SECRET=your-razorpay-secret
 PLATFORM_FEE_PERCENTAGE=10
+REDIS_URL=redis://localhost:63790
 ```
 
 ### Frontend (.env)
 ```env
-REACT_APP_API_URL=http://localhost:5000/api
+REACT_APP_API_URL=http://localhost:8080/api
 ```
+
+**Note**: Use external ports (54320, 63790, 8080) when connecting from your local machine. Internal containers use standard ports (5432, 6379, 5000) for inter-container communication.
 
 ## Production Deployment
 
@@ -307,12 +315,12 @@ For detailed information:
 ### System Health Status
 
 All services operational and verified:
-- ✅ **Frontend**: React application running on port 3000
-- ✅ **Backend**: Express API running on port 5000
-- ✅ **PostgreSQL**: Database healthy on port 5432
-- ✅ **Redis**: Cache/session store healthy on port 6379
+- ✅ **Frontend**: React application running on port 3001 (external) / 3000 (internal)
+- ✅ **Backend**: Express API running on port 8080 (external) / 5000 (internal)
+- ✅ **PostgreSQL**: Database healthy on port 54320 (external) / 5432 (internal)
+- ✅ **Redis**: Cache/session store healthy on port 63790 (external) / 6379 (internal)
 - ✅ **Socket.IO**: Real-time messaging active
-- ✅ **PGAdmin**: Database management UI on port 5050
+- ✅ **PGAdmin**: Database management UI on port 5051 (external) / 80 (internal)
 
 ### Security Achievements
 
