@@ -53,7 +53,7 @@ services:
     build: ./backend
     container_name: ca_backend
     ports:
-      - "8080:5000"  # Non-standard external port for security
+      - "8081:5000"  # Non-standard external port for security (8080 conflicts with other project)
     environment:
       - DATABASE_URL=postgresql://caadmin:CaSecure123!@postgres:5432/camarketplace
       - NODE_ENV=development
@@ -79,7 +79,7 @@ services:
     ports:
       - "3001:3000"  # Non-standard external port for security
     environment:
-      - REACT_APP_API_URL=http://localhost:8080/api
+      - REACT_APP_API_URL=http://localhost:8081/api
       - BROWSER=none
     volumes:
       - ./frontend:/app
