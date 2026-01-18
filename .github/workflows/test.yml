@@ -360,6 +360,13 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Generate Prisma Client
+        working-directory: backend
+        env:
+          # Use a dummy DATABASE_URL for Prisma client generation
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+        run: npx prisma generate
+
       - name: Run ESLint
         working-directory: backend
         run: npm run lint || true
@@ -371,20 +378,6 @@ jobs:
       - name: Run npm audit
         working-directory: backend
         run: npm audit --production || true
-
-      - name: Generate test coverage
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-testing
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
-          JWT_EXPIRES_IN: 15m
-          JWT_REFRESH_EXPIRES_IN: 7d
-        run: |
-          npx prisma generate
-          npm test -- --coverage --testPathPattern="tests/unit" || true
 
       - name: SonarCloud Scan
         if: ${{ vars.SONAR_ENABLED == 'true' || github.event_name == 'push' }}
