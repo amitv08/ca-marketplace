@@ -112,6 +112,19 @@ enum PaymentMethod {
   RAZORPAY
 }
 
+enum SecurityScanType {
+  SECURITY_HEADERS
+  VULNERABILITY_SCAN
+  PENETRATION_TEST
+  ACCESS_CONTROL_TEST
+}
+
+enum ScanStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 // Models
 
 model User {
@@ -385,4 +398,210 @@ model AuditLog {
   @@index([resource])
   @@index([createdAt])
   @@index([success])
+}
+
+model SecurityScan {
+  id           String           @id @default(uuid())
+  scanType     SecurityScanType
+  status       ScanStatus       @default(RUNNING)
+  findings     Json             // Array of findings with severity
+  summary      Json             // {critical: 0, high: 2, medium: 5, low: 10}
+  startedAt    DateTime         @default(now())
+  completedAt  DateTime?
+  triggeredBy  String?          // userId who triggered (null = automated)
+  environment  String           @default("production") // production, staging, test
+  duration     Int?             // Milliseconds
+  errorMessage String?          @db.Text
+
+  @@index([scanType])
+  @@index([status])
+  @@index([startedAt])
+  @@index([triggeredBy])
+}
+
+model CspViolation {
+  id                String   @id @default(uuid())
+  documentUri       String
+  violatedDirective String
+  blockedUri        String
+  sourceFile        String?
+  lineNumber        Int?
+  columnNumber      Int?
+  userAgent         String?
+  createdAt         DateTime @default(now())
+
+  @@index([violatedDirective])
+  @@index([createdAt])
+  @@index([blockedUri])
+}
+
+// ==========================================
+// ANALYTICS SYSTEM MODELS
+// ==========================================
+
+enum ExperimentStatus {
+  DRAFT
+  RUNNING
+  PAUSED
+  COMPLETED
+}
+
+enum ReportType {
+  MONTHLY_REVENUE
+  CA_PERFORMANCE
+  PLATFORM_STATS
+  FINANCIAL_RECONCILIATION
+  USER_ACQUISITION
+}
+
+enum ReportFormat {
+  PDF
+  CSV
+  BOTH
+}
+
+enum ExecutionStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// 1. Analytics event tracking (time-series)
+model AnalyticsEvent {
+  id         String    @id @default(uuid())
+  eventType  String    // USER_REGISTRATION, REQUEST_CREATED, PAYMENT_COMPLETED, etc.
+  userId     String?
+  userRole   UserRole?
+  sessionId  String?
+  metadata   Json?     // Event-specific data
+  timestamp  DateTime  @default(now())
+
+  @@index([eventType, timestamp])
+  @@index([userId, timestamp])
+  @@index([timestamp])
+}
+
+// 2. Feature flags for dynamic toggles
+model FeatureFlag {
+  id             String     @id @default(uuid())
+  key            String     @unique // e.g., "new_payment_flow"
+  name           String
+  description    String?    @db.Text
+  enabled        Boolean    @default(false)
+  rolloutPercent Int        @default(0) // 0-100
+  targetRoles    UserRole[]
+  targetUserIds  String[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([key])
+  @@index([enabled])
+}
+
+// 3. A/B testing experiments
+model Experiment {
+  id               String               @id @default(uuid())
+  key              String               @unique
+  name             String
+  description      String?              @db.Text
+  status           ExperimentStatus     @default(DRAFT)
+  variants         Json                 // [{id: "control", name: "Control", weight: 50}]
+  targetSegment    String?
+  startDate        DateTime?
+  endDate          DateTime?
+  winningVariant   String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  assignments      ExperimentAssignment[]
+
+  @@index([key])
+  @@index([status])
+}
+
+// 4. User assignments to experiment variants
+model ExperimentAssignment {
+  id           String     @id @default(uuid())
+  experimentId String
+  userId       String
+  variantId    String
+  assignedAt   DateTime   @default(now())
+
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+
+  @@unique([experimentId, userId])
+  @@index([experimentId])
+  @@index([userId])
+}
+
+// 5. User segmentation
+model UserSegment {
+  id          String   @id @default(uuid())
+  name        String
+  description String?  @db.Text
+  rules       Json     // {role: "CA", experienceYears: {gte: 5}}
+  userIds     String[] // Cached (refreshed periodically)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+}
+
+// 6. Scheduled reports
+model ScheduledReport {
+  id             String            @id @default(uuid())
+  name           String
+  reportType     ReportType
+  schedule       String            // Cron expression
+  format         ReportFormat      @default(PDF)
+  recipients     String[]          // Email addresses
+  filters        Json?
+  enabled        Boolean           @default(true)
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  executions     ReportExecution[]
+
+  @@index([enabled, nextRunAt])
+  @@index([reportType])
+}
+
+// 7. Report execution tracking
+model ReportExecution {
+  id           String          @id @default(uuid())
+  reportId     String
+  status       ExecutionStatus @default(PENDING)
+  startedAt    DateTime        @default(now())
+  completedAt  DateTime?
+  fileUrl      String?         // S3/CDN URL
+  errorMessage String?         @db.Text
+
+  report       ScheduledReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+// 8. Aggregated metrics (daily rollups)
+model DailyMetric {
+  id                String   @id @default(uuid())
+  date              DateTime @db.Date
+  newUsers          Int      @default(0)
+  newClients        Int      @default(0)
+  newCAs            Int      @default(0)
+  requestsCreated   Int      @default(0)
+  requestsCompleted Int      @default(0)
+  paymentsCompleted Int      @default(0)
+  totalRevenue      Float    @default(0)
+  platformFees      Float    @default(0)
+  reviewsCreated    Int      @default(0)
+  averageRating     Float?
+  createdAt         DateTime @default(now())
+
+  @@unique([date])
+  @@index([date])
 }

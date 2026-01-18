@@ -72,6 +72,22 @@ beforeAll(async () => {
     } else {
       console.log('✓ Database schema verified');
     }
+
+    // Check for SecurityScan table (new security audit feature)
+    const securityScanExists = await global.prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'SecurityScan'
+      );
+    `;
+
+    if (!securityScanExists || !(securityScanExists as any)[0]?.exists) {
+      console.warn('⚠ SecurityScan table not found. Security audit tests may fail.');
+      console.warn('Run migrations: npx prisma migrate deploy');
+    } else {
+      console.log('✓ Security audit tables verified');
+    }
   } catch (error) {
     console.error('✗ Database setup error:', error);
   }
@@ -84,6 +100,19 @@ global.testUtils = {
    */
   async clearDatabase() {
     const tables = [
+      // Analytics tables (new)
+      'ReportExecution',
+      'ScheduledReport',
+      'ExperimentAssignment',
+      'Experiment',
+      'UserSegment',
+      'FeatureFlag',
+      'DailyMetric',
+      'AnalyticsEvent',
+      // Security tables
+      'CspViolation',
+      'SecurityScan',
+      // Core tables
       'Message',
       'Review',
       'Payment',
@@ -95,9 +124,14 @@ global.testUtils = {
     ];
 
     for (const table of tables) {
-      await global.prisma.$executeRawUnsafe(
-        `TRUNCATE TABLE "${table}" CASCADE;`
-      );
+      try {
+        await global.prisma.$executeRawUnsafe(
+          `TRUNCATE TABLE "${table}" CASCADE;`
+        );
+      } catch (error) {
+        // Table might not exist yet (e.g., analytics tables before migration)
+        console.warn(`Could not truncate table ${table}:`, (error as Error).message);
+      }
     }
   },
 

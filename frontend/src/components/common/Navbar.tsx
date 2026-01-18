@@ -43,6 +43,12 @@ const Navbar: React.FC = () => {
                   </Link>
                 )}
 
+                {(user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') && (
+                  <Link to="/admin/dashboard" className="text-gray-700 hover:text-blue-600">
+                    Admin Dashboard
+                  </Link>
+                )}
+
                 <Link to="/profile" className="text-gray-700 hover:text-blue-600">
                   Profile
                 </Link>

@@ -18,6 +18,7 @@ export const securityHeaders = helmet({
       connectSrc: ["'self'", 'https://api.razorpay.com'],
       frameSrc: ["'self'", 'https://api.razorpay.com'],
       objectSrc: ["'none'"],
+      reportUri: '/api/csp-report', // CSP violation reporting endpoint
       upgradeInsecureRequests: env.NODE_ENV === 'production' ? [] : null,
     },
   },

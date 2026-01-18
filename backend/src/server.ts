@@ -8,6 +8,7 @@ import { correlationIdMiddleware, httpLogger } from './middleware/httpLogger';
 import { metricsTracker } from './middleware/metricsTracker';
 import { MetricsService } from './services/metrics.service';
 import { LoggerService } from './services/logger.service';
+import { JobSchedulerService } from './services/job-scheduler.service';
 import { sendSuccess } from './utils';
 
 // Initialize Express app
@@ -75,6 +76,12 @@ const startServer = async (): Promise<void> => {
     // Connect to database
     await connectDatabase();
 
+    // Initialize job scheduler
+    await JobSchedulerService.initializeQueues();
+    await JobSchedulerService.scheduleDailyAggregation();
+    LoggerService.info('Job scheduler initialized');
+    console.log('⚙️  Job scheduler initialized (daily aggregation at midnight)');
+
     // Start listening
     httpServer.listen(env.PORT, () => {
       LoggerService.info('Server started successfully', {
@@ -105,6 +112,11 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
   console.log(`\n${signal} received. Starting graceful shutdown...`);
 
   try {
+    // Shutdown job scheduler
+    await JobSchedulerService.shutdown();
+    LoggerService.info('Job scheduler shut down');
+    console.log('⚙️  Job scheduler shut down');
+
     // Close Socket.IO connections
     io.close(() => {
       LoggerService.info('Socket.IO connections closed');

@@ -16,6 +16,11 @@ import ClientDashboard from './pages/client/ClientDashboard';
 import CADashboard from './pages/ca/CADashboard';
 import CAListing from './pages/cas/CAListing';
 
+// Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
+import SecurityDashboard from './pages/admin/SecurityDashboard';
+import SecurityScanDetails from './pages/admin/SecurityScanDetails';
+
 function App() {
   return (
     <Router>
@@ -45,6 +50,32 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['CA']}>
                 <CADashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Admin Routes */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/security"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <SecurityDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/security/scans/:scanId"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <SecurityScanDetails />
               </ProtectedRoute>
             }
           />

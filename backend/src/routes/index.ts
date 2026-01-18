@@ -11,6 +11,12 @@ import availabilityRoutes from './availability.routes';
 import adminRoutes from './admin.routes';
 import monitoringRoutes from './monitoring.routes';
 import errorManagementRoutes from './error-management.routes';
+import securityAuditRoutes from './security-audit.routes';
+import analyticsRoutes from './analytics.routes';
+import reportsRoutes from './reports.routes';
+import experimentsRoutes from './experiments.routes';
+import featureFlagsRoutes from './feature-flags.routes';
+import { handleCspReport } from '../controllers/csp-report.controller';
 import { prisma } from '../config';
 import { asyncHandler, authenticate, authorize } from '../middleware';
 import { sendSuccess, sendError, parsePaginationParams, createPaginationResponse } from '../utils';
@@ -161,4 +167,24 @@ export const registerRoutes = (app: Express): void => {
 
   // Error management routes (admin only)
   app.use('/api/error-management', errorManagementRoutes);
+
+  // Security audit routes (admin only)
+  app.use('/api/admin/security', securityAuditRoutes);
+
+  // Analytics routes (admin only)
+  app.use('/api/admin/analytics', analyticsRoutes);
+
+  // Reports routes (admin only)
+  app.use('/api/admin/reports', reportsRoutes);
+
+  // Experiments routes (admin for management, public for variant assignment)
+  app.use('/api/admin/experiments', experimentsRoutes);
+  app.use('/api/experiments', experimentsRoutes);
+
+  // Feature flags routes (admin for management, public for checking)
+  app.use('/api/admin/feature-flags', featureFlagsRoutes);
+  app.use('/api/feature-flags', featureFlagsRoutes);
+
+  // CSP report endpoint (public - called by browsers)
+  app.post('/api/csp-report', handleCspReport);
 };

@@ -10,6 +10,9 @@ module.exports = {
     '^.+\\.ts$': ['ts-jest', {
       isolatedModules: true,
     }],
+    '^.+\\.js$': ['ts-jest', {
+      isolatedModules: true,
+    }],
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -33,6 +36,9 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@tests/(.*)$': '<rootDir>/tests/$1',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!uuid)',
+  ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
   verbose: true,
