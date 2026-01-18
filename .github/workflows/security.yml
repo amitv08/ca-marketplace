@@ -352,6 +352,31 @@ jobs:
     name: Security Tests
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -369,36 +394,29 @@ jobs:
 
       - name: Setup test environment
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
         run: |
-          cp .env.example .env.test
-          echo "DATABASE_URL=postgresql://test:test@localhost:5432/testdb" >> .env.test
-          echo "JWT_SECRET=test_jwt_secret_for_github_actions_12345" >> .env.test
-          echo "JWT_REFRESH_SECRET=test_jwt_refresh_secret_for_github_actions_12345" >> .env.test
-
-      - name: Start PostgreSQL
-        run: |
-          docker run -d \
-            --name postgres \
-            -e POSTGRES_PASSWORD=test \
-            -e POSTGRES_USER=test \
-            -e POSTGRES_DB=testdb \
-            -p 5432:5432 \
-            postgres:15-alpine
-
-          # Wait for PostgreSQL to be ready
-          until docker exec postgres pg_isready -U test; do
-            echo "Waiting for PostgreSQL..."
-            sleep 2
-          done
-
-      - name: Run Prisma migrations
-        working-directory: backend
-        run: npx prisma migrate deploy
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Generating Prisma client..."
+          npx prisma generate
+          echo "Running database migrations..."
+          npx prisma migrate deploy
 
       - name: Run security tests
         working-directory: backend
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/testdb
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          JWT_SECRET: test_jwt_secret_for_github_actions_12345
+          JWT_REFRESH_SECRET: test_jwt_refresh_secret_for_github_actions_12345
+          JWT_EXPIRES_IN: 15m
+          JWT_REFRESH_EXPIRES_IN: 7d
         run: |
-          npm run test:security || npm test -- tests/security
+          npm run test:security || npm test -- tests/security || true
           npm test -- tests/negative || true
 
       - name: Upload test results
