@@ -358,7 +358,7 @@ jobs:
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
-          POSTGRES_DB: testdb
+          POSTGRES_DB: ca_marketplace_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -395,7 +395,7 @@ jobs:
       - name: Setup test environment
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/testdb
+          DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         run: |
@@ -408,7 +408,7 @@ jobs:
       - name: Run security tests
         working-directory: backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/testdb
+          DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
           JWT_SECRET: test_jwt_secret_for_github_actions_12345
