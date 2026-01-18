@@ -94,3 +94,18 @@ export const testAuthHeaders = {
   client1: () => ({ Authorization: `Bearer ${testTokens.client1()}` }),
   client2: () => ({ Authorization: `Bearer ${testTokens.client2()}` }),
 };
+
+/**
+ * Helper functions for getting tokens (async for consistency with other test utils)
+ */
+export async function getAdminToken(): Promise<string> {
+  return testTokens.admin();
+}
+
+export async function getClientToken(): Promise<string> {
+  return testTokens.client1();
+}
+
+export async function getCAToken(): Promise<string> {
+  return testTokens.ca1();
+}
