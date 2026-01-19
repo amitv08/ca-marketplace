@@ -109,7 +109,6 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
   };
 
   const ChartComponent = chartType === 'area' ? AreaChart : LineChart;
-  const DataComponent = chartType === 'area' ? Area : Line;
 
   return (
     <div className="w-full">
@@ -196,38 +195,72 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({
           />
           <Tooltip content={<CustomTooltip />} />
 
-          {showMetrics.totalRevenue && (
-            <DataComponent
-              type="monotone"
-              dataKey="totalRevenue"
-              name="Total Revenue"
-              stroke="#2563EB"
-              fill="#3B82F6"
-              fillOpacity={chartType === 'area' ? 0.3 : undefined}
-              strokeWidth={2}
-            />
-          )}
-          {showMetrics.platformFees && (
-            <DataComponent
-              type="monotone"
-              dataKey="platformFees"
-              name="Platform Fees"
-              stroke="#059669"
-              fill="#10B981"
-              fillOpacity={chartType === 'area' ? 0.3 : undefined}
-              strokeWidth={2}
-            />
-          )}
-          {showMetrics.caPayout && (
-            <DataComponent
-              type="monotone"
-              dataKey="caPayout"
-              name="CA Payout"
-              stroke="#7C3AED"
-              fill="#8B5CF6"
-              fillOpacity={chartType === 'area' ? 0.3 : undefined}
-              strokeWidth={2}
-            />
+          {chartType === 'area' ? (
+            <>
+              {showMetrics.totalRevenue && (
+                <Area
+                  type="monotone"
+                  dataKey="totalRevenue"
+                  name="Total Revenue"
+                  stroke="#2563EB"
+                  fill="#3B82F6"
+                  fillOpacity={0.3}
+                  strokeWidth={2}
+                />
+              )}
+              {showMetrics.platformFees && (
+                <Area
+                  type="monotone"
+                  dataKey="platformFees"
+                  name="Platform Fees"
+                  stroke="#059669"
+                  fill="#10B981"
+                  fillOpacity={0.3}
+                  strokeWidth={2}
+                />
+              )}
+              {showMetrics.caPayout && (
+                <Area
+                  type="monotone"
+                  dataKey="caPayout"
+                  name="CA Payout"
+                  stroke="#7C3AED"
+                  fill="#8B5CF6"
+                  fillOpacity={0.3}
+                  strokeWidth={2}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {showMetrics.totalRevenue && (
+                <Line
+                  type="monotone"
+                  dataKey="totalRevenue"
+                  name="Total Revenue"
+                  stroke="#2563EB"
+                  strokeWidth={2}
+                />
+              )}
+              {showMetrics.platformFees && (
+                <Line
+                  type="monotone"
+                  dataKey="platformFees"
+                  name="Platform Fees"
+                  stroke="#059669"
+                  strokeWidth={2}
+                />
+              )}
+              {showMetrics.caPayout && (
+                <Line
+                  type="monotone"
+                  dataKey="caPayout"
+                  name="CA Payout"
+                  stroke="#7C3AED"
+                  strokeWidth={2}
+                />
+              )}
+            </>
           )}
         </ChartComponent>
       </ResponsiveContainer>

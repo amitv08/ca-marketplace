@@ -35,10 +35,10 @@ const AdminDashboard: React.FC = () => {
       color: 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200',
     },
     {
-      title: 'Platform Statistics',
-      description: 'View analytics and platform metrics',
+      title: 'Analytics Dashboard',
+      description: 'View analytics, metrics, and business insights',
       icon: '📊',
-      path: '/admin/stats',
+      path: '/admin/analytics',
       color: 'bg-purple-50 hover:bg-purple-100 border-purple-200',
     },
     {

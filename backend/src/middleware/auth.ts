@@ -75,6 +75,11 @@ export const authorize = (...allowedRoles: string[]) => {
       return next(new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId));
     }
 
+    // SUPER_ADMIN has access to all routes, including ADMIN routes
+    if (req.user.role === 'SUPER_ADMIN') {
+      return next();
+    }
+
     if (!allowedRoles.includes(req.user.role)) {
       return next(new AuthorizationError('Insufficient permissions', (req as any).correlationId));
     }

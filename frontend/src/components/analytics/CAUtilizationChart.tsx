@@ -195,7 +195,7 @@ export const CAUtilizationChart: React.FC<CAUtilizationChartProps> = ({
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-red-600"></div>
-          <span className="text-sm text-gray-600">Low (<40%)</span>
+          <span className="text-sm text-gray-600">Low (&lt;40%)</span>
         </div>
       </div>
 

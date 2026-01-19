@@ -20,6 +20,14 @@ import CAListing from './pages/cas/CAListing';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import SecurityDashboard from './pages/admin/SecurityDashboard';
 import SecurityScanDetails from './pages/admin/SecurityScanDetails';
+import AnalyticsDashboard from './pages/admin/AnalyticsDashboard';
+import ReportsPage from './pages/admin/ReportsPage';
+import ExperimentsPage from './pages/admin/ExperimentsPage';
+import FeatureFlagsPage from './pages/admin/FeatureFlagsPage';
+import UserManagement from './pages/admin/UserManagement';
+import CAVerification from './pages/admin/CAVerification';
+import PaymentManagement from './pages/admin/PaymentManagement';
+import ServiceRequestsManagement from './pages/admin/ServiceRequestsManagement';
 
 function App() {
   return (
@@ -76,6 +84,70 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
                 <SecurityScanDetails />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <AnalyticsDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <ReportsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/experiments"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <ExperimentsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/feature-flags"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <FeatureFlagsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/ca-verification"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <CAVerification />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/payments"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <PaymentManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/requests"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <ServiceRequestsManagement />
               </ProtectedRoute>
             }
           />

@@ -48,7 +48,7 @@ export const env: EnvConfig = {
   JWT_EXPIRES_IN: getEnvVariable('JWT_EXPIRES_IN', '15m'),
   JWT_REFRESH_SECRET: getEnvVariable('JWT_REFRESH_SECRET', getEnvVariable('JWT_SECRET') + '_refresh'),
   JWT_REFRESH_EXPIRES_IN: getEnvVariable('JWT_REFRESH_EXPIRES_IN', '7d'),
-  CORS_ORIGIN: getEnvVariable('CORS_ORIGIN', 'http://localhost:3000'),
+  CORS_ORIGIN: getEnvVariable('CORS_ORIGIN', 'http://localhost:3001'),
   APP_URL: getEnvVariable('APP_URL', 'http://localhost:8081'),
   RAZORPAY_KEY_ID: getEnvVariable('RAZORPAY_KEY_ID', 'test_key_id'),
   RAZORPAY_KEY_SECRET: getEnvVariable('RAZORPAY_KEY_SECRET', 'test_key_secret'),
