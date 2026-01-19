@@ -90,7 +90,7 @@ export class ExperimentService {
         name: data.name,
         description: data.description,
         status: ExperimentStatus.DRAFT,
-        variants: data.variants,
+        variants: data.variants as any,
         targetSegment: data.targetSegment,
       },
     });
@@ -132,7 +132,7 @@ export class ExperimentService {
 
     return await prisma.experiment.update({
       where: { key: experimentKey },
-      data: updates,
+      data: updates as any,
     });
   }
 
@@ -213,7 +213,7 @@ export class ExperimentService {
 
     // Validate winning variant
     if (winningVariantId) {
-      const variants = experiment.variants as ExperimentVariant[];
+      const variants = experiment.variants as unknown as ExperimentVariant[];
       const validVariant = variants.some((v) => v.id === winningVariantId);
 
       if (!validVariant) {
@@ -279,7 +279,7 @@ export class ExperimentService {
       throw new Error(`Experiment ${experimentKey} is not running (status: ${experiment.status})`);
     }
 
-    const variants = experiment.variants as ExperimentVariant[];
+    const variants = experiment.variants as unknown as ExperimentVariant[];
 
     // Use consistent hashing to assign variant
     const variantId = this.hashUserToVariant(userId, experimentKey, variants);
@@ -314,7 +314,7 @@ export class ExperimentService {
       throw new Error(`Experiment ${experimentKey} not found`);
     }
 
-    const variants = experiment.variants as ExperimentVariant[];
+    const variants = experiment.variants as unknown as ExperimentVariant[];
 
     // Calculate metrics for each variant
     const variantMetrics: VariantMetrics[] = await Promise.all(
