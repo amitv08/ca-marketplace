@@ -48,6 +48,13 @@ const AdminDashboard: React.FC = () => {
       path: '/admin/requests',
       color: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200',
     },
+    {
+      title: 'CA Firms Management',
+      description: 'Manage CA firms, memberships, and verification',
+      icon: '🏢',
+      path: '/admin/firms',
+      color: 'bg-teal-50 hover:bg-teal-100 border-teal-200',
+    },
   ];
 
   return (

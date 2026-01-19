@@ -28,6 +28,8 @@ import UserManagement from './pages/admin/UserManagement';
 import CAVerification from './pages/admin/CAVerification';
 import PaymentManagement from './pages/admin/PaymentManagement';
 import ServiceRequestsManagement from './pages/admin/ServiceRequestsManagement';
+import FirmsListPage from './pages/admin/FirmsListPage';
+import FirmDetailsPage from './pages/admin/FirmDetailsPage';
 
 function App() {
   return (
@@ -148,6 +150,22 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
                 <ServiceRequestsManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/firms"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <FirmsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/firms/:firmId"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <FirmDetailsPage />
               </ProtectedRoute>
             }
           />
