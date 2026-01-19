@@ -270,9 +270,10 @@ model CharteredAccountant {
   availabilities  Availability[]
 
   // Firm relations
-  currentFirm             CAFirm?                  @relation("CurrentFirmCAs", fields: [currentFirmId], references: [id], onDelete: SetNull)
+  currentFirm             CAFirm?                   @relation("CurrentFirmCAs", fields: [currentFirmId], references: [id], onDelete: SetNull)
   firmMemberships         FirmMembership[] // Historical and current memberships
   independentWorkRequests IndependentWorkRequest[]
+  paymentDistributions    FirmPaymentDistribution[] // Payment distributions where CA received payment
 
   // Indexes
   @@index([userId])
@@ -742,6 +743,13 @@ model CAFirm {
   pincode            String?
   website            String?
 
+  // Firm Branding & Contact
+  logoUrl            String? // Firm logo URL
+  profileImage       String? // Firm profile/cover image
+  contactPersonName  String? // Primary contact person
+  contactPersonEmail String? // Contact person email
+  contactPersonPhone String? // Contact person phone
+
   // Firm Details
   firmType          FirmType
   status            FirmStatus            @default(DRAFT)
@@ -832,7 +840,7 @@ model FirmDocument {
   documentType FirmDocumentType
   documentUrl  String
   fileName     String?
-  fileSize     Int? // In bytes
+  fileSize     BigInt? // In bytes (supports files >2GB)
 
   // Verification
   isVerified        Boolean   @default(false)
@@ -976,14 +984,16 @@ model FirmPaymentDistribution {
   distributedAt DateTime?
 
   // Relations
-  firm    CAFirm  @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  firm    CAFirm              @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  payment Payment             @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  ca      CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Restrict)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([firmId])
   @@index([paymentId])
+  @@index([caId])
   @@index([isDistributed])
   @@index([firmId, isDistributed])
   @@index([distributedAt])
