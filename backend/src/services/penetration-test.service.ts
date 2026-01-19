@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
+import axios from 'axios';
 import { SecurityScanType, ScanStatus } from '@prisma/client';
 import { SecurityFinding, SecurityScanResult, SecuritySummary } from './security-audit.service';
 import { env } from '../config/env';
@@ -242,12 +242,13 @@ export class PenetrationTestService {
   static async testXssProtection(): Promise<TestResult[]> {
     const results: TestResult[] = [];
 
-    const xssPayloads = [
-      '<script>alert("XSS")</script>',
-      '<img src=x onerror=alert("XSS")>',
-      '<svg onload=alert("XSS")>',
-      'javascript:alert("XSS")',
-    ];
+    // XSS payloads for future testing
+    // const xssPayloads = [
+    //   '<script>alert("XSS")</script>',
+    //   '<img src=x onerror=alert("XSS")>',
+    //   '<svg onload=alert("XSS")>',
+    //   'javascript:alert("XSS")',
+    // ];
 
     // Test if CSP headers are present
     try {

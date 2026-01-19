@@ -12,6 +12,7 @@ interface EnvConfig {
   JWT_REFRESH_SECRET: string;
   JWT_REFRESH_EXPIRES_IN: string;
   CORS_ORIGIN: string;
+  APP_URL: string;
   RAZORPAY_KEY_ID: string;
   RAZORPAY_KEY_SECRET: string;
   RAZORPAY_WEBHOOK_SECRET: string;
@@ -48,6 +49,7 @@ export const env: EnvConfig = {
   JWT_REFRESH_SECRET: getEnvVariable('JWT_REFRESH_SECRET', getEnvVariable('JWT_SECRET') + '_refresh'),
   JWT_REFRESH_EXPIRES_IN: getEnvVariable('JWT_REFRESH_EXPIRES_IN', '7d'),
   CORS_ORIGIN: getEnvVariable('CORS_ORIGIN', 'http://localhost:3000'),
+  APP_URL: getEnvVariable('APP_URL', 'http://localhost:8081'),
   RAZORPAY_KEY_ID: getEnvVariable('RAZORPAY_KEY_ID', 'test_key_id'),
   RAZORPAY_KEY_SECRET: getEnvVariable('RAZORPAY_KEY_SECRET', 'test_key_secret'),
   RAZORPAY_WEBHOOK_SECRET: getEnvVariable('RAZORPAY_WEBHOOK_SECRET', 'test_webhook_secret'),

@@ -246,8 +246,8 @@ export class SecurityAuditService {
         where: { id: scanId },
         data: {
           status: ScanStatus.COMPLETED,
-          findings: allFindings,
-          summary,
+          findings: allFindings as any,
+          summary: summary as any,
           completedAt: new Date(),
           duration,
         },
@@ -277,8 +277,8 @@ export class SecurityAuditService {
         where: { id: scanId },
         data: {
           status: ScanStatus.FAILED,
-          findings: allFindings,
-          summary: this.calculateSummary(allFindings),
+          findings: allFindings as any,
+          summary: this.calculateSummary(allFindings) as any,
           completedAt: new Date(),
           duration,
           errorMessage: error.message,
