@@ -16,6 +16,13 @@ import analyticsRoutes from './analytics.routes';
 import reportsRoutes from './reports.routes';
 import experimentsRoutes from './experiments.routes';
 import featureFlagsRoutes from './feature-flags.routes';
+import firmRoutes from './firm.routes';
+import firmMembershipRoutes from './firm-membership.routes';
+import firmDocumentRoutes from './firm-document.routes';
+import firmAssignmentRoutes from './firm-assignment.routes';
+import firmPaymentRoutes from './firm-payment.routes';
+import independentWorkRoutes from './independent-work.routes';
+import firmReviewRoutes from './firm-review.routes';
 import { handleCspReport } from '../controllers/csp-report.controller';
 import { prisma } from '../config';
 import { asyncHandler, authenticate, authorize } from '../middleware';
@@ -184,6 +191,15 @@ export const registerRoutes = (app: Express): void => {
   // Feature flags routes (admin for management, public for checking)
   app.use('/api/admin/feature-flags', featureFlagsRoutes);
   app.use('/api/feature-flags', featureFlagsRoutes);
+
+  // CA Firms routes
+  app.use('/api/firms', firmRoutes);
+  app.use('/api/firm-memberships', firmMembershipRoutes);
+  app.use('/api/firm-documents', firmDocumentRoutes);
+  app.use('/api/firm-assignments', firmAssignmentRoutes);
+  app.use('/api/firm-payments', firmPaymentRoutes);
+  app.use('/api/independent-work-requests', independentWorkRoutes);
+  app.use('/api/firm-reviews', firmReviewRoutes);
 
   // CSP report endpoint (public - called by browsers)
   app.post('/api/csp-report', handleCspReport);
