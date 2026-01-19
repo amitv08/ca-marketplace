@@ -125,6 +125,79 @@ enum ScanStatus {
   FAILED
 }
 
+// CA Firms Enums
+enum FirmType {
+  SOLE_PROPRIETORSHIP
+  PARTNERSHIP
+  LLP
+  PRIVATE_LIMITED
+}
+
+enum FirmStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DISSOLVED
+}
+
+enum FirmVerificationLevel {
+  BASIC
+  VERIFIED
+  PREMIUM
+}
+
+enum FirmMemberRole {
+  FIRM_ADMIN
+  SENIOR_CA
+  JUNIOR_CA
+  SUPPORT_STAFF
+  CONSULTANT
+}
+
+enum MembershipType {
+  FULL_TIME
+  PART_TIME
+  CONTRACTOR
+}
+
+enum AssignmentPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AssignmentMethod {
+  AUTO
+  MANUAL
+  CLIENT_SPECIFIED
+}
+
+enum IndependentWorkStatus {
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum PaymentDistributionMethod {
+  DIRECT_TO_CA
+  VIA_FIRM
+}
+
+enum FirmDocumentType {
+  REGISTRATION_CERTIFICATE
+  PAN_CARD
+  GST_CERTIFICATE
+  PARTNERSHIP_DEED
+  MOA_AOA
+  CA_LICENSE
+  BANK_DETAILS
+  ADDRESS_PROOF
+  OTHER
+}
+
 // Models
 
 model User {
@@ -143,6 +216,7 @@ model User {
   charteredAccountant CharteredAccountant?
   sentMessages        Message[]            @relation("SentMessages")
   receivedMessages    Message[]            @relation("ReceivedMessages")
+  assignedRequests    ServiceRequest[]     @relation("AssignedRequests") // Requests they assigned to CAs
 
   // Indexes
   @@index([email])
@@ -157,13 +231,15 @@ model Client {
   companyName String?
   address     String?
   taxNumber   String?
-  documents   Json?   // Array of document URLs/metadata
+  documents   Json? // Array of document URLs/metadata
 
   // Relations
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  serviceRequests ServiceRequest[]
-  reviews         Review[]
-  payments        Payment[]
+  user                    User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceRequests         ServiceRequest[]
+  reviews                 Review[]
+  payments                Payment[]
+  firmReviews             FirmReview[] // Reviews for firms
+  independentWorkRequests IndependentWorkRequest[] // Requests related to independent work approvals
 
   @@index([userId])
 }
@@ -181,6 +257,11 @@ model CharteredAccountant {
   languages          String[] // Array of languages spoken
   availability       Json? // Store complex availability data
 
+  // Firm-related fields
+  currentFirmId               String? // Current active firm (nullable if independent)
+  isIndependentPractitioner   Boolean   @default(true) // Can work independently
+  independentWorkAllowedUntil DateTime? // Temporary permission expiry date
+
   // Relations
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceRequests ServiceRequest[]
@@ -188,22 +269,31 @@ model CharteredAccountant {
   payments        Payment[]
   availabilities  Availability[]
 
+  // Firm relations
+  currentFirm             CAFirm?                  @relation("CurrentFirmCAs", fields: [currentFirmId], references: [id], onDelete: SetNull)
+  firmMemberships         FirmMembership[] // Historical and current memberships
+  independentWorkRequests IndependentWorkRequest[]
+
   // Indexes
   @@index([userId])
   @@index([caLicenseNumber])
   @@index([verificationStatus])
   @@index([hourlyRate])
   @@index([experienceYears])
+  @@index([currentFirmId]) // Find CAs by firm
+  @@index([isIndependentPractitioner]) // Filter independent practitioners
   // Composite indexes for CA search and filtering
   @@index([verificationStatus, hourlyRate]) // Search verified CAs by price
   @@index([verificationStatus, experienceYears]) // Search verified CAs by experience
   @@index([verificationStatus, hourlyRate, experienceYears]) // Combined search filters
+  @@index([currentFirmId, isIndependentPractitioner]) // Firm CAs who can work independently
 }
 
 model ServiceRequest {
   id             String               @id @default(uuid())
   clientId       String
   caId           String?
+  firmId         String? // If request is assigned to a firm
   serviceType    ServiceType
   status         ServiceRequestStatus @default(PENDING)
   description    String               @db.Text
@@ -213,44 +303,57 @@ model ServiceRequest {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
-  // Relations
-  client Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  ca     CharteredAccountant? @relation(fields: [caId], references: [id], onDelete: SetNull)
+  // Assignment tracking
+  assignmentMethod    AssignmentMethod? // How the CA was assigned
+  assignedByUserId    String? // Who assigned it (for manual assignments)
+  autoAssignmentScore Int? // 0-100, quality of auto-match
 
-  messages Message[]
-  reviews  Review[]
-  payments Payment[]
+  // Relations
+  client     Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca         CharteredAccountant? @relation(fields: [caId], references: [id], onDelete: SetNull)
+  firm       CAFirm?              @relation(fields: [firmId], references: [id], onDelete: SetNull)
+  assignedBy User?                @relation("AssignedRequests", fields: [assignedByUserId], references: [id], onDelete: SetNull)
+
+  messages    Message[]
+  reviews     Review[]
+  payments    Payment[]
+  firmReviews FirmReview[]
 
   // Indexes
   @@index([clientId])
   @@index([caId])
+  @@index([firmId])
   @@index([status])
   @@index([createdAt])
   @@index([serviceType])
   @@index([deadline])
+  @@index([assignmentMethod])
+  @@index([assignedByUserId])
   // Composite indexes for efficient queries
   @@index([clientId, status, createdAt]) // Client's requests filtered by status
   @@index([caId, status, createdAt]) // CA's requests filtered by status
+  @@index([firmId, status, createdAt]) // Firm's requests filtered by status
   @@index([status, createdAt]) // All requests by status with pagination
   @@index([serviceType, status]) // Requests by type and status
   @@index([status, deadline]) // Pending requests sorted by deadline
+  @@index([firmId, assignmentMethod]) // Firm requests by assignment method
 }
 
 model Message {
-  id         String   @id @default(uuid())
-  senderId   String
-  receiverId String
-  requestId  String?
-  content    String   @db.Text
+  id          String   @id @default(uuid())
+  senderId    String
+  receiverId  String
+  requestId   String?
+  content     String   @db.Text
   attachments Json? // Array of attachment URLs/metadata
-  readStatus Boolean  @default(false)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  readStatus  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  sender  User            @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver User           @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
-  request ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  sender   User            @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User            @relation("ReceivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+  request  ServiceRequest? @relation(fields: [requestId], references: [id], onDelete: SetNull)
 
   // Indexes
   @@index([senderId])
@@ -294,32 +397,41 @@ model Review {
 }
 
 model Payment {
-  id                 String        @id @default(uuid())
-  clientId           String
-  caId               String
-  requestId          String
-  amount             Float
-  platformFee        Float?        // 10% platform commission
-  caAmount           Float?        // Amount to be paid to CA (90%)
-  status             PaymentStatus @default(PENDING)
-  paymentMethod      PaymentMethod
-  transactionId      String?       @unique
-  razorpayOrderId    String?       @unique
-  razorpayPaymentId  String?       @unique
-  razorpaySignature  String?
-  releasedToCA       Boolean       @default(false)
-  releasedAt         DateTime?
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                String        @id @default(uuid())
+  clientId          String
+  caId              String
+  requestId         String
+  amount            Float
+  platformFee       Float? // 10% platform commission
+  caAmount          Float? // Amount to be paid to CA (90%)
+  status            PaymentStatus @default(PENDING)
+  paymentMethod     PaymentMethod
+  transactionId     String?       @unique
+  razorpayOrderId   String?       @unique
+  razorpayPaymentId String?       @unique
+  razorpaySignature String?
+  releasedToCA      Boolean       @default(false)
+  releasedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  // Firm payment fields
+  firmId             String? // If payment goes through firm
+  firmAmount         Float? // Amount to be paid to firm
+  distributionMethod PaymentDistributionMethod @default(DIRECT_TO_CA)
+  firmDistributionId String? // Link to FirmPaymentDistribution record
 
   // Relations
-  client  Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  ca      CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
-  request ServiceRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  client           Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca               CharteredAccountant      @relation(fields: [caId], references: [id], onDelete: Cascade)
+  request          ServiceRequest           @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  firm             CAFirm?                  @relation(fields: [firmId], references: [id], onDelete: SetNull)
+  firmDistribution FirmPaymentDistribution? // One-to-one relation (defined on FirmPaymentDistribution side)
 
   // Indexes
   @@index([clientId])
   @@index([caId])
+  @@index([firmId])
   @@index([requestId])
   @@index([status])
   @@index([transactionId])
@@ -327,12 +439,16 @@ model Payment {
   @@index([razorpayPaymentId])
   @@index([releasedToCA])
   @@index([createdAt])
+  @@index([distributionMethod])
+  @@index([firmDistributionId])
   // Composite indexes for payment queries
   @@index([clientId, status, createdAt]) // Client's payments by status
   @@index([caId, status, createdAt]) // CA's earnings by status
+  @@index([firmId, status, createdAt]) // Firm's earnings by status
   @@index([status, releasedToCA]) // Admin: Payments to release
   @@index([caId, releasedToCA, createdAt]) // CA's pending earnings
   @@index([status, createdAt]) // All payments with pagination
+  @@index([firmId, distributionMethod]) // Firm payments by distribution method
 }
 
 model Availability {
@@ -380,18 +496,18 @@ model RolePermission {
 }
 
 model AuditLog {
-  id          String   @id @default(uuid())
-  userId      String?
-  userRole    UserRole?
-  action      String   // e.g., "CREATE_REQUEST", "VERIFY_CA", "RELEASE_PAYMENT"
-  resource    String   // e.g., "ServiceRequest", "CharteredAccountant", "Payment"
-  resourceId  String?
-  details     Json?    // Additional details about the action
-  ipAddress   String?
-  userAgent   String?
-  success     Boolean  @default(true)
-  errorMessage String? @db.Text
-  createdAt   DateTime @default(now())
+  id           String    @id @default(uuid())
+  userId       String?
+  userRole     UserRole?
+  action       String // e.g., "CREATE_REQUEST", "VERIFY_CA", "RELEASE_PAYMENT"
+  resource     String // e.g., "ServiceRequest", "CharteredAccountant", "Payment"
+  resourceId   String?
+  details      Json? // Additional details about the action
+  ipAddress    String?
+  userAgent    String?
+  success      Boolean   @default(true)
+  errorMessage String?   @db.Text
+  createdAt    DateTime  @default(now())
 
   @@index([userId])
   @@index([action])
@@ -404,13 +520,13 @@ model SecurityScan {
   id           String           @id @default(uuid())
   scanType     SecurityScanType
   status       ScanStatus       @default(RUNNING)
-  findings     Json             // Array of findings with severity
-  summary      Json             // {critical: 0, high: 2, medium: 5, low: 10}
+  findings     Json // Array of findings with severity
+  summary      Json // {critical: 0, high: 2, medium: 5, low: 10}
   startedAt    DateTime         @default(now())
   completedAt  DateTime?
-  triggeredBy  String?          // userId who triggered (null = automated)
+  triggeredBy  String? // userId who triggered (null = automated)
   environment  String           @default("production") // production, staging, test
-  duration     Int?             // Milliseconds
+  duration     Int? // Milliseconds
   errorMessage String?          @db.Text
 
   @@index([scanType])
@@ -469,13 +585,13 @@ enum ExecutionStatus {
 
 // 1. Analytics event tracking (time-series)
 model AnalyticsEvent {
-  id         String    @id @default(uuid())
-  eventType  String    // USER_REGISTRATION, REQUEST_CREATED, PAYMENT_COMPLETED, etc.
-  userId     String?
-  userRole   UserRole?
-  sessionId  String?
-  metadata   Json?     // Event-specific data
-  timestamp  DateTime  @default(now())
+  id        String    @id @default(uuid())
+  eventType String // USER_REGISTRATION, REQUEST_CREATED, PAYMENT_COMPLETED, etc.
+  userId    String?
+  userRole  UserRole?
+  sessionId String?
+  metadata  Json? // Event-specific data
+  timestamp DateTime  @default(now())
 
   @@index([eventType, timestamp])
   @@index([userId, timestamp])
@@ -501,20 +617,20 @@ model FeatureFlag {
 
 // 3. A/B testing experiments
 model Experiment {
-  id               String               @id @default(uuid())
-  key              String               @unique
-  name             String
-  description      String?              @db.Text
-  status           ExperimentStatus     @default(DRAFT)
-  variants         Json                 // [{id: "control", name: "Control", weight: 50}]
-  targetSegment    String?
-  startDate        DateTime?
-  endDate          DateTime?
-  winningVariant   String?
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
+  id             String           @id @default(uuid())
+  key            String           @unique
+  name           String
+  description    String?          @db.Text
+  status         ExperimentStatus @default(DRAFT)
+  variants       Json // [{id: "control", name: "Control", weight: 50}]
+  targetSegment  String?
+  startDate      DateTime?
+  endDate        DateTime?
+  winningVariant String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
-  assignments      ExperimentAssignment[]
+  assignments ExperimentAssignment[]
 
   @@index([key])
   @@index([status])
@@ -522,13 +638,13 @@ model Experiment {
 
 // 4. User assignments to experiment variants
 model ExperimentAssignment {
-  id           String     @id @default(uuid())
+  id           String   @id @default(uuid())
   experimentId String
   userId       String
   variantId    String
-  assignedAt   DateTime   @default(now())
+  assignedAt   DateTime @default(now())
 
-  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  experiment Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
 
   @@unique([experimentId, userId])
   @@index([experimentId])
@@ -540,7 +656,7 @@ model UserSegment {
   id          String   @id @default(uuid())
   name        String
   description String?  @db.Text
-  rules       Json     // {role: "CA", experienceYears: {gte: 5}}
+  rules       Json // {role: "CA", experienceYears: {gte: 5}}
   userIds     String[] // Cached (refreshed periodically)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -550,20 +666,20 @@ model UserSegment {
 
 // 6. Scheduled reports
 model ScheduledReport {
-  id             String            @id @default(uuid())
-  name           String
-  reportType     ReportType
-  schedule       String            // Cron expression
-  format         ReportFormat      @default(PDF)
-  recipients     String[]          // Email addresses
-  filters        Json?
-  enabled        Boolean           @default(true)
-  lastRunAt      DateTime?
-  nextRunAt      DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id         String       @id @default(uuid())
+  name       String
+  reportType ReportType
+  schedule   String // Cron expression
+  format     ReportFormat @default(PDF)
+  recipients String[] // Email addresses
+  filters    Json?
+  enabled    Boolean      @default(true)
+  lastRunAt  DateTime?
+  nextRunAt  DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
 
-  executions     ReportExecution[]
+  executions ReportExecution[]
 
   @@index([enabled, nextRunAt])
   @@index([reportType])
@@ -576,10 +692,10 @@ model ReportExecution {
   status       ExecutionStatus @default(PENDING)
   startedAt    DateTime        @default(now())
   completedAt  DateTime?
-  fileUrl      String?         // S3/CDN URL
+  fileUrl      String? // S3/CDN URL
   errorMessage String?         @db.Text
 
-  report       ScheduledReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  report ScheduledReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 
   @@index([reportId])
   @@index([status])
@@ -604,4 +720,294 @@ model DailyMetric {
 
   @@unique([date])
   @@index([date])
+}
+
+// ==========================================
+// CA FIRMS SYSTEM MODELS
+// ==========================================
+
+// 1. CA Firm - Main firm entity
+model CAFirm {
+  id                 String  @id @default(uuid())
+  firmName           String  @unique
+  registrationNumber String  @unique
+  gstin              String? @unique // GST Identification Number
+  pan                String? @unique // PAN card number
+  email              String  @unique
+  phone              String
+  address            String?
+  city               String?
+  state              String?
+  country            String  @default("India")
+  pincode            String?
+  website            String?
+
+  // Firm Details
+  firmType          FirmType
+  status            FirmStatus            @default(DRAFT)
+  verificationLevel FirmVerificationLevel @default(BASIC)
+  establishedYear   Int
+  specializations   Specialization[]
+  description       String?               @db.Text
+
+  // Configuration
+  allowIndependentWork  Boolean @default(false) // Allow CAs to work independently
+  autoAssignmentEnabled Boolean @default(true) // Enable auto-assignment of requests
+  minimumCARequired     Int     @default(2) // Minimum CAs to remain active
+
+  // Verification
+  verifiedAt        DateTime?
+  verifiedBy        String? // Admin userId who verified
+  verificationNotes String?   @db.Text
+
+  // Platform Fees
+  platformFeePercent Float @default(10.0) // Negotiable based on volume
+
+  // Relations
+  members                 FirmMembership[]
+  currentCAs              CharteredAccountant[]     @relation("CurrentFirmCAs") // CAs currently in firm
+  serviceRequests         ServiceRequest[]
+  payments                Payment[]
+  firmReviews             FirmReview[]
+  documents               FirmDocument[]
+  assignmentRules         FirmAssignmentRule[]
+  paymentDistributions    FirmPaymentDistribution[]
+  independentWorkRequests IndependentWorkRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes
+  @@index([firmName])
+  @@index([status])
+  @@index([verificationLevel])
+  @@index([city, state])
+  @@index([establishedYear])
+  @@index([status, verificationLevel])
+  @@index([registrationNumber])
+  @@index([gstin])
+  @@index([pan])
+}
+
+// 2. Firm Membership - Junction table for CA-Firm relationship
+model FirmMembership {
+  id             String         @id @default(uuid())
+  firmId         String
+  caId           String
+  role           FirmMemberRole @default(JUNIOR_CA)
+  membershipType MembershipType @default(FULL_TIME)
+
+  // Dates
+  joinDate DateTime  @default(now())
+  endDate  DateTime? // Null if currently active
+  isActive Boolean   @default(true)
+
+  // Permissions & Configuration
+  canWorkIndependently Boolean @default(false) // Based on firm policy
+  permissions          Json? // Custom permissions beyond role
+  commissionPercent    Float? // % of revenue this CA receives from firm work
+
+  // Relations
+  firm CAFirm              @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  ca   CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Constraints
+  @@unique([firmId, caId, isActive]) // CA can only have one active membership per firm
+  @@index([firmId])
+  @@index([caId])
+  @@index([isActive])
+  @@index([role])
+  @@index([membershipType])
+  @@index([firmId, isActive]) // Active members of a firm
+  @@index([caId, isActive]) // Active firms for a CA
+}
+
+// 3. Firm Document - Verification documents for firms
+model FirmDocument {
+  id           String           @id @default(uuid())
+  firmId       String
+  documentType FirmDocumentType
+  documentUrl  String
+  fileName     String?
+  fileSize     Int? // In bytes
+
+  // Verification
+  isVerified        Boolean   @default(false)
+  verifiedBy        String? // Admin userId
+  verifiedAt        DateTime?
+  verificationNotes String?   @db.Text
+
+  // Relations
+  firm CAFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([documentType])
+  @@index([isVerified])
+  @@index([firmId, documentType])
+}
+
+// 4. Firm Assignment Rule - Auto-assignment configuration
+model FirmAssignmentRule {
+  id       String             @id @default(uuid())
+  firmId   String
+  priority AssignmentPriority @default(MEDIUM)
+
+  // Assignment Configuration
+  autoAssign             Boolean @default(true)
+  maxWorkloadPercent     Int     @default(80) // % of capacity before stopping auto-assign
+  specializationRequired Boolean @default(true) // Match CA specialization to request
+
+  // Criteria
+  serviceTypes       ServiceType[] // Which service types this rule applies to
+  minExperienceYears Int? // Minimum experience required
+  preferredCAIds     String[] // Preferred CAs for this rule
+
+  // Relations
+  firm CAFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([priority])
+  @@index([autoAssign])
+  @@index([firmId, priority])
+}
+
+// 5. Independent Work Request - CA requests to work independently
+model IndependentWorkRequest {
+  id          String   @id @default(uuid())
+  caId        String
+  firmId      String
+  clientId    String // Client requesting the service
+  requestDate DateTime @default(now())
+
+  // Request Details
+  description      String      @db.Text
+  serviceType      ServiceType
+  estimatedHours   Float?
+  estimatedRevenue Float?
+
+  // Status & Approval
+  status                IndependentWorkStatus @default(PENDING_APPROVAL)
+  conflictCheckPassed   Boolean               @default(false) // Check if conflicts with firm work
+  firmCommissionPercent Float? // Commission firm takes if approved
+
+  // Approval Details
+  approvedBy      String? // Firm admin userId who approved/rejected
+  approvedAt      DateTime?
+  rejectionReason String?   @db.Text
+
+  // Relations
+  ca     CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
+  firm   CAFirm              @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  client Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([caId])
+  @@index([firmId])
+  @@index([clientId])
+  @@index([status])
+  @@index([requestDate])
+  @@index([caId, status])
+  @@index([firmId, status])
+  @@index([status, requestDate])
+}
+
+// 6. Firm Review - Client reviews for firms
+model FirmReview {
+  id        String  @id @default(uuid())
+  firmId    String
+  clientId  String
+  requestId String  @unique // Each request can have one firm review
+  rating    Int // 1-5 stars
+  comment   String? @db.Text
+
+  // Review aspects (optional detailed ratings)
+  professionalismRating Int? // 1-5
+  communicationRating   Int? // 1-5
+  timelinessRating      Int? // 1-5
+  valueForMoneyRating   Int? // 1-5
+
+  // Relations
+  firm    CAFirm         @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  client  Client         @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([clientId])
+  @@index([rating])
+  @@index([createdAt])
+  @@index([firmId, rating, createdAt]) // Firm reviews filtered by rating
+  @@index([firmId, createdAt]) // Recent reviews for firm
+}
+
+// 7. Firm Payment Distribution - Track how payments are split among firm members
+model FirmPaymentDistribution {
+  id        String @id @default(uuid())
+  paymentId String @unique // One distribution record per payment
+  firmId    String
+
+  // Distribution Breakdown
+  totalAmount   Float // Total payment amount
+  platformFee   Float // Platform's cut
+  firmRetention Float // Firm's cut
+  caAmount      Float // CA's cut
+  caId          String // CA who did the work
+
+  // Distribution percentages used
+  platformFeePercent    Float
+  firmCommissionPercent Float // % firm takes from CA's portion
+
+  // Status
+  isDistributed Boolean   @default(false)
+  distributedAt DateTime?
+
+  // Relations
+  firm    CAFirm  @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([paymentId])
+  @@index([isDistributed])
+  @@index([firmId, isDistributed])
+  @@index([distributedAt])
+}
+
+// 8. Link FirmMembership back to CAFirm for historical tracking
+model FirmMembershipHistory {
+  id           String          @id @default(uuid())
+  membershipId String // References FirmMembership
+  firmId       String
+  caId         String
+  action       String // JOINED, PROMOTED, ROLE_CHANGED, LEFT, REMOVED
+  previousRole FirmMemberRole?
+  newRole      FirmMemberRole?
+  changedBy    String? // userId who made the change
+  reason       String?         @db.Text
+  metadata     Json? // Additional context
+
+  createdAt DateTime @default(now())
+
+  @@index([membershipId])
+  @@index([firmId])
+  @@index([caId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([firmId, caId, createdAt]) // Membership history for a CA in a firm
 }
