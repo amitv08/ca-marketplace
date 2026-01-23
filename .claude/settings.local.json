@@ -49,7 +49,11 @@
       "Bash(docker-compose:*)",
       "Bash(docker run:*)",
       "Bash(docker logs:*)",
-      "Bash(docker rm:*)"
+      "Bash(docker rm:*)",
+      "Bash(grep:*)",
+      "Bash(docker restart:*)",
+      "Bash(./test-firm-registration.sh)",
+      "Bash(node -e:*)"
     ]
   }
 }

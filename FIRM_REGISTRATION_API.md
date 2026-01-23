@@ -43,8 +43,10 @@ DRAFT → PENDING_VERIFICATION → ACTIVE (or REJECTED)
 
 ### Base URL
 ```
-http://localhost:8080/api
+http://localhost:8081/api
 ```
+
+**Note**: Port 8081 is used as external port (mapped to internal port 5000) to avoid conflicts with other projects.
 
 ---
 
@@ -164,7 +166,7 @@ http://localhost:8080/api
 
 ## 3. View My Invitations
 
-**Endpoint**: `GET /api/firm-invitations/my-invitations`
+**Endpoint**: `GET /api/firm-invitations/invitations/my-invitations`
 
 **Description**: Get all invitations for authenticated CA
 
@@ -205,7 +207,7 @@ http://localhost:8080/api
 
 ## 4. Accept Invitation
 
-**Endpoint**: `POST /api/firm-invitations/:token/accept`
+**Endpoint**: `POST /api/firm-invitations/invitations/:token/accept`
 
 **Description**: Accept an invitation to join a firm
 
@@ -249,7 +251,7 @@ http://localhost:8080/api
 
 ## 5. Reject Invitation
 
-**Endpoint**: `POST /api/firm-invitations/:token/reject`
+**Endpoint**: `POST /api/firm-invitations/invitations/:token/reject`
 
 **Description**: Reject an invitation
 
@@ -582,7 +584,8 @@ POST /api/firms/{firmId}/invite-member
 ### Step 4: Member Accepts
 ```bash
 # CA 2 logs in and accepts
-POST /api/firm-invitations/{token}/accept
+# Note: Path includes "invitations" twice due to route mounting
+POST /api/firm-invitations/invitations/{token}/accept
 # Response: CA 2 now member of firm
 ```
 

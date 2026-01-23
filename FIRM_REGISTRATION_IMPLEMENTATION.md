@@ -284,8 +284,10 @@ docker-compose up -d
 
 2. **Verify backend is running**
 ```bash
-curl http://localhost:8080/api/health
+curl http://localhost:8081/api/health
 ```
+
+**Note**: Backend uses port 8081 externally (mapped to 5000 internally)
 
 3. **Run test script**
 ```bash

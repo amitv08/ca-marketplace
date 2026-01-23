@@ -5,7 +5,7 @@
 
 set -e  # Exit on error
 
-BASE_URL="http://localhost:8080/api"
+BASE_URL="http://localhost:8081/api"
 ADMIN_TOKEN=""
 CA1_TOKEN=""
 CA2_TOKEN=""

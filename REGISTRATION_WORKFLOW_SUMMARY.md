@@ -339,5 +339,7 @@ For detailed information:
 - Implementation: `FIRM_REGISTRATION_IMPLEMENTATION.md`
 - Test Script: `./test-firm-registration.sh`
 
-**Server**: http://localhost:8080/api
-**Health**: http://localhost:8080/api/health
+**Server**: http://localhost:8081/api
+**Health**: http://localhost:8081/api/health
+
+**Note**: Port 8081 is the external port (mapped to internal 5000 in Docker)
