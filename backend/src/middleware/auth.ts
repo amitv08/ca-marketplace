@@ -7,6 +7,8 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: string;
+  caId?: string; // CA ID (if user is a CA)
+  clientId?: string; // Client ID (if user is a client)
   iat?: number; // Issued at
   exp?: number; // Expires at
 }

@@ -58,7 +58,7 @@ export class FirmPaymentService {
 
     let platformFeePercent = this.DEFAULT_PLATFORM_FEE_PERCENT;
     let firmCommissionPercent = 0;
-    let distributionMethod = PaymentDistributionMethod.DIRECT_TO_CA;
+    let distributionMethod: PaymentDistributionMethod = PaymentDistributionMethod.DIRECT_TO_CA;
 
     // If firm is involved
     if (firmId) {

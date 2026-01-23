@@ -83,8 +83,8 @@ export class FirmAssignmentService {
     // Get all eligible CAs/firms
     const candidates = await this.findEligibleCandidates(
       request.serviceType,
-      request.city,
-      request.state,
+      (request as any).city || undefined,
+      (request as any).state || undefined,
       preferFirm
     );
 
@@ -94,7 +94,7 @@ export class FirmAssignmentService {
 
     // Score each candidate
     const scoredCandidates = await Promise.all(
-      candidates.map(candidate => this.scoreCandid ate(candidate, request))
+      candidates.map(candidate => this.scoreCandidate(candidate, request))
     );
 
     // Sort by score descending

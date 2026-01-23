@@ -79,11 +79,31 @@ router.post('/login', validateBody(loginSchema), asyncHandler(async (req: Reques
     return sendError(res, 'Invalid email or password', 401);
   }
 
+  // Get CA/Client ID for token
+  let caId: string | undefined;
+  let clientId: string | undefined;
+
+  if (user.role === 'CA') {
+    const ca = await prisma.charteredAccountant.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    caId = ca?.id;
+  } else if (user.role === 'CLIENT') {
+    const client = await prisma.client.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    clientId = client?.id;
+  }
+
   // Generate token
   const token = generateToken({
     userId: user.id,
     email: user.email,
     role: user.role,
+    caId,
+    clientId,
   });
 
   const userData = sanitizeUser(user);

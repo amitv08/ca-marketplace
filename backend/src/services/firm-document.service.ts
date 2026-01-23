@@ -46,11 +46,10 @@ export class FirmDocumentService {
 
   private static readonly OPTIONAL_DOCUMENTS: FirmDocumentType[] = [
     'ADDRESS_PROOF',
-    'BANK_STATEMENT',
-    'CA_CERTIFICATE',
+    'BANK_DETAILS',
+    'CA_LICENSE',
     'PARTNERSHIP_DEED',
-    'MOA',
-    'AOA',
+    'MOA_AOA',
     'OTHER',
   ];
 
@@ -94,8 +93,6 @@ export class FirmDocumentService {
         documentUrl: data.documentUrl,
         fileName: data.fileName,
         fileSize: data.fileSize,
-        mimeType: data.mimeType,
-        uploadedBy: data.uploadedByUserId,
         uploadedAt: new Date(),
         isVerified: false,
       },
@@ -181,7 +178,7 @@ export class FirmDocumentService {
    * Verify a document (Admin only)
    */
   static async verifyDocument(documentId: string, data: VerifyDocumentData) {
-    const document = await this.getDocumentById(documentId);
+    const document = await this.getDocumentById(documentId) as any;
 
     if (document.isVerified) {
       throw new Error('Document is already verified');
@@ -215,7 +212,7 @@ export class FirmDocumentService {
    * Reject a document (Admin only)
    */
   static async rejectDocument(documentId: string, verifiedBy: string, reason: string) {
-    const document = await this.getDocumentById(documentId);
+    const document = await this.getDocumentById(documentId) as any;
 
     const updated = await prisma.firmDocument.update({
       where: { id: documentId },
@@ -245,7 +242,7 @@ export class FirmDocumentService {
    * Delete a document
    */
   static async deleteDocument(documentId: string, deletedByUserId: string) {
-    const document = await this.getDocumentById(documentId);
+    const document = await this.getDocumentById(documentId) as any;
 
     // Don't allow deletion of verified documents
     if (document.isVerified) {
@@ -271,13 +268,13 @@ export class FirmDocumentService {
     verifiedDocuments: FirmDocumentType[];
     pendingVerification: FirmDocumentType[];
   }> {
-    const documents = await this.getFirmDocuments(firmId, true);
+    const documents = await this.getFirmDocuments(firmId, true) as any[];
 
     const verifiedTypes = new Set(
-      documents.filter(doc => doc.isVerified).map(doc => doc.documentType)
+      documents.filter((doc: any) => doc.isVerified).map((doc: any) => doc.documentType)
     );
 
-    const uploadedTypes = new Set(documents.map(doc => doc.documentType));
+    const uploadedTypes = new Set(documents.map((doc: any) => doc.documentType));
 
     const missingDocuments = this.REQUIRED_DOCUMENTS.filter(
       type => !uploadedTypes.has(type)
@@ -455,7 +452,7 @@ export class FirmDocumentService {
    * Get document verification status summary
    */
   static async getVerificationStatusSummary(firmId: string) {
-    const documents = await this.getFirmDocuments(firmId, true);
+    const documents = await this.getFirmDocuments(firmId, true) as any[];
 
     const summary = {
       requiredDocuments: {} as Record<string, { uploaded: boolean; verified: boolean }>,
@@ -464,18 +461,18 @@ export class FirmDocumentService {
 
     // Initialize required documents
     this.REQUIRED_DOCUMENTS.forEach(type => {
-      const doc = documents.find(d => d.documentType === type && d.isVerified);
+      const doc = documents.find((d: any) => d.documentType === type && d.isVerified);
       summary.requiredDocuments[type] = {
-        uploaded: documents.some(d => d.documentType === type),
+        uploaded: documents.some((d: any) => d.documentType === type),
         verified: !!doc,
       };
     });
 
     // Initialize optional documents
     this.OPTIONAL_DOCUMENTS.forEach(type => {
-      const hasDoc = documents.some(d => d.documentType === type);
+      const hasDoc = documents.some((d: any) => d.documentType === type);
       if (hasDoc) {
-        const doc = documents.find(d => d.documentType === type && d.isVerified);
+        const doc = documents.find((d: any) => d.documentType === type && d.isVerified);
         summary.optionalDocuments[type] = {
           uploaded: true,
           verified: !!doc,

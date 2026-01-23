@@ -833,6 +833,7 @@ model FirmMembership {
   // Permissions & Configuration
   canWorkIndependently Boolean @default(false) // Based on firm policy
   permissions          Json? // Custom permissions beyond role
+  responsibilities     String? @db.Text // Specific responsibilities and duties
   commissionPercent    Float? // % of revenue this CA receives from firm work
 
   // Relations
@@ -905,6 +906,9 @@ model FirmDocument {
   documentUrl  String
   fileName     String?
   fileSize     BigInt? // In bytes (supports files >2GB)
+
+  // Upload Info
+  uploadedAt DateTime @default(now()) // When document was uploaded
 
   // Verification
   isVerified        Boolean   @default(false)
@@ -1073,9 +1077,12 @@ model FirmMembershipHistory {
   previousRole FirmMemberRole?
   newRole      FirmMemberRole?
   changedBy    String? // userId who made the change
+  performedBy  String? // Alias for changedBy (for consistency with service)
   reason       String?         @db.Text
+  notes        String?         @db.Text // Additional notes about the action
   metadata     Json? // Additional context
 
+  timestamp DateTime @default(now()) // When the action occurred
   createdAt DateTime @default(now())
 
   @@index([membershipId])

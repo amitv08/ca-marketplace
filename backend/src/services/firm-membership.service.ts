@@ -161,6 +161,8 @@ export class FirmMembershipService {
       await prisma.firmMembershipHistory.create({
         data: {
           membershipId: membership.id,
+          firmId: membership.firmId,
+          caId: membership.caId,
           action: 'REACTIVATED',
           performedBy: data.addedByUserId,
           notes: 'Membership reactivated',
@@ -206,6 +208,8 @@ export class FirmMembershipService {
       await prisma.firmMembershipHistory.create({
         data: {
           membershipId: membership.id,
+          firmId: membership.firmId,
+          caId: membership.caId,
           action: 'JOINED',
           performedBy: data.addedByUserId,
           notes: `Added as ${data.role}`,
@@ -280,10 +284,12 @@ export class FirmMembershipService {
     await prisma.firmMembershipHistory.create({
       data: {
         membershipId,
+        firmId: membership.firmId,
+        caId: membership.caId,
         action: 'UPDATED',
         performedBy: updatedByUserId,
         notes: `Updated membership details`,
-        changeDetails: data,
+        metadata: data as any,
       },
     });
 
@@ -374,6 +380,8 @@ export class FirmMembershipService {
     await prisma.firmMembershipHistory.create({
       data: {
         membershipId,
+        firmId: membership.firmId,
+        caId: membership.caId,
         action: 'LEFT',
         performedBy: performedByUserId,
         notes: reason,
@@ -411,7 +419,7 @@ export class FirmMembershipService {
       where: {
         caId: membership.caId,
         firmId: membership.firmId,
-        status: { notIn: ['COMPLETED', 'CANCELLED', 'REJECTED'] },
+        status: { notIn: ['COMPLETED', 'CANCELLED'] },
       },
     });
 
@@ -444,6 +452,8 @@ export class FirmMembershipService {
     await prisma.firmMembershipHistory.create({
       data: {
         membershipId,
+        firmId: membership.firmId,
+        caId: membership.caId,
         action: 'REMOVED',
         performedBy: performedByUserId,
         notes: `Removed from firm. Reason: ${reason}`,
@@ -773,10 +783,14 @@ export class FirmMembershipService {
     await prisma.firmMembershipHistory.create({
       data: {
         membershipId,
+        firmId: membership.firmId,
+        caId: membership.caId,
         action: 'ROLE_CHANGED',
+        previousRole: membership.role,
+        newRole,
         performedBy: updatedByUserId,
         notes: notes || `Role changed to ${newRole}`,
-        changeDetails: { oldRole: membership.role, newRole },
+        metadata: { oldRole: membership.role, newRole } as any,
       },
     });
 
