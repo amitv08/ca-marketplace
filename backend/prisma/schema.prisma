@@ -211,6 +211,56 @@ enum PaymentDistributionMethod {
   VIA_FIRM
 }
 
+enum DistributionType {
+  ROLE_BASED
+  PROJECT_BASED
+  CUSTOM
+}
+
+enum WalletTransactionType {
+  PAYMENT_RECEIVED
+  COMMISSION_DEDUCTED
+  DISTRIBUTION_RECEIVED
+  WITHDRAWAL_REQUESTED
+  WITHDRAWAL_COMPLETED
+  BONUS_RECEIVED
+  REFUND_ISSUED
+  ADJUSTMENT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TaxType {
+  TDS_194J // Professional/Technical Services
+  TDS_194C // Contractor payments
+  GST_18 // 18% GST
+  GST_12 // 12% GST
+  INCOME_TAX
+}
+
+enum PayoutStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+}
+
+enum PayoutMethod {
+  BANK_TRANSFER
+  UPI
+  RTGS
+  NEFT
+  IMPS
+}
+
 enum FirmDocumentType {
   REGISTRATION_CERTIFICATE
   PAN_CARD
@@ -287,6 +337,17 @@ model CharteredAccountant {
   isIndependentPractitioner   Boolean   @default(true) // Can work independently
   independentWorkAllowedUntil DateTime? // Temporary permission expiry date
 
+  // Wallet & Financial
+  walletBalance      Float @default(0.0) // Current wallet balance
+  totalEarnings      Float @default(0.0) // Lifetime earnings
+  totalWithdrawals   Float @default(0.0) // Lifetime withdrawals
+  pendingPayouts     Float @default(0.0) // Requested but not completed
+
+  // Tax Information
+  panNumber          String? // PAN for TDS calculation
+  gstNumber          String? // GST number if registered
+  tdsExempt          Boolean @default(false) // TDS exemption status
+
   // Relations
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   serviceRequests ServiceRequest[]
@@ -303,6 +364,12 @@ model CharteredAccountant {
   // Invitation relations
   sentInvitations     FirmInvitation[] @relation("SentInvitations") // Invitations sent by this CA
   receivedInvitations FirmInvitation[] @relation("ReceivedInvitations") // Invitations received by this CA
+
+  // Wallet & Payout relations
+  walletTransactions WalletTransaction[] @relation("CAWalletTransactions")
+  payoutRequests     PayoutRequest[] @relation("CAPayoutRequests")
+  taxRecords         TaxRecord[] @relation("CATaxRecords")
+  distributionShares DistributionShare[] // CA's share in project distributions
 
   // Indexes
   @@index([userId])
@@ -344,10 +411,11 @@ model ServiceRequest {
   firm       CAFirm?              @relation(fields: [firmId], references: [id], onDelete: SetNull)
   assignedBy User?                @relation("AssignedRequests", fields: [assignedByUserId], references: [id], onDelete: SetNull)
 
-  messages    Message[]
-  reviews     Review[]
-  payments    Payment[]
-  firmReviews FirmReview[]
+  messages             Message[]
+  reviews              Review[]
+  payments             Payment[]
+  firmReviews          FirmReview[]
+  projectDistribution  ProjectDistribution? // Custom distribution setup
 
   // Indexes
   @@index([clientId])
@@ -825,19 +893,30 @@ model CAFirm {
   dissolutionReason String?  @db.Text // Reason for dissolution
 
   // Platform Fees
-  platformFeePercent Float @default(10.0) // Negotiable based on volume
+  platformFeePercent Float @default(15.0) // Firm platform fee (vs 10% for individuals)
+
+  // Wallet & Financial
+  walletBalance      Float @default(0.0) // Current firm wallet balance
+  escrowBalance      Float @default(0.0) // Amount in escrow (pending completion)
+  totalEarnings      Float @default(0.0) // Lifetime earnings
+  totalWithdrawals   Float @default(0.0) // Lifetime withdrawals
 
   // Relations
-  members                 FirmMembership[]
-  currentCAs              CharteredAccountant[]     @relation("CurrentFirmCAs") // CAs currently in firm
-  serviceRequests         ServiceRequest[]
-  payments                Payment[]
-  firmReviews             FirmReview[]
-  documents               FirmDocument[]
-  assignmentRules         FirmAssignmentRule[]
-  paymentDistributions    FirmPaymentDistribution[]
-  independentWorkRequests IndependentWorkRequest[]
-  invitations             FirmInvitation[] // Invitations sent by this firm
+  members                  FirmMembership[]
+  currentCAs               CharteredAccountant[]      @relation("CurrentFirmCAs") // CAs currently in firm
+  serviceRequests          ServiceRequest[]
+  payments                 Payment[]
+  firmReviews              FirmReview[]
+  documents                FirmDocument[]
+  assignmentRules          FirmAssignmentRule[]
+  paymentDistributions     FirmPaymentDistribution[]
+  independentWorkRequests  IndependentWorkRequest[]
+  invitations              FirmInvitation[] // Invitations sent by this firm
+  distributionTemplates    DistributionTemplate[] // Role-based distribution templates
+  projectDistributions     ProjectDistribution[] // Project-specific distributions
+  walletTransactions       WalletTransaction[] @relation("FirmWalletTransactions")
+  payoutRequests           PayoutRequest[] @relation("FirmPayoutRequests")
+  taxRecords               TaxRecord[] @relation("FirmTaxRecords")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1153,7 +1232,258 @@ model IndependentWorkPayment {
   @@index([platformPayoutStatus])
 }
 
-// 9. Link FirmMembership back to CAFirm for historical tracking
+// 9. Distribution Template - Role-based default distribution percentages
+model DistributionTemplate {
+  id     String         @id @default(uuid())
+  firmId String
+  role   FirmMemberRole
+
+  // Distribution Percentages
+  defaultPercentage Float // Default percentage for this role
+  minPercentage     Float // Minimum allowed percentage
+  maxPercentage     Float // Maximum allowed percentage
+
+  // Configuration
+  isActive Boolean @default(true)
+
+  // Relations
+  firm CAFirm @relation(fields: [firmId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([firmId, role]) // One template per role per firm
+  @@index([firmId])
+  @@index([role])
+  @@index([firmId, isActive])
+}
+
+// 10. Project Distribution - Custom distribution for specific projects
+model ProjectDistribution {
+  id        String           @id @default(uuid())
+  firmId    String
+  requestId String           @unique // ServiceRequest this applies to
+  type      DistributionType @default(PROJECT_BASED)
+
+  // Total Amounts
+  totalAmount         Float // Total payment for this project
+  platformCommission  Float // 15% platform fee
+  firmRetention       Float // Amount firm keeps
+  distributionAmount  Float // Amount to distribute to members
+  bonusPool           Float @default(0.0) // Performance bonuses
+
+  // Distribution Status
+  isApproved       Boolean   @default(false)
+  approvedAt       DateTime?
+  isDistributed    Boolean   @default(false)
+  distributedAt    DateTime?
+  requiresApproval Boolean   @default(true) // Requires all members to approve
+
+  // Performance Bonuses
+  earlyCompletionBonus Float @default(0.0) // Bonus for early completion
+  qualityBonus         Float @default(0.0) // Bonus for high ratings
+  referralBonus        Float @default(0.0) // Referral bonuses
+
+  // Relations
+  firm   CAFirm         @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  shares  DistributionShare[] // Individual member shares
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([requestId])
+  @@index([isApproved])
+  @@index([isDistributed])
+  @@index([firmId, isDistributed])
+}
+
+// 11. Distribution Share - Individual member's share in a project distribution
+model DistributionShare {
+  id             String @id @default(uuid())
+  distributionId String
+  caId           String
+
+  // Share Details
+  percentage     Float // % of distributionAmount
+  baseAmount     Float // Base distribution amount
+  bonusAmount    Float @default(0.0) // Performance bonus
+  totalAmount    Float // baseAmount + bonusAmount
+  contributionHours Float? // Actual hours contributed
+
+  // Approval
+  approvedByCA Boolean   @default(false) // CA approved this share
+  approvedAt   DateTime?
+  signature    String? // Digital signature/hash
+
+  // Relations
+  distribution ProjectDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  ca           CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([distributionId, caId]) // One share per CA per distribution
+  @@index([distributionId])
+  @@index([caId])
+  @@index([approvedByCA])
+}
+
+// 12. Wallet Transaction - Audit trail for all wallet transactions
+model WalletTransaction {
+  id            String                 @id @default(uuid())
+  type          WalletTransactionType
+  status        WalletTransactionStatus @default(PENDING)
+
+  // Owner (either firm or CA)
+  firmId        String?
+  caId          String?
+
+  // Transaction Details
+  amount            Float
+  balanceBefore     Float
+  balanceAfter      Float
+  description       String
+  referenceType     String? // Payment, Payout, Distribution, etc.
+  referenceId       String? // ID of referenced entity
+
+  // Tax Information
+  tdsAmount         Float? @default(0.0)
+  tdsPercentage     Float? @default(0.0)
+  gstAmount         Float? @default(0.0)
+  gstPercentage     Float? @default(0.0)
+  netAmount         Float? // Amount after tax deductions
+
+  // Processing
+  processedAt       DateTime?
+  processedBy       String? // User ID who processed
+  failureReason     String? @db.Text
+
+  // Relations
+  firm CAFirm?              @relation("FirmWalletTransactions", fields: [firmId], references: [id], onDelete: Cascade)
+  ca   CharteredAccountant? @relation("CAWalletTransactions", fields: [caId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([caId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+  @@index([referenceType, referenceId])
+  @@index([firmId, type, createdAt])
+  @@index([caId, type, createdAt])
+}
+
+// 13. Payout Request - Withdrawal requests from firm or member wallets
+model PayoutRequest {
+  id     String       @id @default(uuid())
+  status PayoutStatus @default(REQUESTED)
+
+  // Requester (either firm or CA)
+  firmId String?
+  caId   String?
+
+  // Payout Details
+  amount         Float
+  payoutMethod   PayoutMethod
+  requestedAt    DateTime     @default(now())
+
+  // Bank/UPI Details
+  accountHolderName String
+  accountNumber     String?
+  ifscCode          String?
+  bankName          String?
+  upiId             String?
+
+  // Tax Deductions
+  tdsAmount      Float  @default(0.0)
+  tdsPercentage  Float  @default(0.0)
+  gstAmount      Float  @default(0.0)
+  gstPercentage  Float  @default(0.0)
+  netPayoutAmount Float // Amount after tax
+
+  // Processing
+  approvedAt        DateTime?
+  approvedBy        String? // Admin user ID
+  processedAt       DateTime?
+  completedAt       DateTime?
+  rejectedAt        DateTime?
+  rejectionReason   String? @db.Text
+  failureReason     String? @db.Text
+  transactionRef    String? // Bank/UPI transaction reference
+
+  // Relations
+  firm CAFirm?              @relation("FirmPayoutRequests", fields: [firmId], references: [id], onDelete: Cascade)
+  ca   CharteredAccountant? @relation("CAPayoutRequests", fields: [caId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([caId])
+  @@index([status])
+  @@index([requestedAt])
+  @@index([firmId, status])
+  @@index([caId, status])
+}
+
+// 14. Tax Record - TDS, GST, and other tax records
+model TaxRecord {
+  id       String  @id @default(uuid())
+  taxType  TaxType
+
+  // Tax Entity (either firm or CA)
+  firmId   String?
+  caId     String?
+
+  // Tax Period
+  financialYear String // FY 2025-26
+  quarter       String? // Q1, Q2, Q3, Q4
+  month         String? // For monthly GST
+
+  // Tax Details
+  taxableAmount  Float
+  taxRate        Float // Percentage
+  taxAmount      Float
+  totalAmount    Float // taxableAmount + taxAmount
+
+  // Tax Identifiers
+  panNumber      String?
+  gstNumber      String?
+  tan            String? // Tax Deduction Account Number
+
+  // Certificate Details
+  certificateNumber String?
+  certificateUrl    String? // S3/CDN URL for certificate PDF
+  certificateDate   DateTime?
+
+  // Payment Details
+  challanNumber  String?
+  challanDate    DateTime?
+  paymentStatus  String @default("PENDING") // PENDING, PAID, FILED
+  filedDate      DateTime?
+
+  // Relations
+  firm CAFirm?              @relation("FirmTaxRecords", fields: [firmId], references: [id], onDelete: Cascade)
+  ca   CharteredAccountant? @relation("CATaxRecords", fields: [caId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([firmId])
+  @@index([caId])
+  @@index([taxType])
+  @@index([financialYear])
+  @@index([quarter])
+  @@index([paymentStatus])
+  @@index([firmId, financialYear, quarter])
+  @@index([caId, financialYear, quarter])
+}
+
+// 15. Link FirmMembership back to CAFirm for historical tracking
 model FirmMembershipHistory {
   id           String          @id @default(uuid())
   membershipId String // References FirmMembership
