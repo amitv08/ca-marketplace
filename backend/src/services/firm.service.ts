@@ -1,4 +1,4 @@
-import { PrismaClient, FirmStatus, FirmVerificationLevel, FirmType } from '@prisma/client';
+import { PrismaClient, FirmStatus, FirmVerificationLevel, FirmType, CAFirm } from '@prisma/client';
 import { CacheService } from './cache.service';
 
 const prisma = new PrismaClient();
@@ -236,7 +236,7 @@ export class FirmService {
               },
             },
             documents: {
-              orderBy: { uploadedAt: 'desc' },
+              orderBy: { createdAt: 'desc' },
             },
             firmReviews: {
               take: 10,
@@ -406,7 +406,10 @@ export class FirmService {
    * Submit firm for verification
    */
   static async submitForVerification(firmId: string, requiredDocumentIds: string[]) {
-    const firm = await this.getFirmById(firmId, true);
+    const firm = await this.getFirmById(firmId, true) as CAFirm & {
+      members: any[];
+      documents: any[];
+    };
 
     // Validate status
     if (firm.status !== FirmStatus.DRAFT && firm.status !== FirmStatus.PENDING_VERIFICATION) {
@@ -475,7 +478,7 @@ export class FirmService {
     verifiedByUserId: string,
     notes?: string
   ) {
-    const firm = await this.getFirmById(firmId);
+    const firm = await this.getFirmById(firmId) as CAFirm;
 
     if (firm.status !== FirmStatus.PENDING_VERIFICATION) {
       throw new Error('Only firms pending verification can be approved');
@@ -502,7 +505,7 @@ export class FirmService {
    * Reject firm verification (Admin only)
    */
   static async rejectFirm(firmId: string, verifiedByUserId: string, reason: string) {
-    const firm = await this.getFirmById(firmId);
+    const firm = await this.getFirmById(firmId) as CAFirm;
 
     if (firm.status !== FirmStatus.PENDING_VERIFICATION) {
       throw new Error('Only firms pending verification can be rejected');
@@ -546,7 +549,7 @@ export class FirmService {
    * Reactivate suspended firm (Admin only)
    */
   static async reactivateFirm(firmId: string) {
-    const firm = await this.getFirmById(firmId);
+    const firm = await this.getFirmById(firmId) as CAFirm;
 
     if (firm.status !== FirmStatus.SUSPENDED) {
       throw new Error('Only suspended firms can be reactivated');
@@ -704,7 +707,7 @@ export class FirmService {
    * Check if firm can accept new requests
    */
   static async canAcceptRequests(firmId: string): Promise<boolean> {
-    const firm = await this.getFirmById(firmId);
+    const firm = await this.getFirmById(firmId) as CAFirm;
 
     // Must be active
     if (firm.status !== FirmStatus.ACTIVE) {

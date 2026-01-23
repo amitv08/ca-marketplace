@@ -161,6 +161,14 @@ enum MembershipType {
   CONTRACTOR
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
 enum AssignmentPriority {
   URGENT
   HIGH
@@ -274,6 +282,10 @@ model CharteredAccountant {
   firmMemberships         FirmMembership[] // Historical and current memberships
   independentWorkRequests IndependentWorkRequest[]
   paymentDistributions    FirmPaymentDistribution[] // Payment distributions where CA received payment
+
+  // Invitation relations
+  sentInvitations     FirmInvitation[] @relation("SentInvitations") // Invitations sent by this CA
+  receivedInvitations FirmInvitation[] @relation("ReceivedInvitations") // Invitations received by this CA
 
   // Indexes
   @@index([userId])
@@ -764,9 +776,16 @@ model CAFirm {
   minimumCARequired     Int     @default(2) // Minimum CAs to remain active
 
   // Verification
-  verifiedAt        DateTime?
-  verifiedBy        String? // Admin userId who verified
-  verificationNotes String?   @db.Text
+  verificationSubmittedAt DateTime? // When firm was submitted for verification
+  verifiedAt              DateTime?
+  verifiedBy              String? // Admin userId who verified
+  verificationNotes       String?   @db.Text
+
+  // Status Dates
+  suspendedAt      DateTime? // When firm was suspended
+  suspensionReason String?   @db.Text // Reason for suspension
+  dissolvedAt      DateTime? // When firm was dissolved
+  dissolutionReason String?  @db.Text // Reason for dissolution
 
   // Platform Fees
   platformFeePercent Float @default(10.0) // Negotiable based on volume
@@ -781,6 +800,7 @@ model CAFirm {
   assignmentRules         FirmAssignmentRule[]
   paymentDistributions    FirmPaymentDistribution[]
   independentWorkRequests IndependentWorkRequest[]
+  invitations             FirmInvitation[] // Invitations sent by this firm
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -831,6 +851,50 @@ model FirmMembership {
   @@index([membershipType])
   @@index([firmId, isActive]) // Active members of a firm
   @@index([caId, isActive]) // Active firms for a CA
+}
+
+// 2.5. Firm Invitation - Handles firm member invitations
+model FirmInvitation {
+  id          String               @id @default(uuid())
+  firmId      String
+  invitedById String // CA who sent the invitation (usually FIRM_ADMIN)
+
+  // Invited CA Details
+  caId        String? // If inviting existing CA on platform
+  email       String // Email address of invitee
+
+  // Invitation Details
+  role           FirmMemberRole @default(JUNIOR_CA)
+  membershipType MembershipType @default(FULL_TIME)
+  invitationToken String        @unique // Token for accepting invitation
+  message         String?        @db.Text // Optional message from inviter
+
+  // Status & Dates
+  status     InvitationStatus @default(PENDING)
+  sentAt     DateTime         @default(now())
+  expiresAt  DateTime // 7 days from sentAt
+  acceptedAt DateTime?
+  rejectedAt DateTime?
+
+  // Relations
+  firm        CAFirm              @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  invitedBy   CharteredAccountant @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+  ca          CharteredAccountant? @relation("ReceivedInvitations", fields: [caId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Indexes
+  @@index([firmId])
+  @@index([caId])
+  @@index([invitedById])
+  @@index([email])
+  @@index([status])
+  @@index([invitationToken])
+  @@index([expiresAt])
+  @@index([firmId, status]) // Pending invitations for a firm
+  @@index([caId, status]) // Pending invitations for a CA
+  @@index([email, status]) // Pending invitations for an email
 }
 
 // 3. Firm Document - Verification documents for firms
