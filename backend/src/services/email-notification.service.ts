@@ -254,6 +254,96 @@ export class EmailNotificationService {
           </p>
         `,
       }),
+      'independent-work-request-notification': (data) => ({
+        subject: `Independent Work Request from ${data.caName}`,
+        html: `
+          <h2>Independent Work Request</h2>
+          <p>Hello ${data.adminName},</p>
+          <p><strong>${data.caName}</strong> has requested permission to work independently for client <strong>${data.clientName}</strong>.</p>
+          <h3>Request Details:</h3>
+          <ul>
+            <li>Service Type: ${data.serviceType}</li>
+            <li>Estimated Hours: ${data.estimatedHours || 'Not specified'}</li>
+            <li>Estimated Revenue: ${data.estimatedRevenue ? '₹' + data.estimatedRevenue : 'Not specified'}</li>
+            <li>Description: ${data.description}</li>
+          </ul>
+          <h3>Conflict Analysis:</h3>
+          <p>Conflicts Detected: <strong>${data.hasConflicts ? 'Yes' : 'No'}</strong></p>
+          ${data.hasConflicts ? `
+            <ul>
+              ${data.conflicts.map((c: any) => `<li>[${c.severity}] ${c.description}</li>`).join('')}
+            </ul>
+          ` : ''}
+          <p>Recommendation: <strong>${data.recommendation}</strong></p>
+          <p>
+            <a href="${process.env.FRONTEND_URL}/firm/independent-work/${data.requestId}" style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+              Review Request
+            </a>
+          </p>
+        `,
+      }),
+      'independent-work-approved': (data) => ({
+        subject: 'Independent Work Request Approved',
+        html: `
+          <h2>Request Approved!</h2>
+          <p>Hello ${data.caName},</p>
+          <p>Your independent work request for client <strong>${data.clientName}</strong> has been approved by <strong>${data.firmName}</strong>.</p>
+          ${data.commissionPercent > 0 ? `
+            <p>Firm Commission: <strong>${data.commissionPercent}%</strong> of project revenue.</p>
+          ` : '<p>No commission required for this project.</p>'}
+          ${data.expiresAt ? `
+            <p>Permission valid until: <strong>${new Date(data.expiresAt).toLocaleDateString()}</strong></p>
+          ` : '<p>Permission: <strong>Permanent</strong> (until revoked)</p>'}
+          <p>You can now proceed with this independent engagement.</p>
+        `,
+      }),
+      'independent-work-rejected': (data) => ({
+        subject: 'Independent Work Request Rejected',
+        html: `
+          <h2>Request Rejected</h2>
+          <p>Hello ${data.caName},</p>
+          <p>Your independent work request for client <strong>${data.clientName}</strong> has been rejected by <strong>${data.firmName}</strong>.</p>
+          <h3>Reason:</h3>
+          <p>${data.reason}</p>
+          <p>If you have questions about this decision, please contact your firm administrator.</p>
+        `,
+      }),
+      'independent-work-permission-granted': (data) => ({
+        subject: 'Independent Work Permission Granted',
+        html: `
+          <h2>Permission Granted</h2>
+          <p>Hello ${data.caName},</p>
+          <p><strong>${data.firmName}</strong> has granted you permission to work independently.</p>
+          <p>Duration: <strong>${data.durationDays} days</strong></p>
+          <p>Valid until: <strong>${new Date(data.expiresAt).toLocaleDateString()}</strong></p>
+          <p>You can now accept independent work within this timeframe.</p>
+        `,
+      }),
+      'independent-work-permission-revoked': (data) => ({
+        subject: 'Independent Work Permission Revoked',
+        html: `
+          <h2>Permission Revoked</h2>
+          <p>Hello ${data.caName},</p>
+          <p>Your independent work permission with <strong>${data.firmName}</strong> has been revoked.</p>
+          <h3>Reason:</h3>
+          <p>${data.reason}</p>
+          <p>Please contact your firm administrator if you have questions.</p>
+        `,
+      }),
+      'independent-work-completed': (data) => ({
+        subject: 'Independent Work Completed',
+        html: `
+          <h2>Work Completed</h2>
+          <p>Hello ${data.adminName},</p>
+          <p><strong>${data.caName}</strong> has completed independent work for client <strong>${data.clientName}</strong>.</p>
+          <h3>Financial Summary:</h3>
+          <ul>
+            <li>Estimated Revenue: ₹${data.estimatedRevenue}</li>
+            <li>Firm Commission (${data.commissionPercent}%): ₹${data.commissionAmount}</li>
+          </ul>
+          <p>Please process the commission payment accordingly.</p>
+        `,
+      }),
     };
 
     const templateFn = templates[params.template];

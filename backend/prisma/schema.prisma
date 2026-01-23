@@ -187,6 +187,23 @@ enum IndependentWorkStatus {
   APPROVED
   REJECTED
   COMPLETED
+  CANCELLED
+  REVOKED
+}
+
+enum IndependentWorkPolicy {
+  NO_INDEPENDENT_WORK
+  LIMITED_WITH_APPROVAL
+  FULL_INDEPENDENT_WORK
+  CLIENT_RESTRICTIONS
+}
+
+enum ConflictLevel {
+  NO_CONFLICT
+  LOW_RISK
+  MEDIUM_RISK
+  HIGH_RISK
+  CRITICAL
 }
 
 enum PaymentDistributionMethod {
@@ -775,6 +792,26 @@ model CAFirm {
   autoAssignmentEnabled Boolean @default(true) // Enable auto-assignment of requests
   minimumCARequired     Int     @default(2) // Minimum CAs to remain active
 
+  // Independent Work Policy Configuration
+  independentWorkPolicy       IndependentWorkPolicy @default(NO_INDEPENDENT_WORK)
+  defaultCommissionPercent    Float                 @default(15.0) // Default commission % for independent work
+  autoApproveNonConflict      Boolean               @default(false) // Auto-approve requests with no conflicts
+
+  // Time Restrictions
+  allowWeekendsOnly       Boolean @default(false) // Only allow independent work on weekends
+  allowAfterHoursOnly     Boolean @default(false) // Only allow after business hours (6 PM - 9 AM)
+  maxIndependentHoursWeek Int?                    // Max hours per week for independent work
+
+  // Client Restrictions
+  restrictCurrentClients  Boolean @default(true) // Prevent work with firm's current clients
+  restrictPastClients     Boolean @default(false) // Prevent work with firm's past clients
+  clientCooldownDays      Int     @default(90) // Days after last engagement before allowed
+  restrictIndustryOverlap Boolean @default(false) // Flag same-industry conflicts
+
+  // Commission Boundaries
+  minCommissionPercent Float @default(0.0) // Minimum commission %
+  maxCommissionPercent Float @default(30.0) // Maximum commission %
+
   // Verification
   verificationSubmittedAt DateTime? // When firm was submitted for verification
   verifiedAt              DateTime?
@@ -980,10 +1017,23 @@ model IndependentWorkRequest {
   approvedAt      DateTime?
   rejectionReason String?   @db.Text
 
+  // Enhanced Approval Conditions
+  approvedConditions   Json? // Conditions attached to approval (e.g., time restrictions)
+  conflictLevel        ConflictLevel? // Result of conflict analysis
+  conflictDetails      Json? // Detailed conflict analysis results
+  manualReviewRequired Boolean        @default(false) // Flag for manual admin review
+
+  // Work Tracking
+  actualHoursWorked      Float? @default(0) // Actual hours spent on work
+  actualRevenue          Float? @default(0) // Actual revenue generated
+  firmCommissionPaid     Boolean @default(false) // Commission paid to firm
+  platformCommissionPaid Boolean @default(false) // Commission paid to platform
+
   // Relations
-  ca     CharteredAccountant @relation(fields: [caId], references: [id], onDelete: Cascade)
-  firm   CAFirm              @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  client Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca       CharteredAccountant        @relation(fields: [caId], references: [id], onDelete: Cascade)
+  firm     CAFirm                     @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  client   Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  payments IndependentWorkPayment[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -1067,7 +1117,43 @@ model FirmPaymentDistribution {
   @@index([distributedAt])
 }
 
-// 8. Link FirmMembership back to CAFirm for historical tracking
+// 8. Independent Work Payment - Track payments for independent work
+model IndependentWorkPayment {
+  id        String @id @default(uuid())
+  requestId String
+
+  // Financial Breakdown
+  totalRevenue           Float // Total revenue from the work
+  firmCommission         Float // Amount firm receives
+  platformCommission     Float // Amount platform receives
+  caNetEarnings          Float // Amount CA receives
+  firmCommissionPercent  Float // % commission for firm
+  platformCommissionPercent Float @default(10.0) // Platform takes 10%
+
+  // Payment Details
+  paymentDate   DateTime @default(now())
+  paymentMethod String // Method of payment received
+  notes         String?  @db.Text
+
+  // Payout Status
+  firmPayoutStatus     String @default("PENDING") // PENDING, PROCESSING, COMPLETED
+  caPayoutStatus       String @default("PENDING") // PENDING, PROCESSING, COMPLETED
+  platformPayoutStatus String @default("PENDING") // PENDING, PROCESSING, COMPLETED
+
+  // Relations
+  request IndependentWorkRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([paymentDate])
+  @@index([firmPayoutStatus])
+  @@index([caPayoutStatus])
+  @@index([platformPayoutStatus])
+}
+
+// 9. Link FirmMembership back to CAFirm for historical tracking
 model FirmMembershipHistory {
   id           String          @id @default(uuid())
   membershipId String // References FirmMembership

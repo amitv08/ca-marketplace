@@ -19,17 +19,17 @@ export interface CreateIndependentWorkRequestData {
   firmId: string;
   clientId: string;
   serviceType: string;
-  estimatedValue: number;
-  duration?: string;
-  justification: string;
+  estimatedRevenue: number;
+  estimatedHours?: number;
+  description: string;
   firmCommissionPercent?: number;
 }
 
 export interface ReviewIndependentWorkRequestData {
   requestId: string;
-  reviewedBy: string;
+  approvedBy: string;
   status: IndependentWorkStatus;
-  reviewNotes?: string;
+  rejectionReason?: string;
   approvedFirmCommission?: number;
 }
 
@@ -85,7 +85,7 @@ export class IndependentWorkService {
         caId: data.caId,
         firmId: data.firmId,
         clientId: data.clientId,
-        status: 'PENDING',
+        status: 'PENDING_APPROVAL',
       },
     });
 
@@ -111,11 +111,11 @@ export class IndependentWorkService {
         firmId: data.firmId,
         clientId: data.clientId,
         serviceType: data.serviceType as any,
-        estimatedValue: data.estimatedValue,
-        duration: data.duration,
-        justification: data.justification,
+        estimatedRevenue: data.estimatedRevenue,
+        estimatedHours: data.estimatedHours,
+        description: data.description,
         firmCommissionPercent,
-        status: IndependentWorkStatus.PENDING,
+        status: IndependentWorkStatus.PENDING_APPROVAL,
       },
       include: {
         ca: {
@@ -178,7 +178,7 @@ export class IndependentWorkService {
       throw new Error('Independent work request not found');
     }
 
-    if (request.status !== IndependentWorkStatus.PENDING) {
+    if (request.status !== IndependentWorkStatus.PENDING_APPROVAL) {
       throw new Error('Only pending requests can be reviewed');
     }
 
@@ -195,9 +195,9 @@ export class IndependentWorkService {
       where: { id: data.requestId },
       data: {
         status: data.status,
-        reviewedBy: data.reviewedBy,
-        reviewedAt: new Date(),
-        reviewNotes: data.reviewNotes,
+        approvedBy: data.approvedBy,
+        approvedAt: new Date(),
+        rejectionReason: data.rejectionReason,
         firmCommissionPercent: finalCommission,
       },
       include: {
@@ -430,7 +430,7 @@ export class IndependentWorkService {
       throw new Error('Only the requesting CA can cancel this request');
     }
 
-    if (request.status !== IndependentWorkStatus.PENDING) {
+    if (request.status !== IndependentWorkStatus.PENDING_APPROVAL) {
       throw new Error('Only pending requests can be cancelled');
     }
 
@@ -438,7 +438,7 @@ export class IndependentWorkService {
       where: { id: requestId },
       data: {
         status: IndependentWorkStatus.CANCELLED,
-        reviewNotes: reason || 'Cancelled by CA',
+        rejectionReason: reason || 'Cancelled by CA',
       },
       include: {
         ca: {
@@ -537,7 +537,7 @@ export class IndependentWorkService {
     const [total, pending, approved, rejected, cancelled] = await Promise.all([
       prisma.independentWorkRequest.count({ where }),
       prisma.independentWorkRequest.count({
-        where: { ...where, status: IndependentWorkStatus.PENDING },
+        where: { ...where, status: IndependentWorkStatus.PENDING_APPROVAL },
       }),
       prisma.independentWorkRequest.count({
         where: { ...where, status: IndependentWorkStatus.APPROVED },
@@ -569,7 +569,7 @@ export class IndependentWorkService {
     return await prisma.independentWorkRequest.count({
       where: {
         firmId,
-        status: IndependentWorkStatus.PENDING,
+        status: IndependentWorkStatus.PENDING_APPROVAL,
       },
     });
   }
@@ -609,7 +609,7 @@ export class IndependentWorkService {
     const updated = await prisma.independentWorkRequest.update({
       where: { id: requestId },
       data: {
-        reviewNotes: `${request.reviewNotes || ''}\n\nExtended by ${additionalDays} days on ${new Date().toISOString()}`,
+        rejectionReason: `${request.rejectionReason || ''}\n\nExtended by ${additionalDays} days on ${new Date().toISOString()}`,
       },
       include: {
         ca: {
@@ -653,7 +653,7 @@ export class IndependentWorkService {
       where: { id: requestId },
       data: {
         status: IndependentWorkStatus.REVOKED,
-        reviewNotes: `${request.reviewNotes || ''}\n\nREVOKED on ${new Date().toISOString()}: ${reason}`,
+        rejectionReason: `${request.rejectionReason || ''}\n\nREVOKED on ${new Date().toISOString()}: ${reason}`,
       },
       include: {
         ca: {

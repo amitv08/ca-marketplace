@@ -23,7 +23,7 @@ import firmDocumentRoutes from './firm-document.routes';
 import firmAssignmentRoutes from './firm-assignment.routes';
 import firmPaymentRoutes from './firm-payment.routes';
 import hybridAssignmentRoutes from './hybrid-assignment.routes';
-// import independentWorkRoutes from './independent-work.routes'; // TODO: Fix IndependentWorkStatus enum and schema
+import independentWorkRoutes from './independent-work.routes';
 // import firmReviewRoutes from './firm-review.routes'; // TODO: Fix FirmReview schema (review, isFlagged, flaggedAt fields)
 import { handleCspReport } from '../controllers/csp-report.controller';
 import { prisma } from '../config';
@@ -203,7 +203,7 @@ export const registerRoutes = (app: Express): void => {
   app.use('/api/firm-assignments', firmAssignmentRoutes);
   app.use('/api/firm-payments', firmPaymentRoutes);
   app.use('/api/assignments', hybridAssignmentRoutes); // Hybrid assignment system
-  // app.use('/api/independent-work-requests', independentWorkRoutes); // TODO: Fix schema
+  app.use('/api/independent-work-requests', independentWorkRoutes); // Independent work management
   // app.use('/api/firm-reviews', firmReviewRoutes); // TODO: Fix schema
 
   // CSP report endpoint (public - called by browsers)

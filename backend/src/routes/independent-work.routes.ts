@@ -17,10 +17,10 @@ router.post(
   authenticate,
   authorize('CA'),
   asyncHandler(async (req: Request, res: Response) => {
-    const { firmId, clientId, serviceType, estimatedValue, duration, justification, firmCommissionPercent } = req.body;
+    const { firmId, clientId, serviceType, estimatedRevenue, estimatedHours, description, firmCommissionPercent } = req.body;
 
-    if (!firmId || !clientId || !serviceType || !estimatedValue || !justification) {
-      return sendError(res, 'firmId, clientId, serviceType, estimatedValue, and justification are required', 400);
+    if (!firmId || !clientId || !serviceType || !estimatedRevenue || !description) {
+      return sendError(res, 'firmId, clientId, serviceType, estimatedRevenue, and description are required', 400);
     }
 
     // Get CA ID from authenticated user
@@ -34,9 +34,9 @@ router.post(
       firmId,
       clientId,
       serviceType,
-      estimatedValue: parseFloat(estimatedValue),
-      duration,
-      justification,
+      estimatedRevenue: parseFloat(estimatedRevenue),
+      estimatedHours: estimatedHours ? parseFloat(estimatedHours) : undefined,
+      description,
       firmCommissionPercent: firmCommissionPercent ? parseFloat(firmCommissionPercent) : undefined,
     };
 
@@ -113,7 +113,7 @@ router.post(
   authorize('ADMIN', 'SUPER_ADMIN'),
   asyncHandler(async (req: Request, res: Response) => {
     const { requestId } = req.params;
-    const { status, reviewNotes, approvedFirmCommission } = req.body;
+    const { status, rejectionReason, approvedFirmCommission } = req.body;
 
     if (!status) {
       return sendError(res, 'status is required (APPROVED, REJECTED, or REVOKED)', 400);
@@ -121,9 +121,9 @@ router.post(
 
     const data = {
       requestId,
-      reviewedBy: req.user!.userId,
+      approvedBy: req.user!.userId,
       status: status as IndependentWorkStatus,
-      reviewNotes,
+      rejectionReason,
       approvedFirmCommission: approvedFirmCommission ? parseFloat(approvedFirmCommission) : undefined,
     };
 
