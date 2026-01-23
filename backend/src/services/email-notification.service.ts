@@ -204,6 +204,77 @@ export class EmailNotificationService {
 
     return { sent: true, messageId: 'mock-' + Date.now() };
   }
+
+  /**
+   * Generic email sender for templates
+   */
+  static async sendEmail(params: {
+    to: string;
+    subject: string;
+    template: string;
+    data: any;
+  }) {
+    const templates: { [key: string]: (data: any) => { subject: string; html: string } } = {
+      'request-assigned-to-client': (data) => ({
+        subject: 'Your Service Request Has Been Assigned',
+        html: `
+          <h2>Request Assigned</h2>
+          <p>Hello ${data.clientName},</p>
+          <p>Your service request has been assigned to <strong>${data.caName}</strong> from <strong>${data.firmName}</strong>.</p>
+          <p>Assignment method: <strong>${data.method === 'AUTO' ? 'Automatic' : 'Manual'}</strong></p>
+          <p>You can contact your CA at: ${data.caEmail}</p>
+          <p>Request ID: ${data.requestId}</p>
+        `,
+      }),
+      'request-assigned-to-ca': (data) => ({
+        subject: 'New Service Request Assigned to You',
+        html: `
+          <h2>New Assignment</h2>
+          <p>Hello ${data.caName},</p>
+          <p>A new service request from <strong>${data.clientName}</strong> has been assigned to you.</p>
+          <p>Firm: <strong>${data.firmName}</strong></p>
+          <p>Assignment method: <strong>${data.method === 'AUTO' ? 'Automatic' : 'Manual'}</strong></p>
+          <p>Request ID: ${data.requestId}</p>
+          <p>Please review and respond to the client as soon as possible.</p>
+        `,
+      }),
+      'manual-assignment-required': (data) => ({
+        subject: `Manual Assignment Required - ${data.firmName}`,
+        html: `
+          <h2>Manual Assignment Required</h2>
+          <p>Hello ${data.adminName},</p>
+          <p>A service request requires manual assignment for <strong>${data.firmName}</strong>.</p>
+          <p>Request ID: ${data.requestId}</p>
+          <p>Reason: ${data.reason}</p>
+          <p>Please log in to the platform to manually assign this request to an available CA.</p>
+          <p>
+            <a href="${process.env.FRONTEND_URL}/firm/assignments/${data.requestId}" style="background-color: #2196F3; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+              Assign Request
+            </a>
+          </p>
+        `,
+      }),
+    };
+
+    const templateFn = templates[params.template];
+    if (!templateFn) {
+      console.warn(`⚠️  Unknown email template: ${params.template}`);
+      return { sent: false };
+    }
+
+    const { subject, html } = templateFn(params.data);
+
+    const emailData = {
+      to: params.to,
+      subject,
+      html,
+    };
+
+    // TODO: Replace with actual email sending
+    console.log(`📧 [EMAIL] ${params.template}:`, emailData);
+
+    return { sent: true, messageId: 'mock-' + Date.now() };
+  }
 }
 
 export default EmailNotificationService;
