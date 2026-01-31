@@ -73,6 +73,8 @@ export interface FirmFilters {
   searchQuery?: string; // Search by name, registration number
   minEstablishedYear?: number;
   maxEstablishedYear?: number;
+  myFirm?: boolean; // Filter to firms where the CA is a member
+  caUserId?: string; // CA user ID for myFirm filter
 }
 
 export interface FirmStats {
@@ -269,6 +271,32 @@ export class FirmService {
       throw new Error('Firm not found');
     }
 
+    // If including details, add assigned request counts for each member
+    if (includeDetails && (firm as any).members) {
+      const membersWithCounts = await Promise.all(
+        (firm as any).members.map(async (member: any) => {
+          const assignedRequestsCount = await prisma.serviceRequest.count({
+            where: {
+              caId: member.caId,
+              firmId: firmId,
+              status: {
+                notIn: ['COMPLETED', 'CANCELLED'],
+              },
+            },
+          });
+
+          return {
+            ...member,
+            _count: {
+              assignedRequests: assignedRequestsCount,
+            },
+          };
+        })
+      );
+
+      (firm as any).members = membersWithCounts;
+    }
+
     // Cache basic details
     if (!includeDetails) {
       await CacheService.set(cacheKey, firm, { ttl: this.CACHE_TTL });
@@ -327,6 +355,38 @@ export class FirmService {
         ...where.establishedYear,
         lte: filters.maxEstablishedYear,
       };
+    }
+
+    // Filter to only firms where the CA is a member
+    if (filters.myFirm && filters.caUserId) {
+      // First get the CA's ID from their user ID
+      const ca = await prisma.charteredAccountant.findUnique({
+        where: { userId: filters.caUserId },
+        select: { id: true },
+      });
+
+      if (ca) {
+        // Filter to firms where this CA is an active member
+        where.members = {
+          some: {
+            caId: ca.id,
+            isActive: true,
+          },
+        };
+      } else {
+        // CA not found, return no firms
+        return {
+          firms: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            totalPages: 0,
+            hasNext: false,
+            hasPrev: false,
+          },
+        };
+      }
     }
 
     const [firms, total] = await Promise.all([
@@ -720,6 +780,160 @@ export class FirmService {
     });
 
     return activeCAs >= firm.minimumCARequired;
+  }
+
+  /**
+   * Remove a member from the firm
+   * Transfers their assigned tasks to the firm admin
+   */
+  static async removeMember(
+    firmId: string,
+    membershipId: string,
+    adminUserId: string,
+    transferTasks: boolean = true
+  ) {
+    // Get the membership
+    const membership = await prisma.firmMembership.findUnique({
+      where: { id: membershipId },
+      include: {
+        firm: true,
+        ca: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    if (!membership) {
+      throw new Error('Membership not found');
+    }
+
+    if (membership.firmId !== firmId) {
+      throw new Error('Membership does not belong to this firm');
+    }
+
+    if (!membership.isActive) {
+      throw new Error('Membership is already inactive');
+    }
+
+    if (membership.role === 'FIRM_ADMIN') {
+      throw new Error('Cannot remove firm admin. Please transfer admin role first.');
+    }
+
+    // Check if requester is firm admin
+    const adminUser = await prisma.user.findUnique({
+      where: { id: adminUserId },
+      include: {
+        charteredAccountant: {
+          include: {
+            firmMemberships: {
+              where: {
+                firmId,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!adminUser || !adminUser.charteredAccountant) {
+      throw new Error('Admin user not found or not a CA');
+    }
+
+    const adminMembership = adminUser.charteredAccountant.firmMemberships.find(
+      (m) => m.firmId === firmId && m.role === 'FIRM_ADMIN'
+    );
+
+    if (!adminMembership) {
+      throw new Error('Only firm admins can remove members');
+    }
+
+    // Start a transaction to remove member and transfer tasks
+    const result = await prisma.$transaction(async (tx) => {
+      // Deactivate the membership
+      const updatedMembership = await tx.firmMembership.update({
+        where: { id: membershipId },
+        data: {
+          isActive: false,
+          endDate: new Date(),
+        },
+      });
+
+      // Update CA's currentFirmId to null
+      await tx.charteredAccountant.update({
+        where: { id: membership.caId },
+        data: {
+          currentFirmId: null,
+        },
+      });
+
+      // Transfer tasks if requested
+      let transferredRequestsCount = 0;
+      if (transferTasks) {
+        // Find all active service requests assigned to this CA for this firm
+        const assignedRequests = await tx.serviceRequest.findMany({
+          where: {
+            caId: membership.caId,
+            firmId: firmId,
+            status: {
+              notIn: ['COMPLETED', 'CANCELLED'],
+            },
+          },
+        });
+
+        // Transfer them to the firm admin's CA
+        if (assignedRequests.length > 0) {
+          await tx.serviceRequest.updateMany({
+            where: {
+              id: {
+                in: assignedRequests.map(r => r.id),
+              },
+            },
+            data: {
+              caId: adminUser.charteredAccountant!.id,
+              assignmentMethod: 'MANUAL',
+              assignedByUserId: adminUserId,
+            },
+          });
+
+          transferredRequestsCount = assignedRequests.length;
+        }
+      }
+
+      // Record the membership history
+      await tx.firmMembershipHistory.create({
+        data: {
+          membershipId: membership.id,
+          firmId: membership.firmId,
+          caId: membership.caId,
+          action: 'REMOVED',
+          previousRole: membership.role,
+          newRole: null,
+          changedBy: adminUserId,
+          performedBy: adminUserId,
+          reason: `Removed by firm admin`,
+          notes: transferTasks
+            ? `${transferredRequestsCount} tasks transferred to firm admin`
+            : 'No tasks transferred',
+        },
+      });
+
+      return {
+        membership: updatedMembership,
+        transferredRequestsCount,
+      };
+    });
+
+    // Invalidate caches
+    await this.invalidateFirmCache(firmId);
+
+    return {
+      success: true,
+      message: `Member removed successfully. ${result.transferredRequestsCount} tasks transferred.`,
+      transferredRequestsCount: result.transferredRequestsCount,
+    };
   }
 
   /**

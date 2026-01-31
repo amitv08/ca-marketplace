@@ -55,6 +55,13 @@ const AdminDashboard: React.FC = () => {
       path: '/admin/firms',
       color: 'bg-teal-50 hover:bg-teal-100 border-teal-200',
     },
+    {
+      title: 'Firm Analytics Dashboard',
+      description: 'Monitor firm health, compliance, revenue, and conflicts',
+      icon: '📈',
+      path: '/admin/firm-analytics',
+      color: 'bg-pink-50 hover:bg-pink-100 border-pink-200',
+    },
   ];
 
   return (

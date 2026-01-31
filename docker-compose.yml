@@ -61,6 +61,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
+      - CLAMAV_ENABLED=true
+      - CLAMAV_HOST=localhost
+      - CLAMAV_PORT=3310
+      - MAX_SCAN_FILE_SIZE=104857600
     volumes:
       - ./backend:/app
       - /app/node_modules

@@ -122,7 +122,7 @@ export const ReportsPage: React.FC = () => {
   };
 
   const deleteReport = async (reportId: string) => {
-    if (!confirm('Are you sure you want to delete this report?')) return;
+    if (!window.confirm('Are you sure you want to delete this report?')) return;
 
     try {
       await axios.delete(`${API_BASE_URL}/admin/reports/${reportId}`, {

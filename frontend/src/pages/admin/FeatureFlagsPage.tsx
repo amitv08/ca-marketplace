@@ -79,7 +79,7 @@ export const FeatureFlagsPage: React.FC = () => {
   };
 
   const handleDelete = async (key: string) => {
-    if (!confirm(`Are you sure you want to delete flag "${key}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete flag "${key}"?`)) return;
 
     try {
       await deleteFlag(key);

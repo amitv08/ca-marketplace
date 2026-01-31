@@ -1,0 +1,73 @@
+{
+  "users": {
+    "client": {
+      "email": "client1@demo.com",
+      "password": "Demo@123",
+      "role": "CLIENT"
+    },
+    "client2": {
+      "email": "client5@demo.com",
+      "password": "Demo@123",
+      "role": "CLIENT"
+    },
+    "ca": {
+      "email": "ca1@demo.com",
+      "password": "Demo@123",
+      "role": "CA"
+    },
+    "firmAdmin": {
+      "email": "shahandassociates.1@demo.com",
+      "password": "Demo@123",
+      "role": "CA"
+    }
+  },
+  "serviceRequests": {
+    "gstFiling": {
+      "serviceType": "GST_FILING",
+      "description": "Need assistance with quarterly GST filing for Q4 FY2025-26. Approximately 100 transactions to be filed.",
+      "estimatedHours": 5,
+      "deadlineDaysFromNow": 15
+    },
+    "incomeTax": {
+      "serviceType": "INCOME_TAX_RETURN",
+      "description": "Individual income tax return filing required for assessment year 2025-26.",
+      "estimatedHours": 3,
+      "deadlineDaysFromNow": 30
+    },
+    "audit": {
+      "serviceType": "AUDIT",
+      "description": "Annual statutory audit required for private limited company with revenue of Rs. 10 Crores.",
+      "estimatedHours": 60,
+      "deadlineDaysFromNow": 45
+    }
+  },
+  "messages": {
+    "clientToCA": "Hello, I have some questions about the service request. When can you start working on this?",
+    "caToClient": "Thank you for your request. I've reviewed the details and can start working on it immediately.",
+    "urgentFollowUp": "This is urgent. Please provide an update on the progress.",
+    "completionNotice": "I've completed the work. Please review the deliverables and confirm."
+  },
+  "reviews": {
+    "excellent": {
+      "rating": 5,
+      "comment": "Excellent service! Very professional and completed well before the deadline. Highly recommended."
+    },
+    "good": {
+      "rating": 4,
+      "comment": "Good work overall. Communication could be improved but the quality of work was satisfactory."
+    },
+    "average": {
+      "rating": 3,
+      "comment": "Average service. Work was completed but there were some delays."
+    }
+  },
+  "validationTests": {
+    "invalidEmail": "notanemail",
+    "shortPassword": "123",
+    "longDescription": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(100),
+    "pastDate": "2020-01-01",
+    "futureDate": "2030-12-31",
+    "specialChars": "<script>alert('XSS')</script>",
+    "sqlInjection": "'; DROP TABLE users; --"
+  }
+}

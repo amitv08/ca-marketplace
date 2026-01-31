@@ -122,6 +122,112 @@ export const calculatePaymentDistribution = (amount: number): { platformFee: num
   };
 };
 
+/**
+ * Create a refund for a payment
+ * @param paymentId - Razorpay payment ID
+ * @param amount - Amount to refund in rupees (full payment amount or partial)
+ * @param reason - Reason for refund (optional)
+ * @returns Razorpay refund object
+ */
+export const createRefund = async (
+  paymentId: string,
+  amount: number,
+  reason?: string
+): Promise<any> => {
+  const options: any = {
+    amount: Math.round(amount * 100), // Convert to paise
+  };
+
+  if (reason) {
+    options.notes = { reason };
+  }
+
+  try {
+    const refund = await razorpayCircuitBreaker.execute(async () => {
+      return await retry(
+        async () => {
+          const result = await razorpayInstance.payments.refund(paymentId, options);
+          LoggerService.info('Razorpay refund created successfully', {
+            refundId: result.id,
+            paymentId,
+            amount,
+            reason,
+          });
+          return result;
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 1000,
+          retryableErrors: ['ETIMEDOUT', 'ECONNRESET', 'ENOTFOUND'],
+          onRetry: (error, attempt) => {
+            LoggerService.warn('Retrying Razorpay refund creation', {
+              attempt,
+              error: error.message,
+              paymentId,
+            });
+          },
+        }
+      );
+    });
+
+    return refund;
+  } catch (error: any) {
+    LoggerService.error('Razorpay refund creation failed', error, {
+      paymentId,
+      amount,
+      circuitState: razorpayCircuitBreaker.getState(),
+    });
+
+    throw new ExternalAPIError(
+      'Razorpay',
+      `Failed to create refund: ${error.message}`,
+      true
+    );
+  }
+};
+
+/**
+ * Fetch refund details from Razorpay
+ * @param paymentId - Razorpay payment ID
+ * @param refundId - Razorpay refund ID
+ * @returns Refund details
+ */
+export const fetchRefundDetails = async (paymentId: string, refundId: string): Promise<any> => {
+  try {
+    const refund = await razorpayCircuitBreaker.execute(async () => {
+      return await retry(
+        async () => {
+          const result = await razorpayInstance.payments.fetchRefund(paymentId, refundId);
+          LoggerService.info('Fetched Razorpay refund details', {
+            refundId,
+            paymentId,
+          });
+          return result;
+        },
+        {
+          maxRetries: 3,
+          initialDelayMs: 1000,
+          retryableErrors: ['ETIMEDOUT', 'ECONNRESET'],
+        }
+      );
+    });
+
+    return refund;
+  } catch (error: any) {
+    LoggerService.error('Failed to fetch Razorpay refund details', error, {
+      refundId,
+      paymentId,
+      circuitState: razorpayCircuitBreaker.getState(),
+    });
+
+    throw new ExternalAPIError(
+      'Razorpay',
+      `Failed to fetch refund: ${error.message}`,
+      false
+    );
+  }
+};
+
 // Fetch payment details from Razorpay with retry and circuit breaker
 export const fetchPaymentDetails = async (paymentId: string): Promise<any> => {
   try {

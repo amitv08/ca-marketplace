@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import cors from 'cors';
 import { env, connectDatabase, disconnectDatabase, corsOptions, setSocketIO } from './config';
 import { initializeSocketIO } from './config/socket';
-import { errorHandler, notFoundHandler } from './middleware';
+import { errorHandler, notFoundHandler, httpsRedirectMiddleware, secureHeadersMiddleware } from './middleware';
 import { correlationIdMiddleware, httpLogger } from './middleware/httpLogger';
 import { metricsTracker } from './middleware/metricsTracker';
 import { MetricsService } from './services/metrics.service';
@@ -25,6 +25,10 @@ setSocketIO(io);
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// HTTPS enforcement and secure headers (production only)
+app.use(httpsRedirectMiddleware);
+app.use(secureHeadersMiddleware);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
@@ -112,10 +116,10 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
   console.log(`\n${signal} received. Starting graceful shutdown...`);
 
   try {
-    // Shutdown job scheduler
-    await JobSchedulerService.shutdown();
-    LoggerService.info('Job scheduler shut down');
-    console.log('⚙️  Job scheduler shut down');
+    // Shutdown job scheduler - Temporarily disabled
+    // await JobSchedulerService.shutdown();
+    LoggerService.info('Job scheduler shutdown skipped (temporarily disabled)');
+    console.log('⚙️  Job scheduler shutdown skipped');
 
     // Close Socket.IO connections
     io.close(() => {

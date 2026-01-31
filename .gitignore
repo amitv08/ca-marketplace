@@ -18,6 +18,7 @@ yarn.lock
 .env.test
 .env.production
 .env.staging
+.secrets.txt
 
 # Database
 *.db
@@ -67,3 +68,6 @@ nginx/logs/
 
 # Prisma
 backend/prisma/migrations/*_*/
+*.env
+backend/uploads/
+*.backup

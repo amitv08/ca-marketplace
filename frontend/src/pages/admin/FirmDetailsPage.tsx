@@ -147,12 +147,14 @@ const FirmDetailsPage: React.FC = () => {
       loadFirmDetails();
       loadFirmStats();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firmId]);
 
   useEffect(() => {
     if (firmId && activeTab !== 'overview') {
       loadTabData();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firmId, activeTab]);
 
   const loadFirmDetails = async () => {
@@ -329,7 +331,7 @@ const FirmDetailsPage: React.FC = () => {
   };
 
   const handleDeleteDocument = async (documentId: string) => {
-    if (!confirm('Are you sure you want to delete this document?')) return;
+    if (!window.confirm('Are you sure you want to delete this document?')) return;
 
     try {
       await firmService.deleteDocument(documentId);
@@ -1030,6 +1032,7 @@ const FirmDetailsPage: React.FC = () => {
       {/* Action Modal */}
       {showActionModal.show && (
         <Modal
+          isOpen={showActionModal.show}
           onClose={() => setShowActionModal({ show: false, action: null })}
           title={`${showActionModal.action} Firm`}
         >
@@ -1083,6 +1086,7 @@ const FirmDetailsPage: React.FC = () => {
       {/* Document Modal */}
       {showDocumentModal && selectedDocument && (
         <Modal
+          isOpen={showDocumentModal}
           onClose={() => {
             setShowDocumentModal(false);
             setSelectedDocument(null);

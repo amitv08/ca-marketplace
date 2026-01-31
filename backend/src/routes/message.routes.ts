@@ -1,11 +1,12 @@
 import { Router, Request, Response } from 'express';
 import { prisma, onlineUsers, getSocketIO } from '../config';
 import { asyncHandler, authenticate, upload, handleUploadError } from '../middleware';
+import { virusScanMiddleware } from '../middleware/fileUpload';
 import { sendSuccess, sendCreated, sendError } from '../utils';
 
 const router = Router();
 
-router.post('/', authenticate, upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authenticate, upload.single('file'), virusScanMiddleware, asyncHandler(async (req: Request, res: Response) => {
   try {
     const { receiverId, requestId, content } = req.body;
     const file = req.file;

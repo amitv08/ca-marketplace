@@ -311,50 +311,89 @@ export const scanFilename = (filename: string): boolean => {
 };
 
 /**
- * Virus scan placeholder (integrate with ClamAV or similar)
+ * Virus scan using ClamAV integration
+ * Scans uploaded files for malware and viruses
  */
 export const virusScan = async (filePath: string): Promise<boolean> => {
-  // TODO: Integrate with antivirus service like ClamAV
-  // For now, perform basic checks
+  const { VirusScanService } = await import('../services/virus-scan.service');
 
   try {
-    const stats = fs.statSync(filePath);
+    const result = await VirusScanService.scanFile(filePath);
 
-    // Check file size (suspicious if too large)
-    if (stats.size > 100 * 1024 * 1024) {
-      // 100MB
-      console.warn(`⚠️ Suspicious large file: ${filePath}`);
+    if (!result.clean) {
+      console.error(`🦠 Virus detected in file: ${filePath}`, {
+        virus: result.virus,
+        method: result.method,
+        message: result.message,
+      });
+
       return false;
     }
 
-    // Check for executable patterns in content
-    const buffer = Buffer.alloc(Math.min(stats.size, 4096));
-    const fd = fs.openSync(filePath, 'r');
-    fs.readSync(fd, buffer, 0, buffer.length, 0);
-    fs.closeSync(fd);
+    console.log(`✅ File scan clean: ${filePath} (${result.method}, ${result.scanTime}ms)`);
+    return true;
+  } catch (error) {
+    console.error('❌ Virus scan error:', error);
+    // Fail-safe: reject file if scan fails
+    return false;
+  }
+};
 
-    const content = buffer.toString('binary');
+/**
+ * Virus scan middleware - scans uploaded files for malware
+ * Use this after multer upload middleware to scan files before processing
+ */
+export const virusScanMiddleware = async (
+  req: Request,
+  res: any,
+  next: any
+): Promise<void> => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    const file = req.file as Express.Multer.File;
 
-    // Check for suspicious patterns
-    const suspiciousPatterns = [
-      'MZ', // Windows executable
-      '#!/bin/bash',
-      '#!/bin/sh',
-      '<?php',
-      '<script>',
-      'eval(',
-    ];
+    const filesToScan = files || (file ? [file] : []);
 
-    for (const pattern of suspiciousPatterns) {
-      if (content.includes(pattern)) {
-        console.warn(`⚠️ Suspicious pattern detected: ${pattern}`);
-        // Don't reject, just warn - might be legitimate
+    if (filesToScan.length === 0) {
+      // No files uploaded, proceed
+      return next();
+    }
+
+    console.log(`🔍 Scanning ${filesToScan.length} file(s) for viruses...`);
+
+    // Scan each file
+    for (const uploadedFile of filesToScan) {
+      const isClean = await virusScan(uploadedFile.path);
+
+      if (!isClean) {
+        // Delete infected file immediately
+        if (fs.existsSync(uploadedFile.path)) {
+          fs.unlinkSync(uploadedFile.path);
+        }
+
+        // Clean up any other uploaded files in this request
+        cleanupUploadedFiles(req);
+
+        return res.status(400).json({
+          success: false,
+          error: 'File rejected',
+          message: `File "${uploadedFile.originalname}" failed virus scan and has been rejected for security reasons`,
+        });
       }
     }
 
-    return true;
+    console.log(`✅ All files passed virus scan`);
+    next();
   } catch (error) {
-    console.error('Virus scan error:', error);
-    return false;
+    console.error('❌ Virus scan middleware error:', error);
+
+    // Delete all uploaded files on error
+    cleanupUploadedFiles(req);
+
+    res.status(500).json({
+      success: false,
+      error: 'Scan failed',
+      message: 'File virus scan failed - all files rejected for safety',
+    });
   }
 };

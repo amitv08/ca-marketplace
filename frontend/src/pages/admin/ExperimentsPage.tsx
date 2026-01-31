@@ -63,7 +63,7 @@ export const ExperimentsPage: React.FC = () => {
   };
 
   const handleStartExperiment = async (key: string) => {
-    if (!confirm('Start this experiment? Users will begin being assigned to variants.')) return;
+    if (!window.confirm('Start this experiment? Users will begin being assigned to variants.')) return;
 
     try {
       await startExperiment(key);
@@ -75,7 +75,7 @@ export const ExperimentsPage: React.FC = () => {
   };
 
   const handlePauseExperiment = async (key: string) => {
-    if (!confirm('Pause this experiment?')) return;
+    if (!window.confirm('Pause this experiment?')) return;
 
     try {
       await pauseExperiment(key);

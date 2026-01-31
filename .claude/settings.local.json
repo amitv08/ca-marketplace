@@ -53,7 +53,9 @@
       "Bash(grep:*)",
       "Bash(docker restart:*)",
       "Bash(./test-firm-registration.sh)",
-      "Bash(node -e:*)"
+      "Bash(node -e:*)",
+      "Bash(/tmp/claude/-home-amit-ca-marketplace/30e17127-7f3b-4cd3-b5b8-2d71e30f46ca/scratchpad/generate-demo-reports.sh:*)",
+      "Bash([ -d /home/amit/ca-marketplace/frontend/node_modules/cypress ])"
     ]
   }
 }

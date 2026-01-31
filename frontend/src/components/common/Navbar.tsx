@@ -27,10 +27,7 @@ const Navbar: React.FC = () => {
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <>
-                <Link to="/cas" className="text-gray-700 hover:text-blue-600">
-                  Find CAs
-                </Link>
-
+                {/* Role-specific Dashboard - First */}
                 {user?.role === 'CLIENT' && (
                   <Link to="/client/dashboard" className="text-gray-700 hover:text-blue-600">
                     Dashboard
@@ -49,10 +46,24 @@ const Navbar: React.FC = () => {
                   </Link>
                 )}
 
+                {/* Find CAs - Only for CLIENTS */}
+                {user?.role === 'CLIENT' && (
+                  <Link to="/cas" className="text-gray-700 hover:text-blue-600">
+                    Find CAs
+                  </Link>
+                )}
+
+                {/* Profile */}
                 <Link to="/profile" className="text-gray-700 hover:text-blue-600">
                   Profile
                 </Link>
 
+                {/* Help - Last before user info */}
+                <Link to="/help" className="text-gray-700 hover:text-blue-600">
+                  Help
+                </Link>
+
+                {/* User info + Logout */}
                 <div className="flex items-center space-x-3">
                   <span className="text-sm text-gray-600">
                     {user?.name} ({user?.role})
@@ -64,8 +75,12 @@ const Navbar: React.FC = () => {
               </>
             ) : (
               <>
+                {/* Unauthenticated users can browse CAs */}
                 <Link to="/cas" className="text-gray-700 hover:text-blue-600">
                   Find CAs
+                </Link>
+                <Link to="/help" className="text-gray-700 hover:text-blue-600">
+                  Help
                 </Link>
                 <Link to="/login">
                   <Button variant="outline" size="sm">

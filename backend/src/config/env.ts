@@ -11,6 +11,7 @@ interface EnvConfig {
   JWT_EXPIRES_IN: string;
   JWT_REFRESH_SECRET: string;
   JWT_REFRESH_EXPIRES_IN: string;
+  SESSION_SECRET: string;
   CORS_ORIGIN: string;
   APP_URL: string;
   RAZORPAY_KEY_ID: string;
@@ -27,6 +28,11 @@ interface EnvConfig {
   LOG_LEVEL: string;
   ENABLE_METRICS: boolean;
   ENABLE_ALERTING: boolean;
+  // Virus Scanning
+  CLAMAV_ENABLED: string;
+  CLAMAV_HOST: string;
+  CLAMAV_PORT: string;
+  MAX_SCAN_FILE_SIZE: string;
 }
 
 const getEnvVariable = (key: string, defaultValue?: string): string => {
@@ -48,6 +54,7 @@ export const env: EnvConfig = {
   JWT_EXPIRES_IN: getEnvVariable('JWT_EXPIRES_IN', '15m'),
   JWT_REFRESH_SECRET: getEnvVariable('JWT_REFRESH_SECRET', getEnvVariable('JWT_SECRET') + '_refresh'),
   JWT_REFRESH_EXPIRES_IN: getEnvVariable('JWT_REFRESH_EXPIRES_IN', '7d'),
+  SESSION_SECRET: getEnvVariable('SESSION_SECRET', getEnvVariable('JWT_SECRET') + '_session'),
   CORS_ORIGIN: getEnvVariable('CORS_ORIGIN', 'http://localhost:3001'),
   APP_URL: getEnvVariable('APP_URL', 'http://localhost:8081'),
   RAZORPAY_KEY_ID: getEnvVariable('RAZORPAY_KEY_ID', 'test_key_id'),
@@ -64,6 +71,11 @@ export const env: EnvConfig = {
   LOG_LEVEL: getEnvVariable('LOG_LEVEL', 'info'),
   ENABLE_METRICS: getEnvVariable('ENABLE_METRICS', 'true') === 'true',
   ENABLE_ALERTING: getEnvVariable('ENABLE_ALERTING', 'true') === 'true',
+  // Virus Scanning
+  CLAMAV_ENABLED: getEnvVariable('CLAMAV_ENABLED', 'false'),
+  CLAMAV_HOST: getEnvVariable('CLAMAV_HOST', 'localhost'),
+  CLAMAV_PORT: getEnvVariable('CLAMAV_PORT', '3310'),
+  MAX_SCAN_FILE_SIZE: getEnvVariable('MAX_SCAN_FILE_SIZE', '104857600'), // 100MB default
 };
 
 export const isDevelopment = env.NODE_ENV === 'development';

@@ -8,6 +8,7 @@ import {
   verifyWebhookSignature,
   calculatePaymentDistribution,
 } from '../services/razorpay.service';
+import EmailNotificationService from '../services/email-notification.service';
 
 const router = Router();
 
@@ -172,8 +173,39 @@ router.post('/verify', authenticate, authorize('CLIENT'), validateBody(verifyPay
           },
         },
       },
+      client: {
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
     },
   });
+
+  // Generate unique transaction ID if not exists
+  const transactionId = updated.razorpayPaymentId || `TXN${Date.now()}`;
+
+  // Send email notification to CA about payment received
+  try {
+    await EmailNotificationService.sendPaymentReceivedNotification(
+      updated.ca.user.email,
+      {
+        caName: updated.ca.user.name,
+        clientName: updated.client.user.name,
+        amount: updated.amount,
+        platformFee: updated.platformFee || 0,
+        caAmount: updated.caAmount || 0,
+        requestId: updated.requestId,
+        transactionId: transactionId,
+      }
+    );
+  } catch (emailError) {
+    // Log error but don't fail the payment
+    console.error('Failed to send payment notification email:', emailError);
+  }
 
   sendSuccess(res, updated, 'Payment verified successfully');
 }));

@@ -44,6 +44,7 @@ const FirmsListPage: React.FC = () => {
 
   useEffect(() => {
     loadFirms();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const loadFirms = async () => {
@@ -267,7 +268,7 @@ const FirmsListPage: React.FC = () => {
 
       {/* Create Firm Modal */}
       {showCreateModal && (
-        <Modal onClose={() => setShowCreateModal(false)} title="Create New Firm">
+        <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Create New Firm">
           <div className="text-center py-8">
             <p className="text-gray-600 mb-4">
               Firm creation form will be implemented here.

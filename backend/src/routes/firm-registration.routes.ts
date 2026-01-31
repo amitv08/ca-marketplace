@@ -198,7 +198,7 @@ router.get(
  * Get invitations for the authenticated CA
  */
 router.get(
-  '/invitations/my-invitations',
+  '/my-invitations',
   authenticate,
   authorize('CA'),
   asyncHandler(async (req: Request, res: Response) => {

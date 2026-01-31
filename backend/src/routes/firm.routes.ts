@@ -32,7 +32,7 @@ router.get(
   '/',
   authenticate,
   asyncHandler(async (req: Request, res: Response) => {
-    const { status, firmType, verificationLevel, city, state, searchQuery, minEstablishedYear, maxEstablishedYear, page, limit } = req.query;
+    const { status, firmType, verificationLevel, city, state, searchQuery, minEstablishedYear, maxEstablishedYear, page, limit, myFirm } = req.query;
 
     const filters: any = {};
     if (status) filters.status = status as FirmStatus;
@@ -43,6 +43,12 @@ router.get(
     if (searchQuery) filters.searchQuery = searchQuery as string;
     if (minEstablishedYear) filters.minEstablishedYear = parseInt(minEstablishedYear as string);
     if (maxEstablishedYear) filters.maxEstablishedYear = parseInt(maxEstablishedYear as string);
+
+    // If myFirm=true, filter to only firms where the current CA is a member
+    if (myFirm === 'true' && req.user!.role === 'CA') {
+      filters.myFirm = true;
+      filters.caUserId = req.user!.userId;
+    }
 
     const pageNum = parseInt(page as string || '1');
     const limitNum = parseInt(limit as string || '20');
@@ -217,6 +223,30 @@ router.get(
     const { firmId } = req.params;
     const canAccept = await FirmService.canAcceptRequests(firmId);
     sendSuccess(res, { canAccept });
+  })
+);
+
+// Remove member from firm (Firm Admin only)
+router.post(
+  '/:firmId/remove-member',
+  authenticate,
+  authorize('CA'),
+  asyncHandler(async (req: Request, res: Response) => {
+    const { firmId } = req.params;
+    const { membershipId, transferTasks } = req.body;
+
+    if (!membershipId) {
+      return sendError(res, 'membershipId is required', 400);
+    }
+
+    const result = await FirmService.removeMember(
+      firmId,
+      membershipId,
+      req.user!.userId,
+      transferTasks === true
+    );
+
+    sendSuccess(res, result, 'Member removed successfully');
   })
 );
 

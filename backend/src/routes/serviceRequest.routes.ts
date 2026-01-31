@@ -2,12 +2,19 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../config';
 import { asyncHandler, authenticate, validateBody, authorize } from '../middleware';
 import { sendSuccess, sendCreated, sendError, parsePaginationParams, createPaginationResponse } from '../utils';
+import EmailNotificationService from '../services/email-notification.service';
 
 const router = Router();
 
 // Create service request (CLIENT only)
 const createRequestSchema = {
-  caId: { type: 'string' as const }, // Optional - can be assigned later
+  // Provider selection
+  providerType: { type: 'string' as const }, // 'INDIVIDUAL' or 'FIRM'
+  caId: { type: 'string' as const }, // For individual CA or specific firm member
+  firmId: { type: 'string' as const }, // For firm-based requests
+  assignmentPreference: { type: 'string' as const }, // 'BEST_AVAILABLE', 'SPECIFIC_CA', 'SENIOR_ONLY'
+
+  // Request details
   serviceType: { required: true, type: 'string' as const },
   description: { required: true, type: 'string' as const, min: 10, max: 5000 },
   deadline: { type: 'string' as const },
@@ -16,7 +23,17 @@ const createRequestSchema = {
 };
 
 router.post('/', authenticate, authorize('CLIENT'), validateBody(createRequestSchema), asyncHandler(async (req: Request, res: Response) => {
-  const { caId, serviceType, description, deadline, estimatedHours, documents } = req.body;
+  const {
+    providerType,
+    caId,
+    firmId,
+    assignmentPreference,
+    serviceType,
+    description,
+    deadline,
+    estimatedHours,
+    documents
+  } = req.body;
 
   // Get client ID
   const client = await prisma.client.findUnique({
@@ -39,8 +56,74 @@ router.post('/', authenticate, authorize('CLIENT'), validateBody(createRequestSc
     return sendError(res, 'You can only have 3 pending requests at a time. Please wait for existing requests to be accepted or cancel them.', 400);
   }
 
-  // If caId provided, verify CA exists and is verified
-  if (caId) {
+  // Validate provider selection
+  let assignmentMethod: 'AUTO' | 'MANUAL' | 'CLIENT_SPECIFIED' | null = null;
+  let validatedCaId = caId;
+  let validatedFirmId = firmId;
+
+  // CASE 1: Request to FIRM
+  if (providerType === 'FIRM' || firmId) {
+    if (!firmId) {
+      return sendError(res, 'Firm ID is required when requesting a firm', 400);
+    }
+
+    // Verify firm exists and is active
+    const firm = await prisma.cAFirm.findUnique({
+      where: { id: firmId },
+      include: {
+        members: {
+          where: { isActive: true },
+          include: {
+            ca: true,
+          },
+        },
+      },
+    });
+
+    if (!firm) {
+      return sendError(res, 'Firm not found', 404);
+    }
+
+    if (firm.status !== 'ACTIVE') {
+      return sendError(res, 'Selected firm is not active', 400);
+    }
+
+    if (firm.members.length === 0) {
+      return sendError(res, 'Selected firm has no active members', 400);
+    }
+
+    // Handle assignment preferences for firms
+    if (assignmentPreference === 'SPECIFIC_CA' && caId) {
+      // Client wants specific CA from firm
+      const memberCA = firm.members.find(m => m.caId === caId);
+      if (!memberCA) {
+        return sendError(res, 'Selected CA is not a member of this firm', 400);
+      }
+      assignmentMethod = 'CLIENT_SPECIFIED';
+      validatedCaId = caId;
+    } else if (assignmentPreference === 'SENIOR_ONLY') {
+      // Client wants senior CA only
+      const seniorMembers = firm.members.filter(
+        m => m.role === 'SENIOR_CA' || m.role === 'FIRM_ADMIN'
+      );
+      if (seniorMembers.length === 0) {
+        return sendError(res, 'Firm has no senior CAs available', 400);
+      }
+      assignmentMethod = 'MANUAL'; // Firm will assign senior CA
+      validatedCaId = null;
+    } else {
+      // Default: Assign to best available team member
+      assignmentMethod = 'AUTO';
+      validatedCaId = null;
+    }
+  }
+  // CASE 2: Request to INDIVIDUAL CA
+  else if (providerType === 'INDIVIDUAL' || caId) {
+    if (!caId) {
+      return sendError(res, 'CA ID is required when requesting an individual CA', 400);
+    }
+
+    // Verify CA exists and is verified
     const ca = await prisma.charteredAccountant.findUnique({
       where: { id: caId },
     });
@@ -52,17 +135,30 @@ router.post('/', authenticate, authorize('CLIENT'), validateBody(createRequestSc
     if (ca.verificationStatus !== 'VERIFIED') {
       return sendError(res, 'Selected CA is not verified', 400);
     }
+
+    assignmentMethod = 'CLIENT_SPECIFIED';
+    validatedFirmId = null;
+  }
+  // CASE 3: No specific provider (backward compatibility)
+  else {
+    // Allow unassigned requests that can be picked up later
+    validatedCaId = null;
+    validatedFirmId = null;
+    assignmentMethod = null;
   }
 
   const serviceRequest = await prisma.serviceRequest.create({
     data: {
       clientId: client.id,
-      caId,
+      caId: validatedCaId,
+      firmId: validatedFirmId,
       serviceType,
       description,
       deadline: deadline ? new Date(deadline) : null,
       estimatedHours,
       documents,
+      assignmentMethod,
+      assignedByUserId: req.user!.userId,
     },
     include: {
       client: {
@@ -77,7 +173,9 @@ router.post('/', authenticate, authorize('CLIENT'), validateBody(createRequestSc
         },
       },
       ca: {
-        include: {
+        select: {
+          id: true,
+          hourlyRate: true,
           user: {
             select: {
               name: true,
@@ -86,10 +184,39 @@ router.post('/', authenticate, authorize('CLIENT'), validateBody(createRequestSc
           },
         },
       },
+      firm: {
+        select: {
+          id: true,
+          firmName: true,
+          logoUrl: true,
+          verificationLevel: true,
+        },
+      },
     },
   });
 
-  sendCreated(res, serviceRequest, 'Service request created successfully');
+  // Add pricing information to response
+  const response: any = { ...serviceRequest };
+
+  if (firmId && !caId) {
+    // Firm request without specific CA assigned yet
+    response.pricingInfo = {
+      type: 'FIRM',
+      isPremium: true,
+      premiumPercentage: 30, // Firms typically charge 20-40% premium
+      note: 'Final pricing will be confirmed after team assignment',
+    };
+  } else if (validatedCaId && response.ca) {
+    response.pricingInfo = {
+      type: 'INDIVIDUAL',
+      hourlyRate: response.ca.hourlyRate,
+      estimatedCost: estimatedHours && response.ca.hourlyRate
+        ? estimatedHours * response.ca.hourlyRate
+        : null,
+    };
+  }
+
+  sendCreated(res, response, 'Service request created successfully');
 }));
 
 // Get all service requests (filtered by role)
@@ -111,11 +238,32 @@ router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) =
   } else if (req.user!.role === 'CA') {
     const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
+      include: {
+        firmMemberships: {
+          where: { isActive: true },
+          select: { firmId: true },
+        },
+      },
     });
     if (!ca) {
       return sendError(res, 'CA profile not found', 404);
     }
-    where.caId = ca.id;
+
+    // Get all active firm IDs where this CA is a member
+    const activeFirmIds = ca.firmMemberships.map(m => m.firmId);
+
+    // Show requests where:
+    // 1. CA is directly assigned (individual requests) OR
+    // 2. Request is assigned to a firm where CA is an active member
+    if (activeFirmIds.length > 0) {
+      where.OR = [
+        { caId: ca.id },
+        { firmId: { in: activeFirmIds } },
+      ];
+    } else {
+      // No firm memberships, only show directly assigned requests
+      where.caId = ca.id;
+    }
   }
 
   // Filter by status if provided
@@ -149,6 +297,15 @@ router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) =
             },
           },
         },
+        firm: {
+          select: {
+            id: true,
+            firmName: true,
+            firmType: true,
+            status: true,
+            verificationLevel: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -180,6 +337,15 @@ router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response
           user: true,
         },
       },
+      firm: {
+        select: {
+          id: true,
+          firmName: true,
+          firmType: true,
+          status: true,
+          verificationLevel: true,
+        },
+      },
       messages: {
         include: {
           sender: {
@@ -205,12 +371,25 @@ router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response
 
   // Verify user has access to this request
   const client = await prisma.client.findUnique({ where: { userId: req.user!.userId } });
-  const ca = await prisma.charteredAccountant.findUnique({ where: { userId: req.user!.userId } });
+  const ca = await prisma.charteredAccountant.findUnique({
+    where: { userId: req.user!.userId },
+    include: {
+      firmMemberships: {
+        where: { isActive: true },
+        select: { firmId: true },
+      },
+    },
+  });
+
+  // Check if CA has access via firm membership
+  const caHasAccessViaFirm = ca && request.firmId &&
+    ca.firmMemberships.some((m: { firmId: string }) => m.firmId === request.firmId);
 
   const hasAccess =
     req.user!.role === 'ADMIN' ||
     (client && request.clientId === client.id) ||
-    (ca && request.caId === ca.id);
+    (ca && request.caId === ca.id) ||
+    caHasAccessViaFirm;
 
   if (!hasAccess) {
     return sendError(res, 'Access denied', 403);
@@ -302,6 +481,12 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
   // Get CA
   const ca = await prisma.charteredAccountant.findUnique({
     where: { userId: req.user!.userId },
+    include: {
+      firmMemberships: {
+        where: { isActive: true },
+        select: { firmId: true },
+      },
+    },
   });
 
   if (!ca) {
@@ -320,9 +505,18 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
     return sendError(res, 'Service request not found', 404);
   }
 
-  // Check if request is assigned to this CA or unassigned
-  if (request.caId && request.caId !== ca.id) {
+  // Check if CA has permission to accept this request:
+  // 1. Individual CA request: must be assigned to this CA or unassigned
+  // 2. Firm request: CA must be an active member of the firm
+  const isFirmMember = request.firmId &&
+    ca.firmMemberships.some((m: { firmId: string }) => m.firmId === request.firmId);
+
+  if (!isFirmMember && request.caId && request.caId !== ca.id) {
     return sendError(res, 'This request is assigned to another CA', 403);
+  }
+
+  if (request.firmId && !isFirmMember) {
+    return sendError(res, 'You are not a member of the firm assigned to this request', 403);
   }
 
   if (request.status !== 'PENDING') {
@@ -343,7 +537,7 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
 
   if (!hasAvailability && request.deadline) {
     // If no availability and request has deadline, warn but allow
-    console.log(`Warning: CA ${ca.id} accepting request without available slots`);
+    // Note: CA accepting request without available slots
   }
 
   const updated = await prisma.serviceRequest.update({
@@ -365,6 +559,24 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
       },
     },
   });
+
+  // Send email notification to client
+  try {
+    await EmailNotificationService.sendRequestAcceptedNotification(
+      updated.client.user.email,
+      {
+        clientName: updated.client.user.name,
+        caName: updated.ca!.user.name,
+        serviceType: updated.serviceType,
+        requestId: updated.id,
+        caEmail: updated.ca!.user.email,
+        caPhone: updated.ca!.user.phone || undefined,
+      }
+    );
+  } catch (emailError) {
+    // Log error but don't fail the request
+    console.error('Failed to send acceptance email:', emailError);
+  }
 
   sendSuccess(res, updated, 'Service request accepted successfully');
 }));
@@ -442,6 +654,23 @@ router.post('/:id/reject', authenticate, authorize('CA'), validateBody(rejectReq
       },
     },
   });
+
+  // Send email notification to client
+  try {
+    await EmailNotificationService.sendRequestRejectedNotification(
+      updated.client.user.email,
+      {
+        clientName: updated.client.user.name,
+        caName: updated.ca!.user.name,
+        serviceType: updated.serviceType,
+        requestId: updated.id,
+        reason: reason || undefined,
+      }
+    );
+  } catch (emailError) {
+    // Log error but don't fail the request
+    console.error('Failed to send rejection email:', emailError);
+  }
 
   sendSuccess(res, updated, 'Service request rejected');
 }));
@@ -613,7 +842,36 @@ router.post('/:id/complete', authenticate, authorize('CA'), asyncHandler(async (
   const updated = await prisma.serviceRequest.update({
     where: { id },
     data: { status: 'COMPLETED' },
+    include: {
+      client: {
+        include: {
+          user: true,
+        },
+      },
+      ca: {
+        include: {
+          user: true,
+        },
+      },
+    },
   });
+
+  // Send email notification to client
+  try {
+    await EmailNotificationService.sendRequestCompletedNotification(
+      updated.client.user.email,
+      {
+        clientName: updated.client.user.name,
+        caName: updated.ca!.user.name,
+        serviceType: updated.serviceType,
+        requestId: updated.id,
+        amount: updated.estimatedHours ? updated.estimatedHours * (updated.ca!.hourlyRate || 0) : undefined,
+      }
+    );
+  } catch (emailError) {
+    // Log error but don't fail the request
+    console.error('Failed to send completion email:', emailError);
+  }
 
   sendSuccess(res, updated, 'Service request completed successfully');
 }));

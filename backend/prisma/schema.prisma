@@ -8,6 +8,8 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  // Production DATABASE_URL should include: ?sslmode=require&connect_timeout=10
+  // Example: postgresql://user:pass@host:5432/db?sslmode=require&connect_timeout=10
 }
 
 // Enums
@@ -510,6 +512,10 @@ model Payment {
   razorpaySignature String?
   releasedToCA      Boolean       @default(false)
   releasedAt        DateTime?
+  refundAmount      Float? // Amount refunded to client
+  refundReason      String? // Reason for refund
+  refundedAt        DateTime? // Timestamp of refund
+  razorpayRefundId  String? @unique // Razorpay refund ID
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -535,7 +541,9 @@ model Payment {
   @@index([transactionId])
   @@index([razorpayOrderId])
   @@index([razorpayPaymentId])
+  @@index([razorpayRefundId])
   @@index([releasedToCA])
+  @@index([refundedAt])
   @@index([createdAt])
   @@index([distributionMethod])
   @@index([firmDistributionId])
