@@ -71,3 +71,4 @@ backend/prisma/migrations/*_*/
 *.env
 backend/uploads/
 *.backup
+DEMO_CREDENTIALS.txt
