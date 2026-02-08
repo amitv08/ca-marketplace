@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../config';
+import { Prisma } from '@prisma/client';
 import { asyncHandler, authenticate, validateBody, authorize } from '../middleware';
 import { sendSuccess, sendCreated, sendError } from '../utils';
 import {
@@ -171,83 +172,137 @@ const verifyPaymentSchema = {
 router.post('/verify', authenticate, authorize('CLIENT'), validateBody(verifyPaymentSchema), asyncHandler(async (req: Request, res: Response) => {
   const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
 
-  // Verify signature
+  // Verify signature first (before any DB operations)
   const isValid = verifyRazorpaySignature(razorpayOrderId, razorpayPaymentId, razorpaySignature);
 
   if (!isValid) {
     return sendError(res, 'Invalid payment signature', 400);
   }
 
-  // Find payment by Razorpay order ID
-  const payment = await prisma.payment.findFirst({
-    where: { razorpayOrderId },
-  });
-
-  if (!payment) {
-    return sendError(res, 'Payment not found', 404);
-  }
-
-  // Verify client ownership
-  const client = await prisma.client.findUnique({
-    where: { userId: req.user!.userId },
-  });
-
-  if (!client || payment.clientId !== client.id) {
-    return sendError(res, 'Access denied', 403);
-  }
-
-  // Calculate auto-release date (7 days from now by default)
-  const autoReleaseDate = new Date();
-  autoReleaseDate.setDate(autoReleaseDate.getDate() + 7);
-
-  // Update payment status
-  const updated = await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: 'ESCROW_HELD',
-      razorpayPaymentId,
-      razorpaySignature,
-      escrowHeldAt: new Date(),
-      autoReleaseAt: autoReleaseDate,
-    },
-    include: {
-      request: {
-        select: {
-          id: true,
-          serviceType: true,
-        },
-      },
-      ca: {
+  // Use transaction with idempotency check to prevent race conditions
+  let updated;
+  try {
+    updated = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Find payment by Razorpay order ID within transaction
+      const payment = await tx.payment.findFirst({
+        where: { razorpayOrderId },
         include: {
-          user: {
+          request: {
             select: {
-              name: true,
-              email: true,
+              id: true,
+              serviceType: true,
+            },
+          },
+          ca: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          client: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
             },
           },
         },
-      },
-      client: {
+      });
+
+      if (!payment) {
+        throw new Error('Payment not found');
+      }
+
+      // IDEMPOTENCY CHECK: If already processed, return existing payment
+      if (payment.status === 'ESCROW_HELD' || payment.status === 'COMPLETED' || payment.status === 'RELEASED') {
+        console.log(`⚠️  Payment ${payment.id} already processed (status: ${payment.status}). Returning existing record (idempotent).`);
+        return payment;
+      }
+
+      // Verify client ownership within transaction
+      const client = await tx.client.findUnique({
+        where: { userId: req.user!.userId },
+      });
+
+      if (!client || payment.clientId !== client.id) {
+        throw new Error('Access denied');
+      }
+
+      // Calculate auto-release date (7 days from now)
+      const autoReleaseDate = new Date();
+      autoReleaseDate.setDate(autoReleaseDate.getDate() + 7);
+
+      // Update payment status within transaction
+      const updatedPayment = await tx.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: 'ESCROW_HELD',
+          razorpayPaymentId,
+          razorpaySignature,
+          escrowHeldAt: new Date(),
+          autoReleaseAt: autoReleaseDate,
+        },
         include: {
-          user: {
+          request: {
             select: {
-              name: true,
+              id: true,
+              serviceType: true,
+            },
+          },
+          ca: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          client: {
+            include: {
+              user: {
+                select: {
+                  name: true,
+                  email: true,
+                },
+              },
             },
           },
         },
-      },
-    },
-  });
+      });
 
-  // Update service request escrow status to ESCROW_HELD
-  await prisma.serviceRequest.update({
-    where: { id: payment.requestId },
-    data: {
-      escrowStatus: 'ESCROW_HELD',
-      escrowAmount: payment.amount,
-      escrowPaidAt: new Date(),
-    },
-  });
+      // Update service request escrow status within same transaction
+      await tx.serviceRequest.update({
+        where: { id: updatedPayment.requestId },
+        data: {
+          escrowStatus: 'ESCROW_HELD',
+          escrowAmount: updatedPayment.amount,
+          escrowPaidAt: new Date(),
+        },
+      });
+
+      console.log(`✅ Payment ${updatedPayment.id} verified and updated to ESCROW_HELD`);
+      return updatedPayment;
+    });
+  } catch (error: any) {
+    // Handle specific transaction errors
+    if (error.message === 'Payment not found') {
+      return sendError(res, 'Payment not found', 404);
+    }
+    if (error.message === 'Access denied') {
+      return sendError(res, 'Access denied', 403);
+    }
+    // Re-throw other errors for asyncHandler to handle
+    throw error;
+  }
 
   // Generate unique transaction ID if not exists
   const transactionId = updated.razorpayPaymentId || `TXN${Date.now()}`;
@@ -465,7 +520,7 @@ async function handlePaymentCaptured(payload: any) {
 
   console.log(`Processing payment.captured: ${razorpayPaymentId} for order ${orderId}`);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const payment = await tx.payment.findFirst({
       where: { razorpayOrderId: orderId },
       include: {
@@ -539,7 +594,7 @@ async function handlePaymentFailed(payload: any) {
 
   console.log(`Processing payment.failed for order ${orderId}: ${errorDescription}`);
 
-  await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const payment = await tx.payment.findFirst({
       where: { razorpayOrderId: orderId },
     });
