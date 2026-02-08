@@ -41,10 +41,13 @@ import ServiceRequestsManagement from './pages/admin/ServiceRequestsManagement';
 import FirmsListPage from './pages/admin/FirmsListPage';
 import FirmDetailsPage from './pages/admin/FirmDetailsPage';
 import FirmAnalyticsDashboard from './pages/admin/FirmAnalyticsDashboard';
+import PlatformSettingsPage from './pages/admin/PlatformSettingsPage';
+import DisputesPage from './pages/admin/DisputesPage';
 
 // Shared Pages
 import ProfilePage from './pages/profile/ProfilePage';
 import RequestDetailsPage from './pages/requests/RequestDetailsPage';
+import CreateReviewPage from './pages/reviews/CreateReviewPage';
 
 function AppContent() {
   const dispatch = useAppDispatch();
@@ -99,6 +102,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['CLIENT', 'CA', 'ADMIN', 'SUPER_ADMIN']}>
                 <RequestDetailsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reviews/create"
+            element={
+              <ProtectedRoute allowedRoles={['CLIENT']}>
+                <CreateReviewPage />
               </ProtectedRoute>
             }
           />
@@ -265,6 +276,22 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
                 <FirmAnalyticsDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/platform-settings"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <PlatformSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/disputes"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'SUPER_ADMIN']}>
+                <DisputesPage />
               </ProtectedRoute>
             }
           />

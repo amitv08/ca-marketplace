@@ -1,0 +1,87 @@
+<div class="email-container">
+  <!-- Header -->
+  <div class="email-header">
+    <h1>🎊 Congratulations!</h1>
+    <p>Your CA profile has been verified</p>
+  </div>
+
+  <!-- Body -->
+  <div class="email-body">
+    <div class="greeting">Hi {{caName}},</div>
+
+    <div class="content">
+      <p>Excellent news! Your Chartered Accountant profile has been successfully verified and approved by our team.</p>
+    </div>
+
+    <div class="success-box">
+      <p><strong>✓ Profile Verified & Active</strong></p>
+      <p style="margin-top: 10px; font-size: 14px;">Your profile is now live on the CA Marketplace. Clients can find you, view your credentials, and send service requests.</p>
+    </div>
+
+    <div class="info-box">
+      <div class="info-box-row">
+        <span class="info-label">Profile Status:</span>
+        <span class="info-value">
+          <span class="status-badge" style="background-color: #28a745; color: white;">✓ VERIFIED</span>
+        </span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">Approved On:</span>
+        <span class="info-value">{{formatDate approvedDate}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">CA Name:</span>
+        <span class="info-value">{{caName}}</span>
+      </div>
+    </div>
+
+    <div class="content">
+      <h3 style="margin: 20px 0 10px; color: #333;">What You Can Do Now:</h3>
+      <ul style="padding-left: 20px; color: #555;">
+        <li><strong>Start Accepting Requests:</strong> Clients can now send you service requests</li>
+        <li><strong>Complete Your Profile:</strong> Add more details to attract more clients</li>
+        <li><strong>Set Your Availability:</strong> Update your schedule and hourly rates</li>
+        <li><strong>Build Your Reputation:</strong> Provide excellent service to get positive reviews</li>
+        <li><strong>Grow Your Business:</strong> Access analytics and insights in your dashboard</li>
+      </ul>
+    </div>
+
+    <!-- Call to Action -->
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{dashboardUrl}}" class="btn">Go to Dashboard</a>
+      <a href="{{profileUrl}}" class="btn btn-secondary" style="margin-left: 10px;">View My Profile</a>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="content">
+      <h3 style="margin: 20px 0 10px; color: #333;">Tips for Success:</h3>
+      <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-top: 10px;">
+        <p style="margin: 8px 0; font-size: 14px;"><strong>✓</strong> Respond to client inquiries within 24 hours</p>
+        <p style="margin: 8px 0; font-size: 14px;"><strong>✓</strong> Keep your availability calendar updated</p>
+        <p style="margin: 8px 0; font-size: 14px;"><strong>✓</strong> Provide detailed proposals for better conversions</p>
+        <p style="margin: 8px 0; font-size: 14px;"><strong>✓</strong> Maintain high-quality service for positive reviews</p>
+        <p style="margin: 8px 0; font-size: 14px;"><strong>✓</strong> Use the messaging system for clear communication</p>
+      </div>
+    </div>
+
+    <div class="success-box" style="margin-top: 20px;">
+      <p><strong>🎁 Welcome Bonus!</strong></p>
+      <p style="margin-top: 10px; font-size: 14px;">As a verified CA, you'll get 0% platform fee on your first 3 completed service requests!</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="email-footer">
+    <p><strong>CA Marketplace</strong></p>
+    <p>Connecting Clients with Trusted Chartered Accountants</p>
+    <div class="social-links">
+      <a href="#">About Us</a> |
+      <a href="#">Help Center</a> |
+      <a href="#">Contact Support</a>
+    </div>
+    <p style="margin-top: 15px; font-size: 12px;">
+      © 2026 CA Marketplace. All rights reserved.
+    </p>
+  </div>
+</div>

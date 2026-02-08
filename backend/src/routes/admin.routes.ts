@@ -2,6 +2,10 @@ import { Router, Request, Response } from 'express';
 import { prisma } from '../config';
 import { asyncHandler, authenticate, authorize, validateBody } from '../middleware';
 import { sendSuccess, sendError, parsePaginationParams, createPaginationResponse } from '../utils';
+import PlatformConfigService from '../services/platform-config.service';
+import DisputeService from '../services/dispute.service';
+import { EmailTemplateService } from '../services/email-template.service';
+import { DisputeResolution } from '@prisma/client';
 
 const router = Router();
 
@@ -221,6 +225,30 @@ router.put('/cas/:id/verify', authenticate, authorize('ADMIN'), validateBody(ver
       },
     },
   });
+
+  // Send verification email
+  try {
+    if (status === 'VERIFIED') {
+      await EmailTemplateService.sendVerificationApproved({
+        caEmail: updated.user.email,
+        caName: updated.user.name,
+        approvedDate: new Date(),
+        dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
+        profileUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/cas/${id}`,
+      });
+    } else if (status === 'REJECTED') {
+      await EmailTemplateService.sendVerificationRejected({
+        caEmail: updated.user.email,
+        caName: updated.user.name,
+        rejectionReasons: reason ? [reason] : ['Profile verification failed'],
+        resubmitUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/profile`,
+        supportEmail: 'support@camarketplace.com',
+      });
+    }
+  } catch (emailError) {
+    console.error('Failed to send verification email:', emailError);
+    // Don't fail the verification if email fails
+  }
 
   const message = status === 'VERIFIED'
     ? 'CA verified successfully'
@@ -444,6 +472,205 @@ router.post('/payments/release', authenticate, authorize('ADMIN'), validateBody(
   });
 
   sendSuccess(res, updated, `Payment of ₹${payment.caAmount} released to CA successfully`);
+}));
+
+// ==========================================
+// PLATFORM CONFIGURATION ENDPOINTS
+// ==========================================
+
+// Get platform configuration
+router.get('/platform-settings', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), asyncHandler(async (_req: Request, res: Response) => {
+  const config = await PlatformConfigService.getConfig();
+  sendSuccess(res, config);
+}));
+
+// Update platform configuration
+const updatePlatformConfigSchema = {
+  individualPlatformFeePercent: { type: 'number' as const, min: 0, max: 100 },
+  firmPlatformFeePercent: { type: 'number' as const, min: 0, max: 100 },
+  enabledServiceTypes: { type: 'array' as const },
+  autoVerifyCAAfterDays: { type: 'number' as const, min: 0 },
+  requireDocumentUpload: { type: 'boolean' as const },
+  minimumExperienceYears: { type: 'number' as const, min: 0 },
+  requirePhoneVerification: { type: 'boolean' as const },
+  requireEmailVerification: { type: 'boolean' as const },
+  escrowAutoReleaseDays: { type: 'number' as const, min: 0 },
+  allowInstantPayments: { type: 'boolean' as const },
+  minimumPaymentAmount: { type: 'number' as const, min: 0 },
+  maximumPaymentAmount: { type: 'number' as const, min: 0 },
+  allowClientRefunds: { type: 'boolean' as const },
+  refundProcessingDays: { type: 'number' as const, min: 0 },
+  partialRefundMinPercent: { type: 'number' as const, min: 0, max: 100 },
+  partialRefundMaxPercent: { type: 'number' as const, min: 0, max: 100 },
+  disputeAutoCloseDays: { type: 'number' as const, min: 0 },
+  requireDisputeEvidence: { type: 'boolean' as const },
+  allowCAResponse: { type: 'boolean' as const },
+  maxActiveRequestsPerClient: { type: 'number' as const, min: 1 },
+  maxActiveRequestsPerCA: { type: 'number' as const, min: 1 },
+  requestCancellationHours: { type: 'number' as const, min: 0 },
+  isMaintenanceMode: { type: 'boolean' as const },
+  maintenanceMessage: { type: 'string' as const, max: 500 },
+};
+
+router.put('/platform-settings', authenticate, authorize('SUPER_ADMIN'), validateBody(updatePlatformConfigSchema), asyncHandler(async (req: Request, res: Response) => {
+  const updates = req.body;
+  updates.updatedBy = req.user!.userId;
+
+  try {
+    const config = await PlatformConfigService.updateConfig(updates);
+    sendSuccess(res, config, 'Platform settings updated successfully');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Failed to update platform settings', 400);
+  }
+}));
+
+// Enable maintenance mode
+const maintenanceModeSchema = {
+  message: { required: true, type: 'string' as const, min: 10, max: 500 },
+};
+
+router.post('/platform-settings/maintenance/enable', authenticate, authorize('SUPER_ADMIN'), validateBody(maintenanceModeSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { message } = req.body;
+  const config = await PlatformConfigService.enableMaintenanceMode(message, req.user!.userId);
+  sendSuccess(res, config, 'Maintenance mode enabled');
+}));
+
+// Disable maintenance mode
+router.post('/platform-settings/maintenance/disable', authenticate, authorize('SUPER_ADMIN'), asyncHandler(async (req: Request, res: Response) => {
+  const config = await PlatformConfigService.disableMaintenanceMode(req.user!.userId);
+  sendSuccess(res, config, 'Maintenance mode disabled');
+}));
+
+// ==========================================
+// DISPUTE MANAGEMENT ENDPOINTS
+// ==========================================
+
+// Get all disputes with filters
+router.get('/disputes', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), asyncHandler(async (req: Request, res: Response) => {
+  const { status, priority, requiresAction, page, limit } = req.query;
+  const { skip, take } = parsePaginationParams(page as string, limit as string);
+
+  const filters: any = { skip, take };
+
+  if (status) {
+    filters.status = status;
+  }
+
+  if (priority) {
+    filters.priority = parseInt(priority as string, 10);
+  }
+
+  if (requiresAction !== undefined) {
+    filters.requiresAction = requiresAction === 'true';
+  }
+
+  const { disputes, total } = await DisputeService.getDisputes(filters);
+
+  const pageNum = parseInt(page as string || '1', 10);
+  const limitNum = parseInt(limit as string || '20', 10);
+
+  sendSuccess(res, createPaginationResponse(disputes, total, pageNum, limitNum));
+}));
+
+// Get specific dispute by ID
+router.get('/disputes/:id', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const dispute = await DisputeService.getDisputeById(id);
+
+  if (!dispute) {
+    return sendError(res, 'Dispute not found', 404);
+  }
+
+  sendSuccess(res, dispute);
+}));
+
+// Add admin note to dispute
+const addDisputeNoteSchema = {
+  note: { required: true, type: 'string' as const, min: 10, max: 2000 },
+};
+
+router.post('/disputes/:id/notes', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), validateBody(addDisputeNoteSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { note } = req.body;
+
+  try {
+    const dispute = await DisputeService.addAdminNote(id, note, req.user!.userId);
+    sendSuccess(res, dispute, 'Note added successfully');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Failed to add note', 400);
+  }
+}));
+
+// Resolve dispute
+const resolveDisputeSchema = {
+  resolution: { required: true, type: 'string' as const },
+  resolutionNotes: { required: true, type: 'string' as const, min: 20, max: 2000 },
+  refundPercentage: { type: 'number' as const, min: 0, max: 100 },
+};
+
+router.post('/disputes/:id/resolve', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), validateBody(resolveDisputeSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { resolution, resolutionNotes, refundPercentage } = req.body;
+
+  // Validate resolution type
+  const validResolutions: DisputeResolution[] = [
+    DisputeResolution.FULL_REFUND,
+    DisputeResolution.PARTIAL_REFUND,
+    DisputeResolution.NO_REFUND,
+    DisputeResolution.RELEASE_TO_CA,
+  ];
+
+  if (!validResolutions.includes(resolution as DisputeResolution)) {
+    return sendError(res, `Invalid resolution. Must be one of: ${validResolutions.join(', ')}`, 400);
+  }
+
+  if (resolution === DisputeResolution.PARTIAL_REFUND && !refundPercentage) {
+    return sendError(res, 'Refund percentage required for partial refund', 400);
+  }
+
+  try {
+    const dispute = await DisputeService.resolveDispute({
+      disputeId: id,
+      resolution: resolution as DisputeResolution,
+      resolutionNotes,
+      refundPercentage,
+      resolvedBy: req.user!.userId,
+    });
+
+    sendSuccess(res, dispute, `Dispute resolved: ${resolution}`);
+  } catch (error: any) {
+    return sendError(res, error.message || 'Failed to resolve dispute', 400);
+  }
+}));
+
+// Escalate dispute
+router.post('/disputes/:id/escalate', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const dispute = await DisputeService.escalateDispute(id, req.user!.userId);
+    sendSuccess(res, dispute, 'Dispute escalated to urgent priority');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Failed to escalate dispute', 400);
+  }
+}));
+
+// Close dispute (without resolution)
+const closeDisputeSchema = {
+  reason: { required: true, type: 'string' as const, min: 10, max: 500 },
+};
+
+router.post('/disputes/:id/close', authenticate, authorize('ADMIN', 'SUPER_ADMIN'), validateBody(closeDisputeSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { reason } = req.body;
+
+  try {
+    const dispute = await DisputeService.closeDispute(id, reason, req.user!.userId);
+    sendSuccess(res, dispute, 'Dispute closed');
+  } catch (error: any) {
+    return sendError(res, error.message || 'Failed to close dispute', 400);
+  }
 }));
 
 export default router;

@@ -39,6 +39,7 @@ export const queues = {
   reports: null as Queue | null,
   aggregation: null as Queue | null,
   segments: null as Queue | null,
+  escrow: null as Queue | null,
 };
 
 /**
@@ -75,6 +76,16 @@ export async function initializeQueues(): Promise<void> {
       ...defaultQueueOptions.defaultJobOptions,
       attempts: 3,
       timeout: 180000, // 3 minute timeout
+    },
+  });
+
+  // Escrow queue - for automatic escrow release
+  queues.escrow = new Bull('escrow', {
+    ...defaultQueueOptions,
+    defaultJobOptions: {
+      ...defaultQueueOptions.defaultJobOptions,
+      attempts: 5, // Critical financial operation, retry more times
+      timeout: 300000, // 5 minute timeout for payment processing
     },
   });
 

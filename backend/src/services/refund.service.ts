@@ -1,425 +1,210 @@
-/**
- * Refund Service
- * Handles refund calculations and processing for cancelled service requests
- */
+import { PrismaClient, RefundReason, PaymentStatus } from '@prisma/client';
+import Razorpay from 'razorpay';
+import { EmailNotificationService } from './email-notification.service';
 
-import { prisma } from '../config';
-import { Prisma } from '@prisma/client';
-import { LoggerService } from './logger.service';
-import { createRefund, fetchRefundDetails } from './razorpay.service';
-import EmailNotificationService from './email-notification.service';
+const prisma = new PrismaClient();
 
-export interface RefundCalculation {
-  refundableAmount: number;
-  cancellationFee: number;
+let razorpayInstance: Razorpay | null = null;
+
+const getRazorpay = (): Razorpay => {
+  if (!razorpayInstance) {
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (!keyId || !keySecret) {
+      throw new Error('Razorpay credentials not configured. Please set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET environment variables.');
+    }
+
+    razorpayInstance = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+  }
+  return razorpayInstance;
+};
+
+interface RefundRequest {
+  paymentId: string;
+  reason: RefundReason;
+  reasonText?: string;
+  percentage?: number;
+  processedBy: string;
+}
+
+interface RefundCalculation {
+  originalAmount: number;
+  platformFee: number;
   refundPercentage: number;
-  reason: string;
+  refundAmount: number;
+  processingFee: number;
+  finalRefundAmount: number;
 }
 
 export class RefundService {
-  /**
-   * Calculate refund amount based on request status and work progress
-   *
-   * Refund Policy:
-   * - PENDING: 100% refund (no work started)
-   * - ACCEPTED: 95% refund (5% cancellation fee)
-   * - IN_PROGRESS: Variable refund based on work completion (min 10% cancellation fee)
-   * - COMPLETED: 0% refund (work completed)
-   *
-   * @param paymentId - Payment ID
-   * @returns Refund calculation details
-   */
-  static async calculateRefundAmount(paymentId: string): Promise<RefundCalculation> {
-    const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
-      include: {
-        request: true,
-      },
-    });
-
-    if (!payment) {
-      throw new Error('Payment not found');
+  static calculateRefundAmount(
+    payment: any,
+    requestStatus: string,
+    percentage: number = 100
+  ): RefundCalculation {
+    const originalAmount = payment.amount;
+    const platformFee = payment.platformFee || 0;
+    const refundPercentage = Math.min(100, Math.max(0, percentage));
+    let refundAmount = (originalAmount * refundPercentage) / 100;
+    
+    let processingFee = (refundAmount * 2) / 100;
+    processingFee = Math.max(10, Math.min(100, processingFee));
+    
+    if (requestStatus === 'PENDING' && percentage === 100) {
+      processingFee = 0;
     }
-
-    if (payment.status === 'REFUNDED') {
-      throw new Error('Payment already refunded');
-    }
-
-    const totalAmount = payment.amount;
-    const requestStatus = payment.request.status;
-
-    let refundPercentage = 0;
-    let reason = '';
-
-    switch (requestStatus) {
-      case 'PENDING':
-        refundPercentage = 100;
-        reason = 'No work started - full refund';
-        break;
-
-      case 'ACCEPTED':
-        refundPercentage = 95;
-        reason = 'Work not yet started - 5% cancellation fee applied';
-        break;
-
-      case 'IN_PROGRESS':
-        // Calculate based on work progress
-        // If estimatedHours and actualHours are available, use them
-        // Otherwise, default to 50% completion assumption
-        const estimatedHours = payment.request.estimatedHours || 0;
-        const actualHours = payment.request.actualHours || 0;
-
-        if (estimatedHours > 0 && actualHours > 0) {
-          const completionPercentage = Math.min((actualHours / estimatedHours) * 100, 100);
-          // Refund remaining work minus 10% cancellation fee
-          refundPercentage = Math.max(100 - completionPercentage - 10, 0);
-          reason = `Work ${completionPercentage.toFixed(1)}% complete - 10% cancellation fee applied`;
-        } else {
-          // Default: assume 50% work done if no hours tracked
-          refundPercentage = 40; // 50% work done + 10% fee = 40% refund
-          reason = 'Work in progress - estimated 50% complete, 10% cancellation fee applied';
-        }
-        break;
-
-      case 'COMPLETED':
-        refundPercentage = 0;
-        reason = 'Work completed - no refund available';
-        break;
-
-      case 'CANCELLED':
-        // Already cancelled, check if refund was processed
-        if (payment.status === 'COMPLETED') {
-          refundPercentage = 100;
-          reason = 'Request cancelled - full refund';
-        } else {
-          refundPercentage = 0;
-          reason = 'Already cancelled';
-        }
-        break;
-
-      default:
-        throw new Error(`Invalid request status: ${requestStatus}`);
-    }
-
-    const refundableAmount = Math.round((totalAmount * refundPercentage) / 100 * 100) / 100;
-    const cancellationFee = totalAmount - refundableAmount;
-
+    
+    const finalRefundAmount = refundAmount - processingFee;
+    
     return {
-      refundableAmount,
-      cancellationFee,
+      originalAmount,
+      platformFee,
       refundPercentage,
-      reason,
+      refundAmount,
+      processingFee,
+      finalRefundAmount,
     };
   }
 
-  /**
-   * Process refund for a payment
-   *
-   * Steps:
-   * 1. Validate payment eligibility
-   * 2. Calculate refund amount
-   * 3. Create refund via Razorpay
-   * 4. Update payment status in database
-   * 5. Reverse CA wallet transaction if payment was released
-   * 6. Send email notifications
-   *
-   * @param paymentId - Payment ID
-   * @param reason - Refund reason (optional)
-   * @param userId - User requesting refund (for authorization)
-   * @returns Refund details
-   */
-  static async processRefund(
-    paymentId: string,
-    reason?: string,
-    userId?: string
-  ): Promise<any> {
-    // 1. Validate payment
+  static getRecommendedRefundPercentage(requestStatus: string): number {
+    switch (requestStatus) {
+      case 'PENDING':
+      case 'ACCEPTED':
+        return 100;
+      case 'IN_PROGRESS':
+        return 50;
+      case 'COMPLETED':
+        return 0;
+      case 'CANCELLED':
+        return 100;
+      default:
+        return 50;
+    }
+  }
+
+  static async initiateRefund(data: RefundRequest) {
     const payment = await prisma.payment.findUnique({
-      where: { id: paymentId },
+      where: { id: data.paymentId },
       include: {
         request: true,
-        client: {
-          include: { user: true },
-        },
-        ca: {
-          include: { user: true },
-        },
+        client: { include: { user: true } },
+        ca: { include: { user: true } },
       },
     });
 
-    if (!payment) {
-      throw new Error('Payment not found');
+    if (!payment) throw new Error('Payment not found');
+    if (payment.status !== PaymentStatus.COMPLETED) {
+      throw new Error(`Cannot refund payment with status: ${payment.status}`);
+    }
+    if (payment.releasedToCA) {
+      throw new Error('Cannot refund: Payment already released to CA');
+    }
+    if (!payment.razorpayPaymentId) {
+      throw new Error('Razorpay payment ID not found');
     }
 
-    if (payment.status === 'REFUNDED') {
-      throw new Error('Payment already refunded');
+    const refundPercentage = data.percentage !== undefined
+      ? data.percentage
+      : this.getRecommendedRefundPercentage(payment.request.status);
+
+    const calculation = this.calculateRefundAmount(
+      payment,
+      payment.request.status,
+      refundPercentage
+    );
+
+    if (calculation.finalRefundAmount <= 0) {
+      throw new Error('Refund amount must be greater than 0');
     }
 
-    if (payment.status !== 'COMPLETED') {
-      throw new Error('Can only refund completed payments');
-    }
-
-    // Check authorization
-    if (userId) {
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      const isClient = payment.client.userId === userId;
-      const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN';
-
-      if (!isClient && !isAdmin) {
-        throw new Error('Only client or admin can request refund');
-      }
-    }
-
-    // 2. Calculate refund amount
-    const calculation = await this.calculateRefundAmount(paymentId);
-
-    if (calculation.refundableAmount <= 0) {
-      throw new Error(calculation.reason);
-    }
-
-    LoggerService.info('Refund calculation', {
-      paymentId,
-      ...calculation,
+    const razorpay = getRazorpay();
+    const razorpayRefund = await razorpay.payments.refund(payment.razorpayPaymentId, {
+      amount: Math.round(calculation.finalRefundAmount * 100),
+      speed: 'normal',
+      notes: {
+        reason: data.reason,
+        reasonText: data.reasonText || '',
+        requestId: payment.requestId,
+        processedBy: data.processedBy,
+      },
     });
 
-    // 3. Create refund via Razorpay
-    let razorpayRefund;
-    try {
-      razorpayRefund = await createRefund(
-        payment.razorpayPaymentId!,
-        calculation.refundableAmount,
-        reason || calculation.reason
-      );
+    const newStatus = refundPercentage === 100
+      ? PaymentStatus.REFUNDED
+      : PaymentStatus.PARTIALLY_REFUNDED;
 
-      LoggerService.info('Razorpay refund created', {
-        paymentId,
-        refundId: razorpayRefund.id,
-        amount: calculation.refundableAmount,
-      });
-    } catch (error) {
-      LoggerService.error('Razorpay refund failed', error as Error, { paymentId });
-      throw new Error(`Refund processing failed: ${(error as Error).message}`);
-    }
-
-    // 4. Update database in transaction
-    await prisma.$transaction(async (tx) => {
-      // Update payment status
-      await tx.payment.update({
-        where: { id: paymentId },
-        data: {
-          status: 'REFUNDED',
-          refundAmount: calculation.refundableAmount,
-          refundReason: reason || calculation.reason,
-          refundedAt: new Date(),
-          razorpayRefundId: razorpayRefund.id,
-        },
-      });
-
-      // 5. Reverse CA wallet transaction if payment was released
-      if (payment.releasedToCA) {
-        await this.reverseCAPayment(tx, payment.caId, payment.caAmount, payment.requestId);
-      }
-
-      // Update service request status to CANCELLED if not already
-      if (payment.request.status !== 'CANCELLED') {
-        await tx.serviceRequest.update({
-          where: { id: payment.requestId },
-          data: {
-            status: 'CANCELLED',
-            cancellationReason: reason || 'Payment refunded',
-          },
-        });
-      }
-    });
-
-    // 6. Send email notifications
-    try {
-      // Notify client
-      await EmailNotificationService.sendRefundProcessedNotification(
-        payment.client.user.email,
-        {
-          clientName: payment.client.user.name,
-          refundAmount: calculation.refundableAmount,
-          requestId: payment.requestId,
-          reason: reason || calculation.reason,
-        }
-      );
-
-      // Notify CA if payment was released using request cancelled notification
-      if (payment.releasedToCA) {
-        await EmailNotificationService.sendRequestCancelledNotification(
-          payment.ca.user.email,
-          {
-            caName: payment.ca.user.name,
-            clientName: payment.client.user.name,
-            serviceType: payment.request.serviceType,
-            requestId: payment.requestId,
-            reason: `Payment refunded - wallet reversed by ₹${payment.caAmount.toFixed(2)}`,
-          }
-        );
-      }
-    } catch (emailError) {
-      LoggerService.error('Failed to send refund email notifications', emailError as Error);
-      // Don't fail the refund if email fails
-    }
-
-    LoggerService.info('Refund processed successfully', {
-      paymentId,
-      refundId: razorpayRefund.id,
-      amount: calculation.refundableAmount,
+    const updatedPayment = await prisma.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: newStatus,
+        refundAmount: calculation.finalRefundAmount,
+        refundReason: data.reason,
+        refundReasonText: data.reasonText,
+        refundPercentage: refundPercentage,
+        refundedAt: new Date(),
+        razorpayRefundId: razorpayRefund.id,
+        refundProcessedBy: data.processedBy,
+      },
+      include: {
+        client: { include: { user: true } },
+        ca: { include: { user: true } },
+        request: true,
+      },
     });
 
     return {
       success: true,
-      refund: razorpayRefund,
+      refund: updatedPayment,
       calculation,
+      razorpayRefund,
     };
   }
 
-  /**
-   * Reverse CA payment from wallet
-   * Called when refunding a payment that was already released to CA
-   */
-  private static async reverseCAPayment(
-    tx: Prisma.TransactionClient,
-    caId: string,
-    amount: number,
-    requestId: string
-  ): Promise<void> {
-    const wallet = await tx.wallet.findUnique({
-      where: { caId },
-    });
-
-    if (!wallet) {
-      throw new Error('CA wallet not found');
-    }
-
-    const currentBalance = wallet.balance;
-    const newBalance = currentBalance - amount;
-
-    if (newBalance < 0) {
-      LoggerService.warn('Wallet balance going negative after reversal', {
-        caId,
-        currentBalance,
-        reversalAmount: amount,
-        newBalance,
-      });
-    }
-
-    // Update wallet balance
-    await tx.wallet.update({
-      where: { caId },
-      data: { balance: newBalance },
-    });
-
-    // Create reversal transaction record
-    await tx.walletTransaction.create({
-      data: {
-        caId,
-        type: 'REFUND_REVERSAL',
-        amount: -amount,
-        balanceBefore: currentBalance,
-        balanceAfter: newBalance,
-        description: `Payment reversal for refunded request ${requestId}`,
-        status: 'COMPLETED',
-        processedAt: new Date(),
-      },
-    });
-
-    LoggerService.info('CA wallet reversed', {
-      caId,
-      amount,
-      newBalance,
-    });
-  }
-
-  /**
-   * Check if a payment is eligible for refund
-   * @param paymentId - Payment ID
-   * @returns Eligibility status and reason
-   */
-  static async getRefundEligibility(paymentId: string): Promise<{
-    eligible: boolean;
-    reason: string;
-    calculation?: RefundCalculation;
-  }> {
-    try {
-      const payment = await prisma.payment.findUnique({
-        where: { id: paymentId },
-        include: { request: true },
-      });
-
-      if (!payment) {
-        return { eligible: false, reason: 'Payment not found' };
-      }
-
-      if (payment.status === 'REFUNDED') {
-        return { eligible: false, reason: 'Payment already refunded' };
-      }
-
-      if (payment.status !== 'COMPLETED') {
-        return { eligible: false, reason: 'Only completed payments can be refunded' };
-      }
-
-      // Calculate refund to check if amount > 0
-      const calculation = await this.calculateRefundAmount(paymentId);
-
-      if (calculation.refundableAmount <= 0) {
-        return {
-          eligible: false,
-          reason: calculation.reason,
-          calculation,
-        };
-      }
-
-      return {
-        eligible: true,
-        reason: 'Refund available',
-        calculation,
-      };
-    } catch (error) {
-      return {
-        eligible: false,
-        reason: (error as Error).message,
-      };
-    }
-  }
-
-  /**
-   * Get refund status from Razorpay
-   * @param paymentId - Payment ID
-   * @returns Refund status
-   */
-  static async getRefundStatus(paymentId: string): Promise<any> {
+  static async checkRefundEligibility(paymentId: string) {
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
+      include: { request: true },
     });
 
     if (!payment) {
-      throw new Error('Payment not found');
+      return { eligible: false, reason: 'Payment not found' };
+    }
+    if (payment.status !== PaymentStatus.COMPLETED) {
+      return { eligible: false, reason: `Payment status is ${payment.status}` };
+    }
+    if (payment.releasedToCA) {
+      return { eligible: false, reason: 'Payment released to CA', requiresManual: true };
     }
 
-    if (!payment.razorpayRefundId) {
-      throw new Error('No refund found for this payment');
-    }
+    const recommendedPercentage = this.getRecommendedRefundPercentage(payment.request.status);
 
+    return {
+      eligible: true,
+      recommendedPercentage,
+      calculation: this.calculateRefundAmount(payment, payment.request.status, recommendedPercentage),
+    };
+  }
+
+  static async getRefundStatus(refundId: string) {
     try {
-      const refundDetails = await fetchRefundDetails(
-        payment.razorpayPaymentId!,
-        payment.razorpayRefundId
-      );
+      const razorpay = getRazorpay();
+      const refund = await razorpay.refunds.fetch(refundId);
 
       return {
-        refundId: refundDetails.id,
-        status: refundDetails.status,
-        amount: refundDetails.amount / 100, // Convert from paise
-        createdAt: new Date(refundDetails.created_at * 1000),
+        id: refund.id,
+        paymentId: refund.payment_id,
+        amount: (refund.amount || 0) / 100,
+        currency: refund.currency,
+        status: refund.status,
+        createdAt: new Date(refund.created_at * 1000),
+        speedRequested: (refund as any).speed_requested,
       };
-    } catch (error) {
-      LoggerService.error('Failed to fetch refund status', error as Error, { paymentId });
-      throw error;
+    } catch (error: any) {
+      throw new Error(`Failed to fetch refund status: ${error.message}`);
     }
   }
 }
-
-export default RefundService;

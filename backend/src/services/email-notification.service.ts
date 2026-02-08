@@ -425,6 +425,69 @@ class EmailNotificationService {
   }
 
   /**
+   * Notify client when CA abandons the request
+   */
+  async sendRequestAbandonedNotification(
+    clientEmail: string,
+    data: {
+      clientName: string;
+      caName: string;
+      serviceType: string;
+      requestId: string;
+      abandonmentReason: string;
+      reputationPenalty: number;
+      compensationOffered?: boolean;
+    }
+  ) {
+    const html = `
+      <h2>Service Request Update - CA Unavailable</h2>
+      <p>Hello ${data.clientName},</p>
+      <p>We regret to inform you that <strong>${data.caName}</strong> is unable to continue with your service request.</p>
+
+      <h3>Request Details:</h3>
+      <ul>
+        <li><strong>Service Type:</strong> ${data.serviceType}</li>
+        <li><strong>Request ID:</strong> ${data.requestId}</li>
+        <li><strong>Reason:</strong> ${data.abandonmentReason}</li>
+      </ul>
+
+      ${data.compensationOffered ? `
+      <div style="background-color: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p style="margin: 0; color: #155724;">
+          <strong>Good News:</strong> Since payment was already made, you may be eligible for compensation or a refund.
+          Our team will review this case and contact you within 24 hours.
+        </p>
+      </div>
+      ` : ''}
+
+      <p><strong>What happens next:</strong></p>
+      <ul>
+        <li>Your request has been automatically reopened and is available to other CAs</li>
+        <li>You will be notified when a new CA accepts your request</li>
+        <li>You can also browse and select another CA from our platform</li>
+        ${data.compensationOffered ? '<li>Our admin team will contact you regarding compensation</li>' : ''}
+      </ul>
+
+      <p>We apologize for any inconvenience caused and appreciate your patience.</p>
+
+      <p>
+        <a href="${process.env.APP_URL}/requests/${data.requestId}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0;">
+          View Request
+        </a>
+        <a href="${process.env.APP_URL}/cas" style="display: inline-block; padding: 10px 20px; background-color: #28a745; color: white; text-decoration: none; border-radius: 5px; margin: 10px 0;">
+          Browse Available CAs
+        </a>
+      </p>
+    `;
+
+    return this.sendEmail({
+      to: clientEmail,
+      subject: 'Service Request Update - CA Unavailable',
+      html,
+    });
+  }
+
+  /**
    * ============================================================================
    * PAYMENT NOTIFICATIONS
    * ============================================================================

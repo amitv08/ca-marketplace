@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a CA (Chartered Accountant) marketplace platform that connects clients with chartered accountants for various accounting services. The platform is built as a full-stack application with:
 
 - **Frontend**: React application (external port 3001, internal 3000)
-- **Backend**: Node.js/Express API with TypeScript and Prisma ORM (external port 8080, internal 5000)
+- **Backend**: Node.js/Express API with TypeScript and Prisma ORM (external port 8081, internal 5000)
 - **Database**: PostgreSQL 15 (external port 54320, internal 5432)
 - **Redis**: Cache and session store (external port 63790, internal 6379)
 - **Tools**: PGAdmin for database management (external port 5051, internal 80)
@@ -110,7 +110,7 @@ Scripts in `./database-scripts/` are automatically run on first container startu
 - `JWT_SECRET`: Token signing key (must be changed for production)
 
 ### Frontend Environment Variables
-- `REACT_APP_API_URL`: Backend API endpoint (http://localhost:8080/api)
+- `REACT_APP_API_URL`: Backend API endpoint (http://localhost:8081/api)
 
 ## Project Structure
 

@@ -1,0 +1,206 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ca_postgres
+    environment:
+      POSTGRES_DB: camarketplace
+      POSTGRES_USER: caadmin
+      POSTGRES_PASSWORD: CaSecure123!
+    ports:
+      - "54320:5432"  # Non-standard port for security
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U caadmin"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ca-network
+    restart: unless-stopped
+    # IMPROVED: Added resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # PGAdmin (Database GUI - Optional but helpful)
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: ca_pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@caplatform.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5051:80"  # Non-standard port for security
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ca-network
+    restart: unless-stopped
+    # IMPROVED: Added resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: ca_redis
+    ports:
+      - "63790:6379"  # Non-standard port for security
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ca-network
+    restart: unless-stopped
+    # IMPROVED: Added resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+
+  # ClamAV Virus Scanner (IMPROVED: Added as a service)
+  clamav:
+    image: clamav/clamav:latest
+    container_name: ca_clamav
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s  # ClamAV takes time to download virus definitions
+    networks:
+      - ca-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G  # ClamAV needs more memory
+        reservations:
+          memory: 1G
+
+  # Backend API
+  backend:
+    build: ./backend
+    container_name: ca_backend
+    ports:
+      - "8081:5000"  # Non-standard external port for security
+    environment:
+      - DATABASE_URL=postgresql://caadmin:CaSecure123!@postgres:5432/camarketplace
+      - NODE_ENV=development
+      - JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+      - CLAMAV_ENABLED=true
+      - CLAMAV_HOST=clamav  # IMPROVED: Use clamav service
+      - CLAMAV_PORT=3310
+      - MAX_SCAN_FILE_SIZE=104857600
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy  # IMPROVED: Wait for ClamAV
+    # IMPROVED: Added health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ca-network
+    restart: unless-stopped
+    # IMPROVED: Added resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    # IMPROVED: Added logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Frontend React App
+  frontend:
+    build: ./frontend
+    container_name: ca_frontend
+    ports:
+      - "3001:3000"  # Non-standard external port for security
+    environment:
+      - REACT_APP_API_URL=http://localhost:8081/api
+      - BROWSER=none
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    stdin_open: true
+    tty: true
+    depends_on:
+      backend:
+        condition: service_healthy  # IMPROVED: Wait for backend health
+    # IMPROVED: Added health check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - ca-network
+    restart: unless-stopped
+    # IMPROVED: Added resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+    # IMPROVED: Added logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# IMPROVED: Explicit network definition for better control
+networks:
+  ca-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+  redis_data:
+  clamav_data:  # IMPROVED: Added ClamAV data volume

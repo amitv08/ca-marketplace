@@ -7,6 +7,8 @@ import { Job } from 'bull';
 import { getQueue, initializeQueues as initQueues, closeQueues } from '../config/queues';
 import { AggregationService } from './aggregation.service';
 
+import { runEscrowAutoRelease } from '../jobs/escrow-auto-release.job';
+
 /**
  * Job data interfaces
  */
@@ -27,6 +29,10 @@ export interface AggregationJobData {
 
 export interface SegmentJobData {
   segmentId?: string; // If null, refresh all segments
+}
+
+export interface EscrowJobData {
+  manual?: boolean; // If true, triggered manually by admin
 }
 
 /**
@@ -53,7 +59,9 @@ export class JobSchedulerService {
     await initQueues();
     await this.setupProcessors();
     await this.scheduleDailyAggregation();
-    console.log('Job Scheduler initialized');
+    
+    await this.scheduleEscrowAutoRelease();
+    console.log('Job Scheduler initialized with escrow auto-release');
   }
 
   /**
@@ -79,7 +87,13 @@ export class JobSchedulerService {
       return await this.processSegmentJob(job);
     });
 
-    console.log('Job processors configured');
+    // Escrow auto-release processor
+    const escrowQueue = getQueue('escrow');
+    escrowQueue.process('auto-release', 1, async (job: Job<EscrowJobData>) => {
+      return await this.processEscrowAutoRelease(job);
+    });
+
+    console.log('Job processors configured with escrow auto-release');
   }
 
   /**
@@ -111,6 +125,36 @@ export class JobSchedulerService {
     );
 
     console.log('Daily aggregation job scheduled (midnight UTC)');
+  }
+
+  /**
+   * Schedule escrow auto-release job
+   * Runs daily at 2 AM UTC
+   */
+  static async scheduleEscrowAutoRelease(): Promise<void> {
+    try {
+      const escrowQueue = getQueue('escrow');
+      const repeatableJobs = await escrowQueue.getRepeatableJobs();
+      for (const job of repeatableJobs) {
+        if (job.name === 'auto-release') {
+          await escrowQueue.removeRepeatableByKey(job.key);
+        }
+      }
+      await escrowQueue.add(
+        'auto-release',
+        {},
+        {
+          repeat: {
+            cron: '0 2 * * *',
+            tz: 'UTC',
+          },
+          jobId: 'escrow-auto-release-cron',
+        }
+      );
+      console.log('Escrow auto-release job scheduled (2 AM UTC)');
+    } catch (error) {
+      console.error('Failed to schedule escrow auto-release:', error);
+    }
   }
 
   /**
@@ -301,6 +345,24 @@ export class JobSchedulerService {
 
     await job.progress(100);
     return { segmentId };
+  }
+
+  /**
+   * Process escrow auto-release job
+   */
+  private static async processEscrowAutoRelease(job: Job<EscrowJobData>): Promise<any> {
+    console.log(`Processing escrow auto-release job ${job.id}`);
+    await job.progress(10);
+    try {
+      const releasedCount = await runEscrowAutoRelease();
+      await job.progress(90);
+      console.log(`Auto-released ${releasedCount} escrow payments`);
+      await job.progress(100);
+      return { releasedCount, success: true };
+    } catch (error: any) {
+      console.error('Escrow auto-release job failed:', error);
+      throw error;
+    }
   }
 
   /**

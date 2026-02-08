@@ -96,12 +96,45 @@ enum ServiceRequestStatus {
   CANCELLED
 }
 
+enum EscrowStatus {
+  NOT_REQUIRED      // For requests that don't need escrow (e.g., old requests)
+  PENDING_PAYMENT   // CA accepted, waiting for client to pay
+  ESCROW_HELD       // Payment received and held in escrow
+  PENDING_RELEASE   // Completed, awaiting auto-release or admin approval
+  ESCROW_RELEASED   // Payment released to CA
+  ESCROW_DISPUTED   // Client raised a dispute
+  ESCROW_REFUNDED   // Refunded to client after dispute
+}
+
 enum PaymentStatus {
   PENDING
   PROCESSING
   COMPLETED
   FAILED
   REFUNDED
+  PARTIALLY_REFUNDED
+  ESCROW_HELD       // Payment held in escrow
+  PENDING_RELEASE   // Awaiting release after completion
+}
+
+enum RefundReason {
+  CANCELLATION_BEFORE_START
+  CANCELLATION_IN_PROGRESS
+  CA_ABANDONMENT
+  QUALITY_ISSUE
+  DISPUTE_RESOLUTION
+  ADMIN_REFUND
+  OTHER
+}
+
+enum AbandonmentReason {
+  EMERGENCY
+  ILLNESS
+  OVERCOMMITTED
+  PERSONAL_REASONS
+  TECHNICAL_ISSUES
+  CLIENT_UNRESPONSIVE
+  OTHER
 }
 
 enum PaymentMethod {
@@ -294,6 +327,8 @@ model User {
   sentMessages        Message[]            @relation("SentMessages")
   receivedMessages    Message[]            @relation("ReceivedMessages")
   assignedRequests    ServiceRequest[]     @relation("AssignedRequests") // Requests they assigned to CAs
+  notifications       Notification[] // User's notifications
+  passwordResetTokens PasswordResetToken[]
 
   // Indexes
   @@index([email])
@@ -317,6 +352,7 @@ model Client {
   payments                Payment[]
   firmReviews             FirmReview[] // Reviews for firms
   independentWorkRequests IndependentWorkRequest[] // Requests related to independent work approvals
+  disputes                Dispute[] // Disputes raised by client
 
   @@index([userId])
 }
@@ -340,15 +376,21 @@ model CharteredAccountant {
   independentWorkAllowedUntil DateTime? // Temporary permission expiry date
 
   // Wallet & Financial
-  walletBalance      Float @default(0.0) // Current wallet balance
-  totalEarnings      Float @default(0.0) // Lifetime earnings
-  totalWithdrawals   Float @default(0.0) // Lifetime withdrawals
-  pendingPayouts     Float @default(0.0) // Requested but not completed
+  walletBalance    Float @default(0.0) // Current wallet balance
+  totalEarnings    Float @default(0.0) // Lifetime earnings
+  totalWithdrawals Float @default(0.0) // Lifetime withdrawals
+  pendingPayouts   Float @default(0.0) // Requested but not completed
 
   // Tax Information
-  panNumber          String? // PAN for TDS calculation
-  gstNumber          String? // GST number if registered
-  tdsExempt          Boolean @default(false) // TDS exemption status
+  panNumber String? // PAN for TDS calculation
+  gstNumber String? // GST number if registered
+  tdsExempt Boolean @default(false) // TDS exemption status
+
+  // Request Management
+  maxActiveRequests Int     @default(15) // Maximum concurrent active requests
+  abandonmentCount  Int     @default(0) // Number of times CA abandoned requests
+  lastAbandonedAt   DateTime? // Last abandonment timestamp
+  reputationScore   Float   @default(5.0) // Reputation score (0-5), affected by abandonments
 
   // Relations
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -369,9 +411,10 @@ model CharteredAccountant {
 
   // Wallet & Payout relations
   walletTransactions WalletTransaction[] @relation("CAWalletTransactions")
-  payoutRequests     PayoutRequest[] @relation("CAPayoutRequests")
-  taxRecords         TaxRecord[] @relation("CATaxRecords")
+  payoutRequests     PayoutRequest[]     @relation("CAPayoutRequests")
+  taxRecords         TaxRecord[]         @relation("CATaxRecords")
   distributionShares DistributionShare[] // CA's share in project distributions
+  disputes           Dispute[] // Disputes involving this CA
 
   // Indexes
   @@index([userId])
@@ -402,10 +445,35 @@ model ServiceRequest {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
+  // Escrow tracking
+  escrowStatus   EscrowStatus         @default(NOT_REQUIRED)
+  escrowAmount   Float?               // Amount held in escrow
+  escrowPaidAt   DateTime?            // When client paid into escrow
+
   // Assignment tracking
   assignmentMethod    AssignmentMethod? // How the CA was assigned
   assignedByUserId    String? // Who assigned it (for manual assignments)
   autoAssignmentScore Int? // 0-100, quality of auto-match
+
+  // Rejection & Abandonment tracking
+  rejectionHistory Json?     @default("[]") // Array of {caId, reason, rejectedAt}
+  reopenedCount    Int       @default(0) // Number of times reopened after rejection
+  abandonedBy      String? // CA who abandoned (if any)
+  abandonedAt      DateTime? // When abandoned
+  abandonmentReason String?  @db.Text // Reason for abandonment
+  compensationOffered Boolean @default(false) // Client compensation flag
+
+  // Timestamps for lifecycle tracking
+  acceptedAt   DateTime? // When CA accepted
+  startedAt    DateTime? // When work started
+  completedAt  DateTime? // When work completed
+  cancelledAt  DateTime? // When cancelled/rejected
+
+  // Dispute tracking
+  disputedAt        DateTime? // When dispute was raised
+  disputeReason     String?   @db.Text
+  disputeResolvedAt DateTime?
+  disputeResolution String?   @db.Text
 
   // Relations
   client     Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
@@ -413,17 +481,19 @@ model ServiceRequest {
   firm       CAFirm?              @relation(fields: [firmId], references: [id], onDelete: SetNull)
   assignedBy User?                @relation("AssignedRequests", fields: [assignedByUserId], references: [id], onDelete: SetNull)
 
-  messages             Message[]
-  reviews              Review[]
-  payments             Payment[]
-  firmReviews          FirmReview[]
-  projectDistribution  ProjectDistribution? // Custom distribution setup
+  messages            Message[]
+  reviews             Review[]
+  payments            Payment[]
+  firmReviews         FirmReview[]
+  projectDistribution ProjectDistribution? // Custom distribution setup
+  disputes            Dispute[] // Disputes for this request
 
   // Indexes
   @@index([clientId])
   @@index([caId])
   @@index([firmId])
   @@index([status])
+  @@index([escrowStatus])
   @@index([createdAt])
   @@index([serviceType])
   @@index([deadline])
@@ -437,6 +507,8 @@ model ServiceRequest {
   @@index([serviceType, status]) // Requests by type and status
   @@index([status, deadline]) // Pending requests sorted by deadline
   @@index([firmId, assignmentMethod]) // Firm requests by assignment method
+  @@index([status, escrowStatus]) // For admin queries on escrow status
+  @@index([escrowStatus, disputedAt]) // For dispute management
 }
 
 model Message {
@@ -510,12 +582,23 @@ model Payment {
   razorpayOrderId   String?       @unique
   razorpayPaymentId String?       @unique
   razorpaySignature String?
+
+  // Escrow-specific fields
+  isEscrow          Boolean       @default(false) // Is this an escrow payment?
+  escrowHeldAt      DateTime?     // When payment was held in escrow
+  escrowReleasedAt  DateTime?     // When escrow was released
+  releaseApprovedBy String?       // Admin userId who approved release
+  autoReleaseAt     DateTime?     // Automatic release date (7 days after completion)
+
   releasedToCA      Boolean       @default(false)
   releasedAt        DateTime?
   refundAmount      Float? // Amount refunded to client
-  refundReason      String? // Reason for refund
+  refundReason      RefundReason? // Reason for refund
+  refundReasonText  String? // Additional details for refund
   refundedAt        DateTime? // Timestamp of refund
-  razorpayRefundId  String? @unique // Razorpay refund ID
+  razorpayRefundId  String?       @unique // Razorpay refund ID
+  refundPercentage  Float? // Percentage of amount refunded (0-100)
+  refundProcessedBy String? // Admin who processed refund
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
@@ -538,6 +621,7 @@ model Payment {
   @@index([firmId])
   @@index([requestId])
   @@index([status])
+  @@index([isEscrow])
   @@index([transactionId])
   @@index([razorpayOrderId])
   @@index([razorpayPaymentId])
@@ -547,6 +631,7 @@ model Payment {
   @@index([createdAt])
   @@index([distributionMethod])
   @@index([firmDistributionId])
+  @@index([autoReleaseAt])
   // Composite indexes for payment queries
   @@index([clientId, status, createdAt]) // Client's payments by status
   @@index([caId, status, createdAt]) // CA's earnings by status
@@ -555,6 +640,8 @@ model Payment {
   @@index([caId, releasedToCA, createdAt]) // CA's pending earnings
   @@index([status, createdAt]) // All payments with pagination
   @@index([firmId, distributionMethod]) // Firm payments by distribution method
+  @@index([isEscrow, status]) // Filter escrow payments by status
+  @@index([isEscrow, autoReleaseAt]) // For cron job to auto-release
 }
 
 model Availability {
@@ -687,6 +774,22 @@ enum ExecutionStatus {
   RUNNING
   COMPLETED
   FAILED
+}
+
+enum NotificationType {
+  REQUEST_ACCEPTED
+  REQUEST_REJECTED
+  REQUEST_COMPLETED
+  REQUEST_CANCELLED
+  NEW_MESSAGE
+  PAYMENT_RECEIVED
+  PAYMENT_PENDING
+  REVIEW_RECEIVED
+  FIRM_INVITATION
+  FIRM_MEMBER_JOINED
+  FIRM_MEMBER_LEFT
+  SYSTEM_ALERT
+  GENERAL
 }
 
 // 1. Analytics event tracking (time-series)
@@ -869,14 +972,14 @@ model CAFirm {
   minimumCARequired     Int     @default(2) // Minimum CAs to remain active
 
   // Independent Work Policy Configuration
-  independentWorkPolicy       IndependentWorkPolicy @default(NO_INDEPENDENT_WORK)
-  defaultCommissionPercent    Float                 @default(15.0) // Default commission % for independent work
-  autoApproveNonConflict      Boolean               @default(false) // Auto-approve requests with no conflicts
+  independentWorkPolicy    IndependentWorkPolicy @default(NO_INDEPENDENT_WORK)
+  defaultCommissionPercent Float                 @default(15.0) // Default commission % for independent work
+  autoApproveNonConflict   Boolean               @default(false) // Auto-approve requests with no conflicts
 
   // Time Restrictions
   allowWeekendsOnly       Boolean @default(false) // Only allow independent work on weekends
   allowAfterHoursOnly     Boolean @default(false) // Only allow after business hours (6 PM - 9 AM)
-  maxIndependentHoursWeek Int?                    // Max hours per week for independent work
+  maxIndependentHoursWeek Int? // Max hours per week for independent work
 
   // Client Restrictions
   restrictCurrentClients  Boolean @default(true) // Prevent work with firm's current clients
@@ -895,36 +998,37 @@ model CAFirm {
   verificationNotes       String?   @db.Text
 
   // Status Dates
-  suspendedAt      DateTime? // When firm was suspended
-  suspensionReason String?   @db.Text // Reason for suspension
-  dissolvedAt      DateTime? // When firm was dissolved
-  dissolutionReason String?  @db.Text // Reason for dissolution
+  suspendedAt       DateTime? // When firm was suspended
+  suspensionReason  String?   @db.Text // Reason for suspension
+  dissolvedAt       DateTime? // When firm was dissolved
+  dissolutionReason String?   @db.Text // Reason for dissolution
 
   // Platform Fees
   platformFeePercent Float @default(15.0) // Firm platform fee (vs 10% for individuals)
 
   // Wallet & Financial
-  walletBalance      Float @default(0.0) // Current firm wallet balance
-  escrowBalance      Float @default(0.0) // Amount in escrow (pending completion)
-  totalEarnings      Float @default(0.0) // Lifetime earnings
-  totalWithdrawals   Float @default(0.0) // Lifetime withdrawals
+  walletBalance    Float @default(0.0) // Current firm wallet balance
+  escrowBalance    Float @default(0.0) // Amount in escrow (pending completion)
+  totalEarnings    Float @default(0.0) // Lifetime earnings
+  totalWithdrawals Float @default(0.0) // Lifetime withdrawals
 
   // Relations
-  members                  FirmMembership[]
-  currentCAs               CharteredAccountant[]      @relation("CurrentFirmCAs") // CAs currently in firm
-  serviceRequests          ServiceRequest[]
-  payments                 Payment[]
-  firmReviews              FirmReview[]
-  documents                FirmDocument[]
-  assignmentRules          FirmAssignmentRule[]
-  paymentDistributions     FirmPaymentDistribution[]
-  independentWorkRequests  IndependentWorkRequest[]
-  invitations              FirmInvitation[] // Invitations sent by this firm
-  distributionTemplates    DistributionTemplate[] // Role-based distribution templates
-  projectDistributions     ProjectDistribution[] // Project-specific distributions
-  walletTransactions       WalletTransaction[] @relation("FirmWalletTransactions")
-  payoutRequests           PayoutRequest[] @relation("FirmPayoutRequests")
-  taxRecords               TaxRecord[] @relation("FirmTaxRecords")
+  members                 FirmMembership[]
+  currentCAs              CharteredAccountant[]     @relation("CurrentFirmCAs") // CAs currently in firm
+  serviceRequests         ServiceRequest[]
+  payments                Payment[]
+  firmReviews             FirmReview[]
+  documents               FirmDocument[]
+  assignmentRules         FirmAssignmentRule[]
+  paymentDistributions    FirmPaymentDistribution[]
+  independentWorkRequests IndependentWorkRequest[]
+  invitations             FirmInvitation[] // Invitations sent by this firm
+  distributionTemplates   DistributionTemplate[] // Role-based distribution templates
+  projectDistributions    ProjectDistribution[] // Project-specific distributions
+  walletTransactions      WalletTransaction[]       @relation("FirmWalletTransactions")
+  payoutRequests          PayoutRequest[]           @relation("FirmPayoutRequests")
+  taxRecords              TaxRecord[]               @relation("FirmTaxRecords")
+  disputes                Dispute[] // Disputes involving this firm
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -980,18 +1084,18 @@ model FirmMembership {
 
 // 2.5. Firm Invitation - Handles firm member invitations
 model FirmInvitation {
-  id          String               @id @default(uuid())
+  id          String @id @default(uuid())
   firmId      String
   invitedById String // CA who sent the invitation (usually FIRM_ADMIN)
 
   // Invited CA Details
-  caId        String? // If inviting existing CA on platform
-  email       String // Email address of invitee
+  caId  String? // If inviting existing CA on platform
+  email String // Email address of invitee
 
   // Invitation Details
-  role           FirmMemberRole @default(JUNIOR_CA)
-  membershipType MembershipType @default(FULL_TIME)
-  invitationToken String        @unique // Token for accepting invitation
+  role            FirmMemberRole @default(JUNIOR_CA)
+  membershipType  MembershipType @default(FULL_TIME)
+  invitationToken String         @unique // Token for accepting invitation
   message         String?        @db.Text // Optional message from inviter
 
   // Status & Dates
@@ -1002,9 +1106,9 @@ model FirmInvitation {
   rejectedAt DateTime?
 
   // Relations
-  firm        CAFirm              @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  invitedBy   CharteredAccountant @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
-  ca          CharteredAccountant? @relation("ReceivedInvitations", fields: [caId], references: [id], onDelete: Cascade)
+  firm      CAFirm               @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  invitedBy CharteredAccountant  @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+  ca        CharteredAccountant? @relation("ReceivedInvitations", fields: [caId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1111,15 +1215,15 @@ model IndependentWorkRequest {
   manualReviewRequired Boolean        @default(false) // Flag for manual admin review
 
   // Work Tracking
-  actualHoursWorked      Float? @default(0) // Actual hours spent on work
-  actualRevenue          Float? @default(0) // Actual revenue generated
+  actualHoursWorked      Float?  @default(0) // Actual hours spent on work
+  actualRevenue          Float?  @default(0) // Actual revenue generated
   firmCommissionPaid     Boolean @default(false) // Commission paid to firm
   platformCommissionPaid Boolean @default(false) // Commission paid to platform
 
   // Relations
-  ca       CharteredAccountant        @relation(fields: [caId], references: [id], onDelete: Cascade)
-  firm     CAFirm                     @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  client   Client                     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca       CharteredAccountant      @relation(fields: [caId], references: [id], onDelete: Cascade)
+  firm     CAFirm                   @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  client   Client                   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   payments IndependentWorkPayment[]
 
   createdAt   DateTime  @default(now())
@@ -1210,11 +1314,11 @@ model IndependentWorkPayment {
   requestId String
 
   // Financial Breakdown
-  totalRevenue           Float // Total revenue from the work
-  firmCommission         Float // Amount firm receives
-  platformCommission     Float // Amount platform receives
-  caNetEarnings          Float // Amount CA receives
-  firmCommissionPercent  Float // % commission for firm
+  totalRevenue              Float // Total revenue from the work
+  firmCommission            Float // Amount firm receives
+  platformCommission        Float // Amount platform receives
+  caNetEarnings             Float // Amount CA receives
+  firmCommissionPercent     Float // % commission for firm
   platformCommissionPercent Float @default(10.0) // Platform takes 10%
 
   // Payment Details
@@ -1274,11 +1378,11 @@ model ProjectDistribution {
   type      DistributionType @default(PROJECT_BASED)
 
   // Total Amounts
-  totalAmount         Float // Total payment for this project
-  platformCommission  Float // 15% platform fee
-  firmRetention       Float // Amount firm keeps
-  distributionAmount  Float // Amount to distribute to members
-  bonusPool           Float @default(0.0) // Performance bonuses
+  totalAmount        Float // Total payment for this project
+  platformCommission Float // 15% platform fee
+  firmRetention      Float // Amount firm keeps
+  distributionAmount Float // Amount to distribute to members
+  bonusPool          Float @default(0.0) // Performance bonuses
 
   // Distribution Status
   isApproved       Boolean   @default(false)
@@ -1293,8 +1397,8 @@ model ProjectDistribution {
   referralBonus        Float @default(0.0) // Referral bonuses
 
   // Relations
-  firm   CAFirm         @relation(fields: [firmId], references: [id], onDelete: Cascade)
-  request ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  firm    CAFirm              @relation(fields: [firmId], references: [id], onDelete: Cascade)
+  request ServiceRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
   shares  DistributionShare[] // Individual member shares
 
   createdAt DateTime @default(now())
@@ -1314,10 +1418,10 @@ model DistributionShare {
   caId           String
 
   // Share Details
-  percentage     Float // % of distributionAmount
-  baseAmount     Float // Base distribution amount
-  bonusAmount    Float @default(0.0) // Performance bonus
-  totalAmount    Float // baseAmount + bonusAmount
+  percentage        Float // % of distributionAmount
+  baseAmount        Float // Base distribution amount
+  bonusAmount       Float  @default(0.0) // Performance bonus
+  totalAmount       Float // baseAmount + bonusAmount
   contributionHours Float? // Actual hours contributed
 
   // Approval
@@ -1340,33 +1444,33 @@ model DistributionShare {
 
 // 12. Wallet Transaction - Audit trail for all wallet transactions
 model WalletTransaction {
-  id            String                 @id @default(uuid())
-  type          WalletTransactionType
-  status        WalletTransactionStatus @default(PENDING)
+  id     String                  @id @default(uuid())
+  type   WalletTransactionType
+  status WalletTransactionStatus @default(PENDING)
 
   // Owner (either firm or CA)
-  firmId        String?
-  caId          String?
+  firmId String?
+  caId   String?
 
   // Transaction Details
-  amount            Float
-  balanceBefore     Float
-  balanceAfter      Float
-  description       String
-  referenceType     String? // Payment, Payout, Distribution, etc.
-  referenceId       String? // ID of referenced entity
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  description   String
+  referenceType String? // Payment, Payout, Distribution, etc.
+  referenceId   String? // ID of referenced entity
 
   // Tax Information
-  tdsAmount         Float? @default(0.0)
-  tdsPercentage     Float? @default(0.0)
-  gstAmount         Float? @default(0.0)
-  gstPercentage     Float? @default(0.0)
-  netAmount         Float? // Amount after tax deductions
+  tdsAmount     Float? @default(0.0)
+  tdsPercentage Float? @default(0.0)
+  gstAmount     Float? @default(0.0)
+  gstPercentage Float? @default(0.0)
+  netAmount     Float? // Amount after tax deductions
 
   // Processing
-  processedAt       DateTime?
-  processedBy       String? // User ID who processed
-  failureReason     String? @db.Text
+  processedAt   DateTime?
+  processedBy   String? // User ID who processed
+  failureReason String?   @db.Text
 
   // Relations
   firm CAFirm?              @relation("FirmWalletTransactions", fields: [firmId], references: [id], onDelete: Cascade)
@@ -1395,9 +1499,9 @@ model PayoutRequest {
   caId   String?
 
   // Payout Details
-  amount         Float
-  payoutMethod   PayoutMethod
-  requestedAt    DateTime     @default(now())
+  amount       Float
+  payoutMethod PayoutMethod
+  requestedAt  DateTime     @default(now())
 
   // Bank/UPI Details
   accountHolderName String
@@ -1407,21 +1511,21 @@ model PayoutRequest {
   upiId             String?
 
   // Tax Deductions
-  tdsAmount      Float  @default(0.0)
-  tdsPercentage  Float  @default(0.0)
-  gstAmount      Float  @default(0.0)
-  gstPercentage  Float  @default(0.0)
+  tdsAmount       Float @default(0.0)
+  tdsPercentage   Float @default(0.0)
+  gstAmount       Float @default(0.0)
+  gstPercentage   Float @default(0.0)
   netPayoutAmount Float // Amount after tax
 
   // Processing
-  approvedAt        DateTime?
-  approvedBy        String? // Admin user ID
-  processedAt       DateTime?
-  completedAt       DateTime?
-  rejectedAt        DateTime?
-  rejectionReason   String? @db.Text
-  failureReason     String? @db.Text
-  transactionRef    String? // Bank/UPI transaction reference
+  approvedAt      DateTime?
+  approvedBy      String? // Admin user ID
+  processedAt     DateTime?
+  completedAt     DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?   @db.Text
+  failureReason   String?   @db.Text
+  transactionRef  String? // Bank/UPI transaction reference
 
   // Relations
   firm CAFirm?              @relation("FirmPayoutRequests", fields: [firmId], references: [id], onDelete: Cascade)
@@ -1440,12 +1544,12 @@ model PayoutRequest {
 
 // 14. Tax Record - TDS, GST, and other tax records
 model TaxRecord {
-  id       String  @id @default(uuid())
-  taxType  TaxType
+  id      String  @id @default(uuid())
+  taxType TaxType
 
   // Tax Entity (either firm or CA)
-  firmId   String?
-  caId     String?
+  firmId String?
+  caId   String?
 
   // Tax Period
   financialYear String // FY 2025-26
@@ -1453,15 +1557,15 @@ model TaxRecord {
   month         String? // For monthly GST
 
   // Tax Details
-  taxableAmount  Float
-  taxRate        Float // Percentage
-  taxAmount      Float
-  totalAmount    Float // taxableAmount + taxAmount
+  taxableAmount Float
+  taxRate       Float // Percentage
+  taxAmount     Float
+  totalAmount   Float // taxableAmount + taxAmount
 
   // Tax Identifiers
-  panNumber      String?
-  gstNumber      String?
-  tan            String? // Tax Deduction Account Number
+  panNumber String?
+  gstNumber String?
+  tan       String? // Tax Deduction Account Number
 
   // Certificate Details
   certificateNumber String?
@@ -1469,10 +1573,10 @@ model TaxRecord {
   certificateDate   DateTime?
 
   // Payment Details
-  challanNumber  String?
-  challanDate    DateTime?
-  paymentStatus  String @default("PENDING") // PENDING, PAID, FILED
-  filedDate      DateTime?
+  challanNumber String?
+  challanDate   DateTime?
+  paymentStatus String    @default("PENDING") // PENDING, PAID, FILED
+  filedDate     DateTime?
 
   // Relations
   firm CAFirm?              @relation("FirmTaxRecords", fields: [firmId], references: [id], onDelete: Cascade)
@@ -1515,4 +1619,168 @@ model FirmMembershipHistory {
   @@index([action])
   @@index([createdAt])
   @@index([firmId, caId, createdAt]) // Membership history for a CA in a firm
+}
+
+// Notification system for in-app notifications
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String           @db.Text
+  read      Boolean          @default(false)
+  link      String? // Optional link to relevant resource (e.g., /requests/123)
+  metadata  Json? // Additional context (requestId, messageId, etc.)
+  createdAt DateTime         @default(now())
+  readAt    DateTime? // When the notification was read
+
+  @@index([userId, read]) // Quick lookup for unread notifications
+  @@index([userId, createdAt]) // User's notifications sorted by time
+  @@index([createdAt]) // Global notifications by time
+  @@index([type]) // Notifications by type
+}
+
+// ==========================================
+// PLATFORM CONFIGURATION & DISPUTE SYSTEM
+// ==========================================
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  AWAITING_EVIDENCE
+  RESOLVED
+  CLOSED
+}
+
+enum DisputeResolution {
+  FULL_REFUND
+  PARTIAL_REFUND
+  NO_REFUND
+  RELEASE_TO_CA
+}
+
+// Platform-wide configuration (singleton)
+model PlatformConfig {
+  id String @id @default(uuid())
+
+  // Platform Fees
+  individualPlatformFeePercent Float @default(10.0) // Fee for individual CAs
+  firmPlatformFeePercent       Float @default(15.0) // Fee for firm work
+
+  // Service Types Configuration
+  enabledServiceTypes ServiceType[] @default([GST_FILING, INCOME_TAX_RETURN, AUDIT, ACCOUNTING])
+
+  // Verification Rules
+  autoVerifyCAAfterDays      Int     @default(0) // 0 = disabled, >0 = auto-verify after X days
+  requireDocumentUpload      Boolean @default(true)
+  minimumExperienceYears     Int     @default(0) // Minimum experience to register
+  requirePhoneVerification   Boolean @default(true)
+  requireEmailVerification   Boolean @default(true)
+
+  // Payment & Escrow Settings
+  escrowAutoReleaseDays      Int     @default(7) // Days after completion to auto-release
+  allowInstantPayments       Boolean @default(false) // Allow direct payments (no escrow)
+  minimumPaymentAmount       Float   @default(100.0)
+  maximumPaymentAmount       Float?  // Null = no limit
+
+  // Refund Settings
+  allowClientRefunds         Boolean @default(true)
+  refundProcessingDays       Int     @default(5) // Business days
+  partialRefundMinPercent    Float   @default(10.0)
+  partialRefundMaxPercent    Float   @default(90.0)
+
+  // Dispute Settings
+  disputeAutoCloseDays       Int     @default(30) // Auto-close unresolved disputes
+  requireDisputeEvidence     Boolean @default(true)
+  allowCAResponse            Boolean @default(true)
+
+  // Business Rules
+  maxActiveRequestsPerClient Int     @default(10)
+  maxActiveRequestsPerCA     Int     @default(15)
+  requestCancellationHours   Int     @default(24) // Hours before start to cancel without penalty
+
+  // Maintenance
+  isMaintenanceMode          Boolean  @default(false)
+  maintenanceMessage         String?  @db.Text
+
+  updatedAt DateTime @updatedAt
+  updatedBy String? // Admin userId who last updated
+
+  @@map("platform_config")
+}
+
+// Dispute Management System
+model Dispute {
+  id        String        @id @default(uuid())
+  requestId String        @unique
+  clientId  String
+  caId      String?
+  firmId    String?
+
+  // Dispute Details
+  status     DisputeStatus @default(OPEN)
+  reason     String        @db.Text
+  amount     Float // Disputed amount
+
+  // Evidence & Documentation
+  clientEvidence Json? // Array of {type, url, description, uploadedAt}
+  caEvidence     Json? // Array of {type, url, description, uploadedAt}
+  adminNotes     Json? // Array of {note, adminId, createdAt}
+
+  // Timeline
+  raisedAt         DateTime  @default(now())
+  caRespondedAt    DateTime?
+  reviewStartedAt  DateTime?
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+
+  // Resolution
+  resolution           DisputeResolution?
+  resolutionNotes      String?               @db.Text
+  refundAmount         Float?                @default(0.0)
+  refundPercentage     Float?                // Calculated from refundAmount/amount
+  resolvedBy           String?               // Admin userId
+
+  // Priority & Flags
+  priority       Int     @default(1) // 1=Low, 2=Medium, 3=High, 4=Urgent
+  requiresAction Boolean @default(true)
+  isEscalated    Boolean @default(false)
+  escalatedAt    DateTime?
+  escalatedBy    String? // Admin userId
+
+  // Relations
+  request ServiceRequest      @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  client  Client              @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  ca      CharteredAccountant? @relation(fields: [caId], references: [id], onDelete: SetNull)
+  firm    CAFirm?             @relation(fields: [firmId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([clientId])
+  @@index([caId])
+  @@index([firmId])
+  @@index([status])
+  @@index([priority])
+  @@index([raisedAt])
+  @@index([status, priority, raisedAt]) // Active disputes by priority
+  @@index([requiresAction]) // Disputes needing admin attention
+  @@map("disputes")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }

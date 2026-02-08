@@ -1,0 +1,93 @@
+<div class="email-container">
+  <!-- Header -->
+  <div class="email-header" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+    <h1>⚠️ Verification Update</h1>
+    <p>Action required for your CA profile</p>
+  </div>
+
+  <!-- Body -->
+  <div class="email-body">
+    <div class="greeting">Hi {{caName}},</div>
+
+    <div class="content">
+      <p>Thank you for submitting your Chartered Accountant profile for verification. After careful review, we need additional information or corrections before we can approve your profile.</p>
+    </div>
+
+    <div class="error-box">
+      <p><strong>⚠️ Verification Pending - Action Required</strong></p>
+      <p style="margin-top: 10px; font-size: 14px;">Please review the feedback below and resubmit your profile with the necessary updates.</p>
+    </div>
+
+    <div class="content">
+      <h3 style="margin: 20px 0 10px; color: #333;">Issues to Address:</h3>
+    </div>
+
+    <!-- Rejection Reasons -->
+    <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px;">
+      <ul style="padding-left: 20px; margin: 0;">
+        {{#each rejectionReasons}}
+        <li style="margin: 10px 0; color: #856404; font-size: 14px;">{{this}}</li>
+        {{/each}}
+      </ul>
+    </div>
+
+    <div class="content">
+      <h3 style="margin: 20px 0 10px; color: #333;">How to Resubmit:</h3>
+      <ol style="padding-left: 20px; color: #555;">
+        <li>Log in to your account</li>
+        <li>Go to your profile settings</li>
+        <li>Update the required information/documents</li>
+        <li>Resubmit for verification</li>
+      </ol>
+    </div>
+
+    <div class="info-box">
+      <p style="font-size: 14px; color: #555; margin: 0;">
+        <strong>Common Requirements:</strong>
+      </p>
+      <ul style="padding-left: 20px; margin: 10px 0 0 0; font-size: 13px; color: #6c757d;">
+        <li>Clear, legible photo of CA membership certificate</li>
+        <li>Valid government-issued ID (Aadhaar, PAN, Passport)</li>
+        <li>Professional photo (not a selfie)</li>
+        <li>Complete profile information (bio, specializations, experience)</li>
+        <li>Valid contact details and bank information</li>
+      </ul>
+    </div>
+
+    <!-- Call to Action -->
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{resubmitUrl}}" class="btn">Update & Resubmit Profile</a>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="content" style="font-size: 13px; color: #6c757d;">
+      <p><strong>Need Help?</strong></p>
+      <p>If you have questions about the verification process or need assistance with your profile, our support team is here to help:</p>
+      <p style="margin-top: 10px;">
+        <strong>Email:</strong> {{supportEmail}}<br>
+        <strong>Phone:</strong> +91-XXXXXXXXXX<br>
+        <strong>Hours:</strong> Monday - Friday, 9:00 AM - 6:00 PM IST
+      </p>
+    </div>
+
+    <div class="warning-box" style="margin-top: 20px;">
+      <p style="font-size: 13px;"><strong>⏰ Verification Timeframe:</strong></p>
+      <p style="font-size: 12px; margin-top: 5px;">Once you resubmit, our team will review your profile within 1-2 business days. You'll receive an email notification with the outcome.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="email-footer">
+    <p><strong>CA Marketplace</strong></p>
+    <p>Connecting Clients with Trusted Chartered Accountants</p>
+    <div class="social-links">
+      <a href="#">About Us</a> |
+      <a href="#">Help Center</a> |
+      <a href="#">Contact Support</a>
+    </div>
+    <p style="margin-top: 15px; font-size: 12px;">
+      © 2026 CA Marketplace. All rights reserved.
+    </p>
+  </div>
+</div>

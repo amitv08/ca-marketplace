@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { caService, CAFilters } from '../../services';
+import { caService, CAFilters, advancedSearchService, AdvancedSearchFilters, SearchResultItem } from '../../services';
 import api from '../../services/api';
-import serviceRequestService from '../../services/serviceRequestService';
 import { useAppSelector } from '../../store/hooks';
-import { Card, Button, Loading, Input, Modal, Alert } from '../../components/common';
+import { Card, Button, Loading, Input, Modal, Alert, FileUpload } from '../../components/common';
 
 interface CA {
   id: string;
@@ -59,6 +58,16 @@ const CAListing: React.FC = () => {
     verificationStatus: 'VERIFIED',
   });
 
+  // Advanced search state
+  const [useAdvancedSearch, setUseAdvancedSearch] = useState(false);
+  const [advancedFilters, setAdvancedFilters] = useState<AdvancedSearchFilters>({});
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [searchSuggestions, setSearchSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [quickFilter, setQuickFilter] = useState<'none' | 'topRated' | 'mostExperienced'>('none');
+
   // Hire modal state
   const [showHireModal, setShowHireModal] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<Provider | null>(null);
@@ -71,6 +80,70 @@ const CAListing: React.FC = () => {
     deadline: '',
     estimatedHours: '',
   });
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+
+  // Fetch search suggestions
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (query.length < 2) {
+      setSearchSuggestions([]);
+      return;
+    }
+
+    try {
+      const suggestions = await advancedSearchService.getSuggestions(query, 5);
+      setSearchSuggestions(suggestions);
+    } catch (error) {
+      console.error('Error fetching suggestions:', error);
+      setSearchSuggestions([]);
+    }
+  }, []);
+
+  // Perform advanced search
+  const performAdvancedSearch = useCallback(async () => {
+    try {
+      setLoading(true);
+      setUseAdvancedSearch(true);
+
+      const response = await advancedSearchService.search(advancedFilters, 1, 50);
+      setSearchResults(response.results);
+    } catch (error) {
+      console.error('Error performing advanced search:', error);
+      setSearchResults([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [advancedFilters]);
+
+  // Quick filter handlers
+  const handleTopRated = useCallback(async () => {
+    try {
+      setLoading(true);
+      setUseAdvancedSearch(true);
+      setQuickFilter('topRated');
+
+      const response = await advancedSearchService.getTopRated(1, 50);
+      setSearchResults(response.results);
+    } catch (error) {
+      console.error('Error fetching top rated:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleMostExperienced = useCallback(async () => {
+    try {
+      setLoading(true);
+      setUseAdvancedSearch(true);
+      setQuickFilter('mostExperienced');
+
+      const response = await advancedSearchService.getMostExperienced(1, 50);
+      setSearchResults(response.results);
+    } catch (error) {
+      console.error('Error fetching most experienced:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const fetchProviders = useCallback(async () => {
     try {
@@ -107,64 +180,123 @@ const CAListing: React.FC = () => {
 
   // Filter and sort providers (CAs and firms)
   useEffect(() => {
-    let result: Provider[] = [];
-
-    // Combine CAs and firms
-    const casWithType: Provider[] = cas.map(ca => ({ ...ca, type: 'individual' as const }));
-    const firmsWithType: Provider[] = firms.map(firm => ({ ...firm, type: 'firm' as const }));
-
-    // Filter by type
-    if (showType === 'individual') {
-      result = casWithType;
-    } else if (showType === 'firm') {
-      result = firmsWithType;
-    } else {
-      result = [...casWithType, ...firmsWithType];
-    }
-
-    // Search filter
-    if (searchQuery) {
-      result = result.filter((provider) => {
-        const searchLower = searchQuery.toLowerCase();
-        if (provider.type === 'individual') {
-          return provider.user.name.toLowerCase().includes(searchLower);
+    if (useAdvancedSearch && searchResults.length >= 0) {
+      // Use advanced search results
+      const mappedResults: Provider[] = searchResults.map((result) => {
+        if (result.type === 'INDIVIDUAL') {
+          return {
+            id: result.id,
+            type: 'individual' as const,
+            caLicenseNumber: '',
+            specialization: result.specializations,
+            experienceYears: result.experienceYears || 0,
+            hourlyRate: result.hourlyRate || 0,
+            description: result.description,
+            verificationStatus: result.verificationStatus,
+            user: {
+              id: result.id,
+              name: result.name,
+              email: '',
+              profileImage: result.profileImage,
+            },
+            averageRating: result.rating,
+            reviewCount: result.reviewCount,
+          } as CA & { type: 'individual' };
         } else {
-          return provider.firmName.toLowerCase().includes(searchLower);
+          return {
+            id: result.id,
+            type: 'firm' as const,
+            firmName: result.name,
+            firmType: 'PARTNERSHIP',
+            status: 'ACTIVE',
+            verificationLevel: result.verificationStatus,
+            description: result.description,
+            logoUrl: result.profileImage,
+            city: result.city || '',
+            state: result.state || '',
+            establishedYear: new Date().getFullYear() - (result.experienceYears || 0),
+            _count: {
+              members: 0,
+              currentCAs: 0,
+              serviceRequests: 0,
+              firmReviews: result.reviewCount,
+            },
+          } as Firm & { type: 'firm' };
         }
       });
-    }
 
-    // Sort
-    result.sort((a, b) => {
-      switch (sortBy) {
-        case 'name':
-          const nameA = a.type === 'individual' ? a.user.name : a.firmName;
-          const nameB = b.type === 'individual' ? b.user.name : b.firmName;
-          return nameA.localeCompare(nameB);
-        case 'experience':
-          // For firms, use established years as a proxy
-          const expA = a.type === 'individual' ? a.experienceYears : (new Date().getFullYear() - a.establishedYear);
-          const expB = b.type === 'individual' ? b.experienceYears : (new Date().getFullYear() - b.establishedYear);
-          return expB - expA;
-        case 'hourlyRate':
-          // Firms don't have hourly rate, so put them at the end
-          if (a.type === 'firm' && b.type === 'individual') return 1;
-          if (a.type === 'individual' && b.type === 'firm') return -1;
-          if (a.type === 'individual' && b.type === 'individual') {
-            return a.hourlyRate - b.hourlyRate;
-          }
-          return 0;
-        case 'rating':
-          const ratingA = a.type === 'individual' ? (a.averageRating || 0) : 0;
-          const ratingB = b.type === 'individual' ? (b.averageRating || 0) : 0;
-          return ratingB - ratingA;
-        default:
-          return 0;
+      // Apply client-side filters
+      let result = mappedResults;
+
+      // Filter by type
+      if (showType === 'individual') {
+        result = result.filter(p => p.type === 'individual');
+      } else if (showType === 'firm') {
+        result = result.filter(p => p.type === 'firm');
       }
-    });
 
-    setFilteredProviders(result);
-  }, [cas, firms, searchQuery, sortBy, showType]);
+      setFilteredProviders(result);
+    } else {
+      // Use basic search
+      let result: Provider[] = [];
+
+      // Combine CAs and firms
+      const casWithType: Provider[] = cas.map(ca => ({ ...ca, type: 'individual' as const }));
+      const firmsWithType: Provider[] = firms.map(firm => ({ ...firm, type: 'firm' as const }));
+
+      // Filter by type
+      if (showType === 'individual') {
+        result = casWithType;
+      } else if (showType === 'firm') {
+        result = firmsWithType;
+      } else {
+        result = [...casWithType, ...firmsWithType];
+      }
+
+      // Search filter
+      if (searchQuery && !useAdvancedSearch) {
+        result = result.filter((provider) => {
+          const searchLower = searchQuery.toLowerCase();
+          if (provider.type === 'individual') {
+            return provider.user.name.toLowerCase().includes(searchLower);
+          } else {
+            return provider.firmName.toLowerCase().includes(searchLower);
+          }
+        });
+      }
+
+      // Sort
+      result.sort((a, b) => {
+        switch (sortBy) {
+          case 'name':
+            const nameA = a.type === 'individual' ? a.user.name : a.firmName;
+            const nameB = b.type === 'individual' ? b.user.name : b.firmName;
+            return nameA.localeCompare(nameB);
+          case 'experience':
+            // For firms, use established years as a proxy
+            const expA = a.type === 'individual' ? a.experienceYears : (new Date().getFullYear() - a.establishedYear);
+            const expB = b.type === 'individual' ? b.experienceYears : (new Date().getFullYear() - b.establishedYear);
+            return expB - expA;
+          case 'hourlyRate':
+            // Firms don't have hourly rate, so put them at the end
+            if (a.type === 'firm' && b.type === 'individual') return 1;
+            if (a.type === 'individual' && b.type === 'firm') return -1;
+            if (a.type === 'individual' && b.type === 'individual') {
+              return a.hourlyRate - b.hourlyRate;
+            }
+            return 0;
+          case 'rating':
+            const ratingA = a.type === 'individual' ? (a.averageRating || 0) : 0;
+            const ratingB = b.type === 'individual' ? (b.averageRating || 0) : 0;
+            return ratingB - ratingA;
+          default:
+            return 0;
+        }
+      });
+
+      setFilteredProviders(result);
+    }
+  }, [cas, firms, searchQuery, sortBy, showType, useAdvancedSearch, searchResults]);
 
   const handleFilterChange = (key: keyof CAFilters, value: any) => {
     setFilters(prev => ({
@@ -204,6 +336,7 @@ const CAListing: React.FC = () => {
       deadline: '',
       estimatedHours: '',
     });
+    setUploadedFiles([]);
   };
 
   const handleSubmitHire = async () => {
@@ -240,6 +373,17 @@ const CAListing: React.FC = () => {
         requestData.estimatedHours = parseInt(hireForm.estimatedHours);
       }
 
+      // Add document metadata (files will be uploaded via messages after request creation)
+      if (uploadedFiles.length > 0) {
+        requestData.documents = uploadedFiles.map(file => ({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date().toISOString(),
+          note: 'Pending upload via messages'
+        }));
+      }
+
       console.log('Sending service request with data:', requestData);
 
       const response = await api.post('/service-requests', requestData);
@@ -253,33 +397,31 @@ const CAListing: React.FC = () => {
         }, 2000);
       }
     } catch (err: any) {
-      // Display the full error as a JSON string for debugging
-      let errorMessage = 'Failed to create service request\n\n';
+      // Extract user-friendly error message
+      let errorMessage = 'Failed to create service request';
 
-      try {
-        if (err.response?.data) {
-          const data = err.response.data;
+      if (err.response?.data) {
+        const data = err.response.data;
 
-          // Try to extract readable error
-          if (data.error) {
-            if (typeof data.error === 'string') {
-              errorMessage += 'Error: ' + data.error;
-            } else if (typeof data.error === 'object') {
-              errorMessage += 'Error: ' + (data.error.message || JSON.stringify(data.error, null, 2));
-            }
-          } else if (data.message) {
-            errorMessage += 'Message: ' + data.message;
-          } else {
-            errorMessage += 'Full response:\n' + JSON.stringify(data, null, 2);
-          }
-        } else if (err.message) {
-          errorMessage += 'Error: ' + err.message;
+        // Backend returns error in data.error (string) or data.message
+        if (typeof data.error === 'string') {
+          errorMessage = data.error;
+        } else if (typeof data.message === 'string') {
+          errorMessage = data.message;
+        } else if (data.error?.message) {
+          errorMessage = data.error.message;
         }
-      } catch (stringifyError) {
-        errorMessage += 'Could not parse error. Status: ' + err.response?.status;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      // Add helpful context for network errors
+      if (err.code === 'ERR_NETWORK' || err.code === 'ECONNREFUSED') {
+        errorMessage = 'Unable to connect to server. Please check your connection and try again.';
       }
 
       setError(errorMessage);
+      console.error('Service request error:', err.response?.data || err); // Log full error for debugging
     } finally {
       setSubmitting(false);
     }
@@ -311,13 +453,72 @@ const CAListing: React.FC = () => {
           <p className="mt-2 text-gray-600">Browse verified CAs and connect with the right professional</p>
         </div>
 
+        {/* Quick Filters */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          <Button
+            variant={quickFilter === 'topRated' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={handleTopRated}
+          >
+            ⭐ Top Rated
+          </Button>
+          <Button
+            variant={quickFilter === 'mostExperienced' ? 'primary' : 'outline'}
+            size="sm"
+            onClick={handleMostExperienced}
+          >
+            👨‍💼 Most Experienced
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setQuickFilter('none');
+              setUseAdvancedSearch(false);
+              setAdvancedFilters({});
+              setSearchResults([]);
+              fetchProviders();
+            }}
+          >
+            🔄 Clear All Filters
+          </Button>
+        </div>
+
         {/* Search and Sort */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Input
-            placeholder="Search by name..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="relative">
+            <Input
+              placeholder="Search by name, specialization, or qualifications..."
+              value={searchQuery}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchQuery(value);
+                if (useAdvancedSearch && value) {
+                  fetchSuggestions(value);
+                  setShowSuggestions(true);
+                }
+              }}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+            />
+            {showSuggestions && searchSuggestions.length > 0 && (
+              <div className="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                {searchSuggestions.map((suggestion, index) => (
+                  <div
+                    key={index}
+                    className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm"
+                    onClick={() => {
+                      setSearchQuery(suggestion);
+                      setAdvancedFilters({ ...advancedFilters, fullText: suggestion });
+                      setShowSuggestions(false);
+                      performAdvancedSearch();
+                    }}
+                  >
+                    {suggestion}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div>
             <select
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -342,6 +543,125 @@ const CAListing: React.FC = () => {
             </select>
           </div>
         </div>
+
+        {/* Advanced Filters Toggle */}
+        <div className="mb-6">
+          <Button
+            variant="outline"
+            fullWidth
+            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+            className="flex items-center justify-center gap-2"
+          >
+            <span>🔍 {showAdvancedFilters ? 'Hide' : 'Show'} Advanced Filters</span>
+            <span className={`transform transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`}>▼</span>
+          </Button>
+        </div>
+
+        {/* Advanced Filters Panel */}
+        {showAdvancedFilters && (
+          <Card className="mb-8 bg-blue-50">
+            <h2 className="text-lg font-semibold mb-4">Advanced Search Filters</h2>
+
+            {/* Location Filters */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">📍 Location</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="City"
+                  placeholder="e.g., Mumbai, Delhi"
+                  value={advancedFilters.city || ''}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, city: e.target.value })}
+                />
+                <Input
+                  label="State"
+                  placeholder="e.g., Maharashtra, Delhi"
+                  value={advancedFilters.state || ''}
+                  onChange={(e) => setAdvancedFilters({ ...advancedFilters, state: e.target.value })}
+                />
+              </div>
+            </div>
+
+            {/* Language Filters */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">🗣️ Languages</h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {['English', 'Hindi', 'Gujarati', 'Marathi', 'Tamil', 'Telugu', 'Bengali', 'Kannada'].map((lang) => (
+                  <label key={lang} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedLanguages.includes(lang)}
+                      onChange={(e) => {
+                        const newLangs = e.target.checked
+                          ? [...selectedLanguages, lang]
+                          : selectedLanguages.filter(l => l !== lang);
+                        setSelectedLanguages(newLangs);
+                        setAdvancedFilters({ ...advancedFilters, languages: newLangs });
+                      }}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm">{lang}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Availability Filters */}
+            <div className="mb-6">
+              <h3 className="text-sm font-medium text-gray-700 mb-3">📅 Availability</h3>
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={advancedFilters.availableOnline || false}
+                    onChange={(e) => setAdvancedFilters({ ...advancedFilters, availableOnline: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm">Available Online</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={advancedFilters.availableOffline || false}
+                    onChange={(e) => setAdvancedFilters({ ...advancedFilters, availableOffline: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm">Available Offline (In-person)</span>
+                </label>
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={advancedFilters.availableNow || false}
+                    onChange={(e) => setAdvancedFilters({ ...advancedFilters, availableNow: e.target.checked })}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm">Available Now</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Apply Advanced Search Button */}
+            <div className="flex gap-3">
+              <Button
+                fullWidth
+                onClick={performAdvancedSearch}
+              >
+                🔍 Apply Advanced Search
+              </Button>
+              <Button
+                fullWidth
+                variant="outline"
+                onClick={() => {
+                  setAdvancedFilters({});
+                  setSelectedLanguages([]);
+                  setUseAdvancedSearch(false);
+                  setSearchResults([]);
+                }}
+              >
+                Clear
+              </Button>
+            </div>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="mb-8">
@@ -395,6 +715,25 @@ const CAListing: React.FC = () => {
           </div>
         </Card>
 
+        {/* Active Filters Indicator */}
+        {useAdvancedSearch && (
+          <div className="mb-6 p-4 bg-blue-100 border border-blue-300 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-blue-800 font-medium">🔍 Advanced Search Active</span>
+                {quickFilter !== 'none' && (
+                  <span className="text-sm text-blue-700">
+                    ({quickFilter === 'topRated' ? 'Top Rated' : 'Most Experienced'})
+                  </span>
+                )}
+              </div>
+              <span className="text-sm text-blue-700">
+                {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'} found
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Provider List (CAs and Firms) */}
         {loading ? (
           <div className="flex justify-center py-12">
@@ -403,8 +742,8 @@ const CAListing: React.FC = () => {
         ) : filteredProviders.length === 0 ? (
           <Card>
             <p className="text-gray-500 text-center py-8">
-              {searchQuery
-                ? 'No providers found matching your search'
+              {searchQuery || useAdvancedSearch
+                ? 'No providers found matching your search criteria. Try adjusting your filters.'
                 : 'No providers found matching your criteria'}
             </p>
           </Card>
@@ -694,6 +1033,30 @@ const CAListing: React.FC = () => {
                   min="1"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Documents (Optional)
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Upload relevant documents for your service request (invoices, statements, forms, etc.)
+              </p>
+              <FileUpload
+                onFilesSelected={(files) => {
+                  setUploadedFiles(prev => [...prev, ...files]);
+                  setError(''); // Clear any previous errors
+                }}
+                existingFiles={uploadedFiles}
+                maxFiles={5}
+                maxSizeMB={10}
+                disabled={submitting}
+              />
+              {uploadedFiles.length > 0 && (
+                <p className="text-xs text-blue-600 mt-2">
+                  💡 Documents will be attached to your first message after the CA accepts your request
+                </p>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 pt-4">

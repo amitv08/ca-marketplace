@@ -3,6 +3,9 @@ import { prisma } from '../config';
 import { asyncHandler, authenticate, validateBody, authorize } from '../middleware';
 import { sendSuccess, sendCreated, sendError, parsePaginationParams, createPaginationResponse } from '../utils';
 import EmailNotificationService from '../services/email-notification.service';
+import { EmailTemplateService } from '../services/email-template.service';
+import { NotificationService } from '../services/notification.service';
+import EscrowService from '../services/escrow.service';
 
 const router = Router();
 
@@ -497,6 +500,25 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
     return sendError(res, 'Your account must be verified to accept requests', 403);
   }
 
+  // Check CA request limit - prevent overcommitment
+  const activeRequestsCount = await prisma.serviceRequest.count({
+    where: {
+      caId: ca.id,
+      status: {
+        in: ['ACCEPTED', 'IN_PROGRESS'],
+      },
+    },
+  });
+
+  const maxActiveRequests = ca.maxActiveRequests || 15;
+  if (activeRequestsCount >= maxActiveRequests) {
+    return sendError(
+      res,
+      `You have reached your maximum active request limit (${maxActiveRequests}). Please complete existing requests before accepting new ones.`,
+      400
+    );
+  }
+
   const request = await prisma.serviceRequest.findUnique({
     where: { id },
   });
@@ -540,11 +562,27 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
     // Note: CA accepting request without available slots
   }
 
+  // Extract estimated amount from request body
+  const { estimatedAmount } = req.body;
+
+  // Validate estimated amount for escrow
+  if (!estimatedAmount || typeof estimatedAmount !== 'number') {
+    return sendError(res, 'Estimated amount is required for escrow payment', 400);
+  }
+
+  if (estimatedAmount < 1 || estimatedAmount > 10000000) {
+    return sendError(res, 'Estimated amount must be between ₹1 and ₹1,00,00,000', 400);
+  }
+
+  // Update request with escrow status
   const updated = await prisma.serviceRequest.update({
     where: { id },
     data: {
       caId: ca.id,
       status: 'ACCEPTED',
+      acceptedAt: new Date(),
+      escrowStatus: 'PENDING_PAYMENT',
+      escrowAmount: estimatedAmount,
     },
     include: {
       client: {
@@ -560,25 +598,80 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
     },
   });
 
-  // Send email notification to client
+  // Create escrow payment order
+  let escrowOrder;
   try {
-    await EmailNotificationService.sendRequestAcceptedNotification(
-      updated.client.user.email,
-      {
-        clientName: updated.client.user.name,
-        caName: updated.ca!.user.name,
-        serviceType: updated.serviceType,
-        requestId: updated.id,
-        caEmail: updated.ca!.user.email,
-        caPhone: updated.ca!.user.phone || undefined,
-      }
+    escrowOrder = await EscrowService.createEscrowOrder(
+      updated.id,
+      estimatedAmount,
+      updated.client.userId
     );
+
+    console.log('Escrow order created:', {
+      requestId: updated.id,
+      paymentId: escrowOrder.payment.id,
+      amount: estimatedAmount,
+    });
+  } catch (escrowError: any) {
+    // Rollback request status if escrow creation fails
+    await prisma.serviceRequest.update({
+      where: { id },
+      data: {
+        status: 'PENDING',
+        caId: null,
+        acceptedAt: null,
+        escrowStatus: 'NOT_REQUIRED',
+        escrowAmount: null,
+      },
+    });
+
+    console.error('Escrow creation failed, request rolled back:', escrowError);
+    return sendError(res, `Failed to create escrow order: ${escrowError.message}`, 500);
+  }
+
+  // Send email notification to client using new template system
+  try {
+    await EmailTemplateService.sendRequestAccepted({
+      clientEmail: updated.client.user.email,
+      clientName: updated.client.user.name,
+      caName: updated.ca!.user.name,
+      caEmail: updated.ca!.user.email,
+      caPhone: updated.ca!.user.phone || 'Not provided',
+      serviceType: updated.serviceType,
+      requestId: updated.id,
+      estimatedAmount,
+      estimatedDays: req.body.estimatedDays,
+      dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/requests/${updated.id}`,
+    });
   } catch (emailError) {
     // Log error but don't fail the request
     console.error('Failed to send acceptance email:', emailError);
   }
 
-  sendSuccess(res, updated, 'Service request accepted successfully');
+  // Send in-app notification to client
+  try {
+    await NotificationService.notifyRequestAccepted(
+      updated.client.userId,
+      updated.id,
+      updated.ca!.user.name,
+      updated.serviceType
+    );
+  } catch (notifError) {
+    // Log error but don't fail the request
+    console.error('Failed to send in-app notification:', notifError);
+  }
+
+  // Return response with escrow details
+  sendSuccess(res, {
+    request: updated,
+    escrow: {
+      paymentId: escrowOrder.payment.id,
+      amount: estimatedAmount,
+      razorpayOrderId: escrowOrder.razorpayOrder.id,
+      status: 'PENDING_PAYMENT',
+      message: 'Please complete payment to start work',
+    },
+  }, 'Service request accepted. Client must pay into escrow before work begins.');
 }));
 
 // PUT version for Phase-5 spec compatibility
@@ -599,6 +692,7 @@ router.post('/:id/reject', authenticate, authorize('CA'), validateBody(rejectReq
 
   const ca = await prisma.charteredAccountant.findUnique({
     where: { userId: req.user!.userId },
+    include: { user: true },
   });
 
   if (!ca) {
@@ -622,14 +716,27 @@ router.post('/:id/reject', authenticate, authorize('CA'), validateBody(rejectReq
     return sendError(res, 'Can only reject pending requests', 400);
   }
 
-  // Update to CANCELLED with reason
+  // Add to rejection history
+  const rejectionHistory = Array.isArray(request.rejectionHistory)
+    ? request.rejectionHistory
+    : [];
+
+  rejectionHistory.push({
+    caId: ca.id,
+    caName: ca.user?.name || 'Unknown CA',
+    reason: reason || 'No reason provided',
+    rejectedAt: new Date().toISOString(),
+  });
+
+  // Reopen request for reassignment instead of cancelling
   const updated = await prisma.serviceRequest.update({
     where: { id },
     data: {
-      status: 'CANCELLED',
-      description: reason
-        ? `${request.description}\n\n--- Rejection Reason ---\n${reason}`
-        : request.description,
+      status: 'PENDING', // Keep as PENDING for reassignment
+      caId: null, // Clear CA assignment
+      rejectionHistory: rejectionHistory as any,
+      reopenedCount: (request.reopenedCount || 0) + 1,
+      cancelledAt: null, // Clear cancelled timestamp
     },
     include: {
       client: {
@@ -655,13 +762,13 @@ router.post('/:id/reject', authenticate, authorize('CA'), validateBody(rejectReq
     },
   });
 
-  // Send email notification to client
+  // Send email notification to client about rejection and reopening
   try {
     await EmailNotificationService.sendRequestRejectedNotification(
       updated.client.user.email,
       {
         clientName: updated.client.user.name,
-        caName: updated.ca!.user.name,
+        caName: ca.user?.name || 'CA',
         serviceType: updated.serviceType,
         requestId: updated.id,
         reason: reason || undefined,
@@ -672,7 +779,19 @@ router.post('/:id/reject', authenticate, authorize('CA'), validateBody(rejectReq
     console.error('Failed to send rejection email:', emailError);
   }
 
-  sendSuccess(res, updated, 'Service request rejected');
+  // Send in-app notification to client
+  try {
+    await NotificationService.notifyRequestRejected(
+      updated.client.userId,
+      updated.id,
+      ca.user?.name || 'CA',
+      updated.serviceType
+    );
+  } catch (notifError) {
+    console.error('Failed to send in-app notification:', notifError);
+  }
+
+  sendSuccess(res, updated, 'Request rejected and reopened for reassignment. The client will be notified to select another CA.');
 }));
 
 // PUT version for Phase-5 spec
@@ -770,7 +889,56 @@ router.post('/:id/start', authenticate, authorize('CA'), asyncHandler(async (req
   const updated = await prisma.serviceRequest.update({
     where: { id },
     data: { status: 'IN_PROGRESS' },
+    include: {
+      client: {
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+      ca: {
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
   });
+
+  // Send email notification to client
+  try {
+    await EmailTemplateService.sendStatusInProgress({
+      clientEmail: updated.client.user.email,
+      clientName: updated.client.user.name,
+      caName: updated.ca!.user.name,
+      serviceType: updated.serviceType,
+      requestId: updated.id,
+      message: req.body.message,
+      dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/requests/${updated.id}`,
+    });
+  } catch (emailError) {
+    console.error('Failed to send status update email:', emailError);
+  }
+
+  // Send in-app notification
+  try {
+    await NotificationService.createNotification({
+      userId: updated.client.userId,
+      type: 'REQUEST_ACCEPTED',
+      title: 'Work Started',
+      message: `${updated.ca!.user.name} has started working on your ${updated.serviceType.replace(/_/g, ' ')} request`,
+      link: `/requests/${updated.id}`,
+    });
+  } catch (notifError) {
+    console.error('Failed to send in-app notification:', notifError);
+  }
 
   sendSuccess(res, updated, 'Work started on service request');
 }));
@@ -805,10 +973,74 @@ router.put('/:id/complete', authenticate, authorize('CA'), asyncHandler(async (r
 
   const updated = await prisma.serviceRequest.update({
     where: { id },
-    data: { status: 'COMPLETED' },
+    data: {
+      status: 'COMPLETED',
+      completedAt: new Date(),
+    },
+    include: {
+      client: {
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+              id: true,
+            },
+          },
+        },
+      },
+      ca: {
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+    },
   });
 
-  sendSuccess(res, updated, 'Service request completed successfully');
+  // Set escrow auto-release date (7 days from completion)
+  if (updated.escrowStatus === 'ESCROW_HELD') {
+    try {
+      await EscrowService.setAutoReleaseDate(updated.id);
+      console.log('Escrow auto-release date set:', {
+        requestId: updated.id,
+      });
+    } catch (escrowError) {
+      console.error('Failed to set escrow auto-release date:', escrowError);
+    }
+  }
+
+  // Send email notification to client
+  try {
+    await EmailTemplateService.sendStatusCompleted({
+      clientEmail: updated.client.user.email,
+      clientName: updated.client.user.name,
+      caName: updated.ca!.user.name,
+      serviceType: updated.serviceType,
+      requestId: updated.id,
+      completedDate: updated.completedAt!,
+      reviewUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reviews/create?requestId=${updated.id}`,
+      dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/requests/${updated.id}`,
+    });
+  } catch (emailError) {
+    console.error('Failed to send completion email:', emailError);
+  }
+
+  // Send in-app notification
+  try {
+    await NotificationService.notifyRequestCompleted(
+      updated.client.user.id,
+      updated.id,
+      updated.serviceType
+    );
+  } catch (notifError) {
+    console.error('Failed to send in-app notification:', notifError);
+  }
+
+  sendSuccess(res, updated, 'Service request completed successfully. Payment will be released after 7 days.');
 }));
 
 // Complete service request (CA only)
@@ -841,7 +1073,10 @@ router.post('/:id/complete', authenticate, authorize('CA'), asyncHandler(async (
 
   const updated = await prisma.serviceRequest.update({
     where: { id },
-    data: { status: 'COMPLETED' },
+    data: {
+      status: 'COMPLETED',
+      completedAt: new Date(),
+    },
     include: {
       client: {
         include: {
@@ -856,24 +1091,49 @@ router.post('/:id/complete', authenticate, authorize('CA'), asyncHandler(async (
     },
   });
 
-  // Send email notification to client
-  try {
-    await EmailNotificationService.sendRequestCompletedNotification(
-      updated.client.user.email,
-      {
-        clientName: updated.client.user.name,
-        caName: updated.ca!.user.name,
-        serviceType: updated.serviceType,
+  // Set escrow auto-release date (7 days from completion)
+  if (updated.escrowStatus === 'ESCROW_HELD') {
+    try {
+      await EscrowService.setAutoReleaseDate(updated.id);
+      console.log('Escrow auto-release date set:', {
         requestId: updated.id,
-        amount: updated.estimatedHours ? updated.estimatedHours * (updated.ca!.hourlyRate || 0) : undefined,
-      }
-    );
+        completedAt: updated.completedAt,
+      });
+    } catch (escrowError) {
+      console.error('Failed to set escrow auto-release date:', escrowError);
+      // Don't fail the completion, admin can manually release
+    }
+  }
+
+  // Send email notification to client using new template system
+  try {
+    await EmailTemplateService.sendStatusCompleted({
+      clientEmail: updated.client.user.email,
+      clientName: updated.client.user.name,
+      caName: updated.ca!.user.name,
+      serviceType: updated.serviceType,
+      requestId: updated.id,
+      completedDate: updated.completedAt!,
+      reviewUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reviews/create?requestId=${updated.id}`,
+      dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/requests/${updated.id}`,
+    });
   } catch (emailError) {
     // Log error but don't fail the request
     console.error('Failed to send completion email:', emailError);
   }
 
-  sendSuccess(res, updated, 'Service request completed successfully');
+  // Send in-app notification to client
+  try {
+    await NotificationService.notifyRequestCompleted(
+      updated.client.userId,
+      updated.id,
+      updated.serviceType
+    );
+  } catch (notifError) {
+    console.error('Failed to send in-app notification:', notifError);
+  }
+
+  sendSuccess(res, updated, 'Service request completed successfully. Payment will be released after 7 days.');
 }));
 
 // Cancel service request
@@ -900,8 +1160,16 @@ router.post('/:id/cancel', authenticate, asyncHandler(async (req: Request, res: 
     return sendError(res, 'Access denied', 403);
   }
 
-  if (request.status === 'COMPLETED' || request.status === 'CANCELLED') {
-    return sendError(res, 'Cannot cancel completed or already cancelled request', 400);
+  if (request.status === 'COMPLETED') {
+    return sendError(res, 'Cannot cancel a completed request. Please contact support if you need assistance.', 400);
+  }
+
+  if (request.status === 'CANCELLED') {
+    return sendError(res, 'This request is already cancelled', 400);
+  }
+
+  if (request.status === 'IN_PROGRESS') {
+    return sendError(res, 'Cannot cancel requests that are in progress. Please contact the ' + (client ? 'CA' : 'client') + ' directly to discuss.', 400);
   }
 
   const updated = await prisma.serviceRequest.update({
@@ -911,5 +1179,122 @@ router.post('/:id/cancel', authenticate, asyncHandler(async (req: Request, res: 
 
   sendSuccess(res, updated, 'Service request cancelled');
 }));
+
+// Abandon service request (CA only) - For accepted/in-progress requests
+const abandonRequestSchema = {
+  reason: { type: 'string' as const, required: true, max: 1000 },
+  reasonCategory: { type: 'string' as const }, // EMERGENCY, ILLNESS, OVERCOMMITTED, etc.
+};
+
+router.post('/:id/abandon', authenticate, authorize('CA'), validateBody(abandonRequestSchema), asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { reason, reasonCategory } = req.body;
+
+  const ca = await prisma.charteredAccountant.findUnique({
+    where: { userId: req.user!.userId },
+    include: { user: true },
+  });
+
+  if (!ca) {
+    return sendError(res, 'CA profile not found', 404);
+  }
+
+  const request = await prisma.serviceRequest.findUnique({
+    where: { id },
+    include: {
+      client: { include: { user: true } },
+      payments: {
+        where: { status: 'COMPLETED' },
+      },
+    },
+  });
+
+  if (!request) {
+    return sendError(res, 'Service request not found', 404);
+  }
+
+  // Only the assigned CA can abandon
+  if (!request.caId || request.caId !== ca.id) {
+    return sendError(res, 'Only the assigned CA can abandon this request', 403);
+  }
+
+  // Can only abandon ACCEPTED or IN_PROGRESS requests
+  if (request.status !== 'ACCEPTED' && request.status !== 'IN_PROGRESS') {
+    return sendError(res, 'Can only abandon accepted or in-progress requests', 400);
+  }
+
+  // Check if payment was made
+  const hasPayment = request.payments.length > 0;
+
+  // Calculate reputation penalty
+  const reputationPenalty = request.status === 'IN_PROGRESS' ? 0.3 : 0.2; // Higher penalty for in-progress
+  const newReputationScore = Math.max(0, (ca.reputationScore || 5.0) - reputationPenalty);
+
+  // Update CA profile with abandonment tracking
+  await prisma.charteredAccountant.update({
+    where: { id: ca.id },
+    data: {
+      abandonmentCount: (ca.abandonmentCount || 0) + 1,
+      lastAbandonedAt: new Date(),
+      reputationScore: newReputationScore,
+    },
+  });
+
+  // Reopen request for reassignment
+  const updated = await prisma.serviceRequest.update({
+    where: { id },
+    data: {
+      status: 'PENDING',
+      caId: null,
+      abandonedBy: ca.id,
+      abandonedAt: new Date(),
+      abandonmentReason: reason,
+      reopenedCount: (request.reopenedCount || 0) + 1,
+      compensationOffered: hasPayment, // Offer compensation if payment was made
+    },
+    include: {
+      client: { include: { user: true } },
+    },
+  });
+
+  // Send email notification to client
+  try {
+    await EmailNotificationService.sendRequestAbandonedNotification(
+      updated.client.user.email,
+      {
+        clientName: updated.client.user.name,
+        caName: ca.user.name,
+        serviceType: updated.serviceType,
+        requestId: updated.id,
+        abandonmentReason: reason,
+        reputationPenalty,
+        compensationOffered: hasPayment,
+      }
+    );
+  } catch (emailError) {
+    console.error('Failed to send abandonment email:', emailError);
+  }
+
+  // Notify admin for review
+  try {
+    // TODO: Send notification to admin for review
+    console.log(`CA ${ca.user.name} abandoned request ${id}. Abandonment count: ${ca.abandonmentCount + 1}`);
+  } catch (error) {
+    console.error('Failed to notify admin:', error);
+  }
+
+  return sendSuccess(res, {
+    request: updated,
+    caProfile: {
+      abandonmentCount: ca.abandonmentCount + 1,
+      reputationScore: newReputationScore,
+      reputationPenalty,
+    },
+    message: hasPayment
+      ? 'Request abandoned. Client will be compensated and request reopened for reassignment.'
+      : 'Request abandoned and reopened for reassignment. Your reputation score has been affected.',
+  });
+}));
+
 
 export default router;

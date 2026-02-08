@@ -12,6 +12,8 @@ import {
 } from '../middleware/validation';
 import { authLimiter, checkLoginAttempts, loginAttemptTracker } from '../middleware/rateLimiter';
 import { asyncHandler } from '../middleware';
+import jwt from 'jsonwebtoken';
+import { env } from '../config';
 
 const router = Router();
 
@@ -282,18 +284,54 @@ router.post(
       'If an account with that email exists, a password reset link has been sent.'
     );
 
-    // TODO: Implement email sending with reset token
-    // For now, just log the reset request
+    // If user exists, send reset email
     if (user) {
-      console.log(`Password reset requested for user: ${user.email}`);
+      try {
+        console.log(`Password reset requested for user: ${user.email}`);
 
-      // TODO: Generate password reset token and send email with reset link
-      // const resetToken = TokenService.generateAccessToken({
-      //   userId: user.id,
-      //   email: user.email,
-      //   role: 'RESET',
-      // });
-      // Example: https://yourdomain.com/reset-password?token=${resetToken}
+        // Generate password reset token (valid for 1 hour)
+        const resetToken = jwt.sign(
+          {
+            userId: user.id,
+            email: user.email,
+            role: 'RESET',
+          },
+          env.JWT_SECRET,
+          { expiresIn: '1h' }
+        );
+
+        // Store reset token in database with expiry
+        const resetExpiry = new Date();
+        resetExpiry.setHours(resetExpiry.getHours() + 1);
+
+        await prisma.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            token: resetToken,
+            expiresAt: resetExpiry,
+          },
+        });
+
+        // Send password reset email
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${resetToken}`;
+
+        // Note: EmailTemplateService.sendPasswordReset would be called here
+        // For MVP, log the reset URL
+        console.log(`✅ Password reset URL generated for ${user.email}: ${resetUrl}`);
+        // TODO: Uncomment when email template is ready:
+        // await EmailTemplateService.sendPasswordReset({
+        //   email: user.email,
+        //   name: user.name,
+        //   resetUrl,
+        //   expiryHours: 1,
+        // });
+      } catch (error) {
+        console.error('Failed to generate password reset token:', error);
+        // Don't reveal the error to user for security
+      }
+    } else {
+      // Log for monitoring (potential account discovery attempts)
+      console.warn(`Password reset requested for non-existent email: ${email}`);
     }
   })
 );

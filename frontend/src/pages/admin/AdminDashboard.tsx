@@ -1,9 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button } from '../../components/common';
+import { useAdminDashboardMetrics } from '../../hooks/useDashboardMetrics';
 
 const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
+
+  // Use dashboard metrics hook with 5-minute cache
+  const { metrics: dashboardMetrics, loading: metricsLoading } = useAdminDashboardMetrics();
 
   const adminSections = [
     {
@@ -62,6 +66,20 @@ const AdminDashboard: React.FC = () => {
       path: '/admin/firm-analytics',
       color: 'bg-pink-50 hover:bg-pink-100 border-pink-200',
     },
+    {
+      title: 'Platform Settings',
+      description: 'Configure platform fees, service types, and business rules',
+      icon: '⚙️',
+      path: '/admin/platform-settings',
+      color: 'bg-gray-50 hover:bg-gray-100 border-gray-200',
+    },
+    {
+      title: 'Dispute Management',
+      description: 'Review and resolve client-CA disputes',
+      icon: '⚖️',
+      path: '/admin/disputes',
+      color: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
+    },
   ];
 
   return (
@@ -74,22 +92,63 @@ const AdminDashboard: React.FC = () => {
       {/* Quick Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <Card className="text-center">
-          <p className="text-2xl font-bold text-blue-600">0</p>
+          <p className="text-2xl font-bold text-blue-600">{metricsLoading ? '...' : dashboardMetrics?.totalUsers || 0}</p>
           <p className="text-sm text-gray-600">Total Users</p>
         </Card>
         <Card className="text-center">
-          <p className="text-2xl font-bold text-green-600">0</p>
+          <p className="text-2xl font-bold text-green-600">{metricsLoading ? '...' : dashboardMetrics?.usersByRole.cas || 0}</p>
           <p className="text-sm text-gray-600">Active CAs</p>
         </Card>
         <Card className="text-center">
-          <p className="text-2xl font-bold text-purple-600">0</p>
+          <p className="text-2xl font-bold text-purple-600">{metricsLoading ? '...' : dashboardMetrics?.totalRequests || 0}</p>
           <p className="text-sm text-gray-600">Service Requests</p>
         </Card>
         <Card className="text-center">
-          <p className="text-2xl font-bold text-yellow-600">₹0</p>
+          <p className="text-2xl font-bold text-yellow-600">₹{metricsLoading ? '...' : (dashboardMetrics?.totalRevenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           <p className="text-sm text-gray-600">Total Revenue</p>
         </Card>
       </div>
+
+      {/* Detailed Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Pending Verification</h3>
+          <p className="text-3xl font-bold text-orange-600">{metricsLoading ? '...' : dashboardMetrics?.pendingVerification || 0}</p>
+          <p className="text-xs text-gray-500 mt-1">CAs awaiting approval</p>
+        </Card>
+        <Card>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Revenue This Month</h3>
+          <p className="text-3xl font-bold text-green-600">₹{metricsLoading ? '...' : (dashboardMetrics?.revenueThisMonth || 0).toLocaleString('en-IN')}</p>
+          <p className="text-xs text-gray-500 mt-1">Platform earnings</p>
+        </Card>
+        <Card>
+          <h3 className="text-sm font-medium text-gray-600 mb-2">Avg Completion Time</h3>
+          <p className="text-3xl font-bold text-blue-600">{metricsLoading ? '...' : dashboardMetrics?.avgCompletionTime || 0} days</p>
+          <p className="text-xs text-gray-500 mt-1">Request turnaround</p>
+        </Card>
+      </div>
+
+      {/* System Health */}
+      {dashboardMetrics?.systemHealth && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <Card className="bg-blue-50">
+            <p className="text-sm text-gray-600">Active Users (24h)</p>
+            <p className="text-2xl font-bold text-blue-600">{dashboardMetrics.systemHealth.activeUsers24h}</p>
+          </Card>
+          <Card className="bg-green-50">
+            <p className="text-sm text-gray-600">Requests Today</p>
+            <p className="text-2xl font-bold text-green-600">{dashboardMetrics.systemHealth.requestsToday}</p>
+          </Card>
+          <Card className="bg-purple-50">
+            <p className="text-sm text-gray-600">Payments Today</p>
+            <p className="text-2xl font-bold text-purple-600">{dashboardMetrics.systemHealth.paymentsToday}</p>
+          </Card>
+          <Card className="bg-gray-50">
+            <p className="text-sm text-gray-600">Platform Fees</p>
+            <p className="text-2xl font-bold text-gray-700">₹{(dashboardMetrics.platformFees || 0).toLocaleString('en-IN')}</p>
+          </Card>
+        </div>
+      )}
 
       {/* Admin Sections */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

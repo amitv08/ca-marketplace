@@ -1,0 +1,94 @@
+<div class="email-container">
+  <!-- Header -->
+  <div class="email-header">
+    <h1>🎉 Request Accepted!</h1>
+    <p>Your service request has been accepted by a CA</p>
+  </div>
+
+  <!-- Body -->
+  <div class="email-body">
+    <div class="greeting">Hi {{clientName}},</div>
+
+    <div class="content">
+      <p>Great news! <strong>{{caName}}</strong> has accepted your service request for <strong>{{serviceType}}</strong>.</p>
+    </div>
+
+    <div class="success-box">
+      <p><strong>✓ Your CA is Ready to Start</strong></p>
+      <p style="margin-top: 10px; font-size: 14px;">{{caName}} will begin working on your request shortly. You can communicate directly through the platform's messaging system.</p>
+    </div>
+
+    <!-- Request Details -->
+    <div class="info-box">
+      <div class="info-box-row">
+        <span class="info-label">Service Type:</span>
+        <span class="info-value">{{serviceType}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">CA Name:</span>
+        <span class="info-value">{{caName}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">CA Email:</span>
+        <span class="info-value">{{caEmail}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">CA Phone:</span>
+        <span class="info-value">{{caPhone}}</span>
+      </div>
+      {{#if estimatedAmount}}
+      <div class="info-box-row">
+        <span class="info-label">Estimated Amount:</span>
+        <span class="info-value">{{currency estimatedAmount}}</span>
+      </div>
+      {{/if}}
+      {{#if estimatedDays}}
+      <div class="info-box-row">
+        <span class="info-label">Estimated Duration:</span>
+        <span class="info-value">{{estimatedDays}} days</span>
+      </div>
+      {{/if}}
+      <div class="info-box-row">
+        <span class="info-label">Request ID:</span>
+        <span class="info-value">#{{requestId}}</span>
+      </div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="content">
+      <h3 style="margin: 20px 0 10px; color: #333;">Next Steps:</h3>
+      <ul style="padding-left: 20px; color: #555;">
+        <li>Review the CA's profile and credentials</li>
+        <li>Communicate any additional requirements through messages</li>
+        <li>Upload necessary documents if not already provided</li>
+        <li>Make payment when requested to begin work</li>
+      </ul>
+    </div>
+
+    <!-- Call to Action -->
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{dashboardUrl}}" class="btn">View Request Details</a>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="content" style="font-size: 13px; color: #6c757d;">
+      <p><strong>Need Help?</strong></p>
+      <p>If you have any questions or concerns, please don't hesitate to contact our support team at support@camarketplace.com</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="email-footer">
+    <p><strong>CA Marketplace</strong></p>
+    <p>Connecting Clients with Trusted Chartered Accountants</p>
+    <div class="social-links">
+      <a href="#">About Us</a> |
+      <a href="#">Help Center</a> |
+      <a href="#">Contact Support</a>
+    </div>
+    <p style="margin-top: 15px; font-size: 12px;">
+      © 2026 CA Marketplace. All rights reserved.
+    </p>
+  </div>
+</div>

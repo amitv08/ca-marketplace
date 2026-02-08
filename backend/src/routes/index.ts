@@ -7,7 +7,7 @@ import requestRoutes from './request.routes';
 import messageRoutes from './message.routes';
 import reviewRoutes from './review.routes';
 import paymentRoutes from './payment.routes';
-// import refundRoutes from './refund.routes'; // Temporarily disabled
+import refundRoutes from './refund.routes';
 import availabilityRoutes from './availability.routes';
 import adminRoutes from './admin.routes';
 import monitoringRoutes from './monitoring.routes';
@@ -29,6 +29,13 @@ import paymentDistributionRoutes from './payment-distribution.routes';
 import providerRoutes from './provider.routes';
 import adminFirmAnalyticsRoutes from './admin-firm-analytics.routes';
 // import firmReviewRoutes from './firm-review.routes'; // TODO: Fix FirmReview schema (review, isFlagged, flaggedAt fields)
+import notificationRoutes from './notification.routes';
+import escrowRoutes from './escrow.routes';
+import dashboardRoutes from './dashboard.routes';
+import advancedSearchRoutes from './advanced-search.routes';
+import emailTemplateRoutes from './email-template.routes';
+import disputeRoutes from './dispute.routes';
+import platformConfigRoutes from './platform-config.routes';
 import { handleCspReport } from '../controllers/csp-report.controller';
 import { prisma } from '../config';
 import { asyncHandler, authenticate, authorize } from '../middleware';
@@ -169,8 +176,8 @@ export const registerRoutes = (app: Express): void => {
   // Payment routes
   app.use('/api/payments', paymentRoutes);
 
-  // Refund routes - Temporarily disabled
-  // app.use('/api/refunds', refundRoutes);
+  // Refund routes
+  app.use('/api/refunds', refundRoutes);
 
   // Availability routes
   app.use('/api/availability', availabilityRoutes);
@@ -219,6 +226,28 @@ export const registerRoutes = (app: Express): void => {
 
   // Provider search, comparison, and recommendations (Phase 6)
   app.use('/api/providers', providerRoutes);
+
+  // Notification routes (Phase 7)
+  app.use('/api/notifications', notificationRoutes);
+
+  // Escrow routes (Phase 8 - Escrow Payment System)
+  app.use('/api/escrow', escrowRoutes);
+
+  // Dashboard routes (Phase 9 - Real-time Dashboard Metrics)
+  app.use('/api/dashboard', dashboardRoutes);
+
+  // Advanced Search routes (Phase 10 - Advanced Search & Filtering)
+  app.use('/api/search', advancedSearchRoutes);
+
+  // Email Template routes (Phase 11 - Email Notifications)
+  app.use('/api/email-templates', emailTemplateRoutes);
+
+  // Dispute routes (Phase 12 - Dispute Management)
+  app.use('/api/disputes', disputeRoutes);
+
+  // Platform Configuration routes (Admin Settings)
+  app.use('/api/admin/platform-settings', platformConfigRoutes);
+  app.use('/api/platform-settings', platformConfigRoutes); // Public endpoints
 
   // CSP report endpoint (public - called by browsers)
   app.post('/api/csp-report', handleCspReport);

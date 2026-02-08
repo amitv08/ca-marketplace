@@ -53,13 +53,28 @@ const serviceRequestService = {
 
   // Cancel service request
   cancelRequest: async (id: string, reason?: string) => {
-    const response = await api.put(`/service-requests/${id}/cancel`, { reason });
+    const response = await api.post(`/service-requests/${id}/cancel`, { reason });
     return response.data;
   },
 
   // Complete service request (CA)
   completeRequest: async (id: string) => {
     const response = await api.put(`/service-requests/${id}/complete`);
+    return response.data;
+  },
+
+  // Reject service request (CA) - reopens for reassignment
+  rejectRequest: async (id: string, reason: string) => {
+    const response = await api.post(`/service-requests/${id}/reject`, { reason });
+    return response.data;
+  },
+
+  // Abandon service request (CA) - after acceptance
+  abandonRequest: async (id: string, reason: string, reasonText?: string) => {
+    const response = await api.post(`/service-requests/${id}/abandon`, {
+      reason,
+      reasonText
+    });
     return response.data;
   },
 };

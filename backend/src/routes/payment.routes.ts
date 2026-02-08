@@ -9,6 +9,7 @@ import {
   calculatePaymentDistribution,
 } from '../services/razorpay.service';
 import EmailNotificationService from '../services/email-notification.service';
+import { EmailTemplateService } from '../services/email-template.service';
 
 const router = Router();
 
@@ -34,7 +35,25 @@ router.post('/create-order', authenticate, authorize('CLIENT'), validateBody(cre
   const request = await prisma.serviceRequest.findUnique({
     where: { id: requestId },
     include: {
-      ca: true,
+      ca: {
+        include: {
+          user: {
+            select: {
+              name: true,
+            },
+          },
+        },
+      },
+      client: {
+        include: {
+          user: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -80,6 +99,7 @@ router.post('/create-order', authenticate, authorize('CLIENT'), validateBody(cre
       status: 'PENDING',
       paymentMethod: 'RAZORPAY',
       razorpayOrderId: razorpayOrder.id,
+      isEscrow: true, // Enable escrow for all new payments
     },
     include: {
       request: {
@@ -102,6 +122,34 @@ router.post('/create-order', authenticate, authorize('CLIENT'), validateBody(cre
       },
     },
   });
+
+  // Update service request escrow status
+  await prisma.serviceRequest.update({
+    where: { id: requestId },
+    data: {
+      escrowStatus: 'PENDING_PAYMENT',
+      escrowAmount: amount,
+    },
+  });
+
+  // Send payment required email to client
+  if (request.ca) {
+    try {
+      await EmailTemplateService.sendPaymentRequired({
+        clientEmail: request.client.user.email,
+        clientName: request.client.user.name,
+        caName: request.ca.user.name,
+        serviceType: request.serviceType,
+        requestId: request.id,
+        amount,
+        dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+        paymentUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/payments/${payment.id}`,
+        invoiceNumber: `INV-${payment.id.substring(0, 8).toUpperCase()}`,
+      });
+    } catch (emailError) {
+      console.error('Failed to send payment required email:', emailError);
+    }
+  }
 
   sendCreated(res, {
     payment,
@@ -148,13 +196,19 @@ router.post('/verify', authenticate, authorize('CLIENT'), validateBody(verifyPay
     return sendError(res, 'Access denied', 403);
   }
 
+  // Calculate auto-release date (7 days from now by default)
+  const autoReleaseDate = new Date();
+  autoReleaseDate.setDate(autoReleaseDate.getDate() + 7);
+
   // Update payment status
   const updated = await prisma.payment.update({
     where: { id: payment.id },
     data: {
-      status: 'COMPLETED',
+      status: 'ESCROW_HELD',
       razorpayPaymentId,
       razorpaySignature,
+      escrowHeldAt: new Date(),
+      autoReleaseAt: autoReleaseDate,
     },
     include: {
       request: {
@@ -182,6 +236,16 @@ router.post('/verify', authenticate, authorize('CLIENT'), validateBody(verifyPay
           },
         },
       },
+    },
+  });
+
+  // Update service request escrow status to ESCROW_HELD
+  await prisma.serviceRequest.update({
+    where: { id: payment.requestId },
+    data: {
+      escrowStatus: 'ESCROW_HELD',
+      escrowAmount: payment.amount,
+      escrowPaidAt: new Date(),
     },
   });
 
@@ -288,43 +352,26 @@ router.post('/webhook', asyncHandler(async (req: Request, res: Response) => {
 
   console.log('Razorpay webhook received:', event);
 
-  // Handle different webhook events
-  switch (event) {
-    case 'payment.captured':
-      {
-        const paymentEntity = payload.payment.entity;
-        const orderId = paymentEntity.order_id;
-        const paymentId = paymentEntity.id;
+  // Handle different webhook events with idempotency
+  try {
+    switch (event) {
+      case 'payment.captured':
+        await handlePaymentCaptured(payload);
+        break;
 
-        // Update payment status
-        await prisma.payment.updateMany({
-          where: { razorpayOrderId: orderId },
-          data: {
-            status: 'COMPLETED',
-            razorpayPaymentId: paymentId,
-          },
-        });
-      }
-      break;
+      case 'payment.failed':
+        await handlePaymentFailed(payload);
+        break;
 
-    case 'payment.failed':
-      {
-        const paymentEntity = payload.payment.entity;
-        const orderId = paymentEntity.order_id;
+      default:
+        console.log('Unhandled webhook event:', event);
+    }
 
-        await prisma.payment.updateMany({
-          where: { razorpayOrderId: orderId },
-          data: { status: 'FAILED' },
-        });
-      }
-      break;
-
-    default:
-      console.log('Unhandled webhook event:', event);
+    sendSuccess(res, { received: true, event });
+  } catch (error: any) {
+    console.error('Webhook processing error:', error);
+    sendSuccess(res, { received: true, error: error.message });
   }
-
-  // Always respond with 200 to acknowledge receipt
-  sendSuccess(res, { received: true });
 }));
 
 // Get payment history (filtered by role)
@@ -403,5 +450,121 @@ router.get('/history/all', authenticate, asyncHandler(async (req: Request, res: 
 
   sendSuccess(res, payments);
 }));
+
+// ============================================
+// WEBHOOK HANDLER FUNCTIONS (Idempotent)
+// ============================================
+
+/**
+ * Handle payment.captured webhook event with idempotency
+ */
+async function handlePaymentCaptured(payload: any) {
+  const paymentEntity = payload.payment.entity;
+  const orderId = paymentEntity.order_id;
+  const razorpayPaymentId = paymentEntity.id;
+
+  console.log(`Processing payment.captured: ${razorpayPaymentId} for order ${orderId}`);
+
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findFirst({
+      where: { razorpayOrderId: orderId },
+      include: {
+        request: {
+          include: {
+            client: { include: { user: true } },
+            ca: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      console.warn(`Payment not found for order ${orderId}`);
+      return;
+    }
+
+    // IDEMPOTENCY CHECK: Skip if already processed
+    if (payment.status === 'COMPLETED' || payment.status === 'ESCROW_HELD') {
+      console.log(`⚠️  Payment ${payment.id} already processed (status: ${payment.status}). Skipping.`);
+      return;
+    }
+
+    // Update payment status
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: 'COMPLETED',
+        razorpayPaymentId,
+      },
+    });
+
+    console.log(`✅ Payment ${payment.id} marked as COMPLETED`);
+
+    // Update service request status if needed
+    if (payment.request.status === 'PENDING') {
+      await tx.serviceRequest.update({
+        where: { id: payment.requestId },
+        data: { status: 'ACCEPTED' },
+      });
+      console.log(`✅ Service request ${payment.requestId} marked as ACCEPTED`);
+    }
+
+    // Send payment confirmation email (async, don't block)
+    // TODO: Uncomment when EmailTemplateService.sendPaymentConfirmation is implemented
+    // setImmediate(async () => {
+    //   try {
+    //     await EmailTemplateService.sendPaymentConfirmation({
+    //       clientEmail: payment.request.client.user.email,
+    //       clientName: payment.request.client.user.name,
+    //       amount: payment.amount,
+    //       caName: payment.request.ca?.user.name || 'the CA',
+    //       serviceType: payment.request.serviceType,
+    //       escrowReleaseDays: 7,
+    //       dashboardUrl: `${process.env.FRONTEND_URL}/client/dashboard`,
+    //     });
+    //   } catch (emailError) {
+    //     console.error('Failed to send payment confirmation email:', emailError);
+    //   }
+    // });
+  });
+}
+
+/**
+ * Handle payment.failed webhook event with idempotency
+ */
+async function handlePaymentFailed(payload: any) {
+  const paymentEntity = payload.payment.entity;
+  const orderId = paymentEntity.order_id;
+  const errorDescription = paymentEntity.error_description || 'Payment failed';
+
+  console.log(`Processing payment.failed for order ${orderId}: ${errorDescription}`);
+
+  await prisma.$transaction(async (tx) => {
+    const payment = await tx.payment.findFirst({
+      where: { razorpayOrderId: orderId },
+    });
+
+    if (!payment) {
+      console.warn(`Payment not found for order ${orderId}`);
+      return;
+    }
+
+    // IDEMPOTENCY CHECK: Skip if already marked as failed
+    if (payment.status === 'FAILED') {
+      console.log(`⚠️  Payment ${payment.id} already marked as FAILED. Skipping.`);
+      return;
+    }
+
+    // Update payment status
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: 'FAILED',
+      },
+    });
+
+    console.log(`✅ Payment ${payment.id} marked as FAILED`);
+  });
+}
 
 export default router;

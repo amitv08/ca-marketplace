@@ -47,7 +47,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --severity-threshold=high --file=backend/package.json
+          args: --severity-threshold=high --file=backend/package.json --sarif-file-output=snyk.sarif
           command: test
 
       - name: Run Snyk to check for license issues
@@ -60,7 +60,7 @@ jobs:
           command: test --license
 
       - name: Upload Snyk results to GitHub Code Scanning
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() && hashFiles('snyk.sarif') != ''
         continue-on-error: true
         with:
@@ -94,7 +94,7 @@ jobs:
             --exclude "**/coverage/**"
 
       - name: Upload OWASP results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: reports/dependency-check-report.sarif
@@ -190,8 +190,10 @@ jobs:
       - name: TruffleHog Secret Scan
         uses: trufflesecurity/trufflehog@main
         continue-on-error: true
-        # Only run on pull requests or when there are commits to scan
-        if: github.event_name == 'pull_request' || github.event.before != github.event.after
+        # Only run on pull requests or when there are actual commits to scan (not same base/head)
+        if: |
+          github.event_name == 'pull_request' ||
+          (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before != github.event.after)
         with:
           path: ./
           # Use different base/head strategy based on event type
@@ -308,7 +310,7 @@ jobs:
           exit-code: '0'  # Don't fail build on vulnerabilities
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: trivy-results.sarif
