@@ -3,6 +3,7 @@ import { asyncHandler, authenticate, authorize, validateBody } from '../middlewa
 import { sendSuccess, sendError, parsePaginationParams, createPaginationResponse } from '../utils';
 import FirmService from '../services/firm.service';
 import { FirmType, FirmStatus, FirmVerificationLevel } from '@prisma/client';
+import { prisma } from '../config'; // SEC-007: Added for authorization check
 
 const router = Router();
 
@@ -228,6 +229,7 @@ router.get(
 );
 
 // Remove member from firm (Firm Admin only)
+// SEC-007 FIX: Added authorization check to verify caller is FIRM_ADMIN
 router.post(
   '/:firmId/remove-member',
   authenticate,
@@ -238,6 +240,25 @@ router.post(
 
     if (!membershipId) {
       return sendError(res, 'membershipId is required', 400);
+    }
+
+    // SEC-007 FIX: Verify caller is FIRM_ADMIN of this specific firm before allowing removal
+    // This check is also performed in the service layer for defense in depth
+    const callerCA = await prisma.charteredAccountant.findUnique({
+      where: { userId: req.user!.userId },
+      include: {
+        firmMemberships: {
+          where: {
+            firmId,
+            isActive: true,
+            role: 'FIRM_ADMIN',
+          },
+        },
+      },
+    });
+
+    if (!callerCA || callerCA.firmMemberships.length === 0) {
+      return sendError(res, 'Only firm admins can remove members', 403);
     }
 
     const result = await FirmService.removeMember(

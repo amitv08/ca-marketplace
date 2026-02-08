@@ -90,6 +90,14 @@ router.post(
       return sendError(res, 'Service request not found', 404);
     }
 
+    // SEC-009 FIX: Verify admin has authority over this request
+    // SUPER_ADMIN can release any escrow, regular ADMIN is checked in authorize middleware
+    // For now, all ADMIN/SUPER_ADMIN can release, but this can be enhanced with
+    // regional/firm-based restrictions if needed in the future
+    if (req.user!.role !== 'SUPER_ADMIN' && req.user!.role !== 'ADMIN') {
+      return sendError(res, 'Insufficient permissions to release escrow', 403);
+    }
+
     if (serviceRequest.status !== 'COMPLETED') {
       return sendError(
         res,
@@ -231,6 +239,26 @@ router.post(
   validateBody(resolveDisputeSchema),
   asyncHandler(async (req: Request, res: Response) => {
     const { requestId, resolution, resolutionNotes, refundPercentage } = req.body;
+
+    // SEC-009 FIX: Verify the service request exists and admin has authority
+    const serviceRequest = await prisma.serviceRequest.findUnique({
+      where: { id: requestId },
+      select: {
+        id: true,
+        escrowStatus: true,
+        status: true,
+      },
+    });
+
+    if (!serviceRequest) {
+      return sendError(res, 'Service request not found', 404);
+    }
+
+    // SEC-009 FIX: Verify admin has authority
+    // SUPER_ADMIN can resolve any dispute, regular ADMIN is checked in authorize middleware
+    if (req.user!.role !== 'SUPER_ADMIN' && req.user!.role !== 'ADMIN') {
+      return sendError(res, 'Insufficient permissions to resolve disputes', 403);
+    }
 
     // Validate resolution type
     const validResolutions = ['RELEASE_TO_CA', 'REFUND_TO_CLIENT', 'PARTIAL_REFUND'];

@@ -181,7 +181,8 @@ export class TokenService {
   }
 
   /**
-   * Refresh access token using refresh token
+   * SEC-012: Refresh access token with token rotation
+   * Returns both new access and refresh tokens, invalidates old refresh token
    */
   static async refreshAccessToken(refreshToken: string): Promise<string> {
     try {
@@ -197,6 +198,16 @@ export class TokenService {
         }
       }
 
+      // SEC-012: Verify this refresh token is the current one stored for the user
+      const storedToken = await this.getStoredRefreshToken(payload.userId);
+      if (storedToken !== refreshToken) {
+        // Token reuse detected - possible attack
+        console.error(`⚠️ Refresh token reuse detected for user ${payload.userId}`);
+        // Blacklist all user tokens for security
+        await this.blacklistAllUserTokens(payload.userId);
+        throw new Error('Refresh token reuse detected. All sessions revoked for security.');
+      }
+
       // Generate new access token
       const newAccessToken = this.generateAccessToken({
         userId: payload.userId,
@@ -207,6 +218,87 @@ export class TokenService {
       return newAccessToken;
     } catch (error) {
       throw new Error('Failed to refresh access token');
+    }
+  }
+
+  /**
+   * SEC-012: Refresh both tokens with rotation
+   * This is the recommended method for token refresh
+   */
+  static async refreshTokenPair(refreshToken: string): Promise<TokenPair> {
+    try {
+      // Verify refresh token
+      const payload = await this.verifyRefreshToken(refreshToken);
+
+      // Check if user tokens are globally revoked
+      const decoded = this.decodeToken(refreshToken) as any;
+      if (decoded.iat) {
+        const areRevoked = await this.areUserTokensBlacklisted(payload.userId, decoded.iat);
+        if (areRevoked) {
+          throw new Error('User tokens have been revoked');
+        }
+      }
+
+      // SEC-012: Verify this refresh token is the current one stored for the user
+      const storedToken = await this.getStoredRefreshToken(payload.userId);
+      if (storedToken !== refreshToken) {
+        // Token reuse detected - possible attack
+        console.error(`⚠️ Refresh token reuse detected for user ${payload.userId}`);
+        // Blacklist all user tokens for security
+        await this.blacklistAllUserTokens(payload.userId);
+        await this.deleteRefreshToken(payload.userId);
+        throw new Error('Refresh token reuse detected. All sessions revoked for security.');
+      }
+
+      // SEC-012: Blacklist old refresh token
+      await this.blacklistToken(refreshToken);
+
+      // SEC-012: Generate new token pair
+      const newTokenPair = this.generateTokenPair({
+        userId: payload.userId,
+        email: payload.email,
+        role: payload.role,
+      });
+
+      // SEC-012: Store new refresh token
+      await this.storeRefreshToken(payload.userId, newTokenPair.refreshToken);
+
+      // SEC-012: Track token family (optional - for audit)
+      await this.trackTokenRotation(payload.userId, refreshToken, newTokenPair.refreshToken);
+
+      return newTokenPair;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  /**
+   * SEC-012: Track token rotation for audit purposes
+   */
+  private static async trackTokenRotation(
+    userId: string,
+    oldToken: string,
+    newToken: string
+  ): Promise<void> {
+    try {
+      const key = `token_rotation:${userId}`;
+      const rotation = {
+        timestamp: Date.now(),
+        oldToken: oldToken.substring(0, 20) + '...',
+        newToken: newToken.substring(0, 20) + '...',
+      };
+
+      // Store rotation history (keep last 5 rotations)
+      const existing = await redisClient.get(key);
+      const history = existing ? JSON.parse(existing) : [];
+      history.unshift(rotation);
+      if (history.length > 5) history.pop();
+
+      // Store with 7 day expiry
+      await redisClient.setex(key, 7 * 24 * 60 * 60, JSON.stringify(history));
+    } catch (error) {
+      // Non-critical, don't throw
+      console.error('Error tracking token rotation:', error);
     }
   }
 

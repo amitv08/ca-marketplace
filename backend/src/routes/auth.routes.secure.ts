@@ -14,6 +14,7 @@ import { authLimiter, checkLoginAttempts, loginAttemptTracker } from '../middlew
 import { asyncHandler } from '../middleware';
 import jwt from 'jsonwebtoken';
 import { env } from '../config';
+import { getCsrfToken } from '../middleware/csrf'; // SEC-013: CSRF protection
 
 const router = Router();
 
@@ -141,7 +142,7 @@ router.post(
 
 /**
  * @route   POST /api/auth/refresh
- * @desc    Refresh access token using refresh token
+ * @desc    Refresh tokens with rotation (SEC-012)
  * @access  Public
  */
 router.post(
@@ -154,18 +155,23 @@ router.post(
     }
 
     try {
-      // Refresh access token
-      const newAccessToken = await TokenService.refreshAccessToken(refreshToken);
+      // SEC-012: Refresh both tokens with rotation
+      const tokenPair = await TokenService.refreshTokenPair(refreshToken);
 
       sendSuccess(
         res,
         {
-          accessToken: newAccessToken,
+          accessToken: tokenPair.accessToken,
+          refreshToken: tokenPair.refreshToken, // SEC-012: Return new refresh token
           expiresIn: 900, // 15 minutes in seconds
         },
-        'Token refreshed successfully'
+        'Tokens refreshed successfully'
       );
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a token reuse attack
+      if (error.message.includes('reuse detected')) {
+        return sendError(res, error.message, 401);
+      }
       return sendError(res, 'Invalid or expired refresh token', 401);
     }
   })
@@ -414,5 +420,12 @@ router.post(
     sendSuccess(res, null, 'All sessions revoked successfully');
   })
 );
+
+/**
+ * @route   GET /api/auth/csrf-token
+ * @desc    Get CSRF token for state-changing requests (SEC-013)
+ * @access  Public
+ */
+router.get('/csrf-token', getCsrfToken);
 
 export default router;
