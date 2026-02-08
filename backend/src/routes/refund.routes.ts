@@ -2,14 +2,23 @@ import { Router, Request, Response } from 'express';
 import { RefundService } from '../services/refund.service';
 import { authenticate } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
+import { validateBody } from '../middleware/validator';
 
 const router = Router();
 
+// SEC-006 FIX: Add validation schema for refund initiation
+const initiateRefundSchema = {
+  paymentId: { required: true, type: 'string' as const },
+  reason: { required: true, type: 'string' as const, min: 10, max: 500 },
+  reasonText: { type: 'string' as const, max: 2000 },
+  percentage: { type: 'number' as const, min: 0, max: 100 },
+};
+
 /**
  * POST /api/refunds/initiate
- * Initiate a refund (Admin only)
+ * Initiate a refund (Admin only) - SEC-006 FIX: Added validation
  */
-router.post('/initiate', authenticate, async (req: Request, res: Response) => {
+router.post('/initiate', authenticate, validateBody(initiateRefundSchema), async (req: Request, res: Response) => {
   try {
     // Check if user is admin
     if (req.user?.role !== 'ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
@@ -18,8 +27,13 @@ router.post('/initiate', authenticate, async (req: Request, res: Response) => {
 
     const { paymentId, reason, reasonText, percentage } = req.body;
 
-    if (!paymentId || !reason) {
-      return sendError(res, 'Payment ID and reason are required', 400);
+    // Additional validation for percentage
+    if (percentage !== undefined && (percentage < 0 || percentage > 100)) {
+      return sendError(res, 'Refund percentage must be between 0 and 100', 400);
+    }
+
+    if (percentage !== undefined && !Number.isInteger(percentage * 100)) {
+      return sendError(res, 'Refund percentage can have maximum 2 decimal places', 400);
     }
 
     const result = await RefundService.initiateRefund({

@@ -14,14 +14,19 @@ import { EmailTemplateService } from '../services/email-template.service';
 
 const router = Router();
 
-// Create Razorpay order (Phase-7)
+// Create Razorpay order (Phase-7) - SEC-003 FIX: Added amount validation
 const createOrderSchema = {
   requestId: { required: true, type: 'string' as const },
-  amount: { required: true, type: 'number' as const, min: 1 },
+  amount: { required: true, type: 'number' as const, min: 100, max: 10000000 },
 };
 
 router.post('/create-order', authenticate, authorize('CLIENT'), validateBody(createOrderSchema), asyncHandler(async (req: Request, res: Response) => {
   const { requestId, amount } = req.body;
+
+  // SEC-003 FIX: Validate decimal places (max 2)
+  if (!Number.isInteger(amount * 100)) {
+    return sendError(res, 'Amount can have maximum 2 decimal places', 400);
+  }
 
   // Get client
   const client = await prisma.client.findUnique({
@@ -221,7 +226,7 @@ router.post('/verify', authenticate, authorize('CLIENT'), validateBody(verifyPay
       }
 
       // IDEMPOTENCY CHECK: If already processed, return existing payment
-      if (payment.status === 'ESCROW_HELD' || payment.status === 'COMPLETED' || payment.status === 'RELEASED') {
+      if (payment.status === 'ESCROW_HELD' || payment.status === 'COMPLETED') {
         console.log(`⚠️  Payment ${payment.id} already processed (status: ${payment.status}). Returning existing record (idempotent).`);
         return payment;
       }
@@ -329,12 +334,30 @@ router.post('/verify', authenticate, authorize('CLIENT'), validateBody(verifyPay
   sendSuccess(res, updated, 'Payment verified successfully');
 }));
 
-// Get payment by request ID (Phase-7)
+// Get payment by request ID (Phase-7) - SEC-002 FIX: Build ownership filter BEFORE fetching payment
 router.get('/:requestId', authenticate, asyncHandler(async (req: Request, res: Response) => {
   const { requestId } = req.params;
 
+  // SEC-002 FIX: Build ownership filter BEFORE query to prevent IDOR
+  const client = await prisma.client.findUnique({ where: { userId: req.user!.userId } });
+  const ca = await prisma.charteredAccountant.findUnique({ where: { userId: req.user!.userId } });
+
+  // Build where clause with ownership check
+  const whereClause: any = { requestId };
+
+  if (req.user!.role === 'ADMIN') {
+    // Admin can see all payments
+  } else if (client) {
+    whereClause.clientId = client.id;
+  } else if (ca) {
+    whereClause.caId = ca.id;
+  } else {
+    // No valid profile found - use consistent error message to prevent enumeration
+    return sendError(res, 'Resource not found', 404);
+  }
+
   const payment = await prisma.payment.findFirst({
-    where: { requestId },
+    where: whereClause,
     include: {
       client: {
         include: {
@@ -365,21 +388,9 @@ router.get('/:requestId', authenticate, asyncHandler(async (req: Request, res: R
     },
   });
 
+  // SEC-002 FIX: Use consistent error message to prevent enumeration
   if (!payment) {
-    return sendError(res, 'Payment not found for this service request', 404);
-  }
-
-  // Verify access
-  const client = await prisma.client.findUnique({ where: { userId: req.user!.userId } });
-  const ca = await prisma.charteredAccountant.findUnique({ where: { userId: req.user!.userId } });
-
-  const hasAccess =
-    (client && payment.clientId === client.id) ||
-    (ca && payment.caId === ca.id) ||
-    req.user!.role === 'ADMIN';
-
-  if (!hasAccess) {
-    return sendError(res, 'Access denied', 403);
+    return sendError(res, 'Resource not found', 404);
   }
 
   sendSuccess(res, payment);

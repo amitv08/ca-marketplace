@@ -414,6 +414,11 @@ router.patch('/:id', authenticate, authorize('CLIENT'), validateBody(updateReque
   const { id } = req.params;
   const { caId, description, deadline, estimatedHours, documents } = req.body;
 
+  // SEC-004 FIX: Reject if status field is present in request body
+  if ('status' in req.body) {
+    return sendError(res, 'Status field cannot be modified directly. Use specific endpoints to change status.', 400);
+  }
+
   // Get client
   const client = await prisma.client.findUnique({
     where: { userId: req.user!.userId },

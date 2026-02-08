@@ -58,9 +58,10 @@ router.get(
   })
 );
 
-// Search firms (public endpoint)
+// Search firms (authenticated endpoint - SEC-001 FIX)
 router.get(
   '/search',
+  authenticate,
   asyncHandler(async (req: Request, res: Response) => {
     const { q, limit } = req.query;
 

@@ -1,6 +1,7 @@
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 import { env } from '../config/env';
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Helmet.js security middleware configuration
@@ -143,15 +144,18 @@ function sanitizeObject(obj: any): any {
 }
 
 /**
- * Sanitize string to prevent XSS
+ * Sanitize string to prevent XSS - SEC-005 FIX: Using DOMPurify
  */
 function sanitizeString(str: string): string {
-  // Remove potentially dangerous characters
-  return str
-    .replace(/[<>]/g, '') // Remove < and > to prevent HTML injection
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=/gi, '') // Remove inline event handlers
-    .trim();
+  // Use DOMPurify for robust XSS protection
+  // This handles HTML tags, scripts, event handlers, and other XSS vectors
+  const cleaned = DOMPurify.sanitize(str, {
+    ALLOWED_TAGS: [], // Strip all HTML tags
+    ALLOWED_ATTR: [], // Strip all attributes
+    KEEP_CONTENT: true, // Keep text content
+  });
+
+  return cleaned.trim();
 }
 
 /**

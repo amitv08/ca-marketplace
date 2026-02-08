@@ -243,7 +243,7 @@ export const registerRoutes = (app: Express): void => {
   app.use('/api/email-templates', emailTemplateRoutes);
 
   // Dispute routes (Phase 12 - Dispute Management)
-  app.use('/api/disputes', disputeRoutes);
+    app.use('/api/disputes', disputeRoutes);
 
   // Platform Configuration routes (Admin Settings)
   app.use('/api/admin/platform-settings', platformConfigRoutes);
