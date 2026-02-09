@@ -150,8 +150,29 @@ export class FirmInvitationService {
       },
     });
 
-    // TODO: Send email notification to invitee
-    // This will be implemented in the email service
+    // BUG-001 fix: Send email notification to invitee
+    try {
+      const { EmailService } = await import('./email.service');
+      const invitationUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/firm-invitation/${invitationToken}`;
+
+      await EmailService.sendEmail({
+        to: invitation.email,
+        subject: `Invitation to join ${invitation.firm.name}`,
+        html: `
+          <h1>Firm Invitation</h1>
+          <p>Hi,</p>
+          <p>${invitation.invitedBy.user.name} has invited you to join ${invitation.firm.name} as a ${invitation.role.replace('_', ' ')}.</p>
+          ${invitation.message ? `<p><strong>Message:</strong> ${invitation.message}</p>` : ''}
+          <p>Click the link below to view and respond to this invitation:</p>
+          <a href="${invitationUrl}">View Invitation</a>
+          <p>This invitation expires on ${invitation.expiresAt.toLocaleDateString()}.</p>
+        `,
+        text: `You have been invited to join ${invitation.firm.name}. Visit: ${invitationUrl}`,
+      });
+    } catch (emailError) {
+      console.error('Failed to send invitation email:', emailError);
+      // Don't fail the invitation creation if email fails
+    }
 
     return invitation;
   }
@@ -269,7 +290,23 @@ export class FirmInvitationService {
       return { invitation: updatedInvitation, membership };
     });
 
-    // TODO: Send notification to firm admin about acceptance
+    // BUG-001 fix: Send notification to firm admin about acceptance
+    try {
+      const { EmailService } = await import('./email.service');
+      await EmailService.sendEmail({
+        to: invitation.invitedBy.user.email,
+        subject: `${ca.user.name} accepted your invitation`,
+        html: `
+          <h1>Invitation Accepted</h1>
+          <p>Hi ${invitation.invitedBy.user.name},</p>
+          <p>${ca.user.name} has accepted your invitation to join ${invitation.firm.name}.</p>
+          <p>They are now an active member of your firm.</p>
+        `,
+        text: `${ca.user.name} has accepted your invitation to join ${invitation.firm.name}.`,
+      });
+    } catch (emailError) {
+      console.error('Failed to send acceptance notification:', emailError);
+    }
 
     return result;
   }
@@ -330,7 +367,22 @@ export class FirmInvitationService {
       },
     });
 
-    // TODO: Send notification to firm admin about rejection
+    // BUG-001 fix: Send notification to firm admin about rejection
+    try {
+      const { EmailService } = await import('./email.service');
+      await EmailService.sendEmail({
+        to: updatedInvitation.invitedBy.user.email,
+        subject: `Firm invitation declined`,
+        html: `
+          <h1>Invitation Declined</h1>
+          <p>Hi ${updatedInvitation.invitedBy.user.name},</p>
+          <p>The invitation to join ${updatedInvitation.firm.name} sent to ${updatedInvitation.email} has been declined.</p>
+        `,
+        text: `The invitation to join ${updatedInvitation.firm.name} sent to ${updatedInvitation.email} has been declined.`,
+      });
+    } catch (emailError) {
+      console.error('Failed to send rejection notification:', emailError);
+    }
 
     return updatedInvitation;
   }

@@ -318,19 +318,18 @@ router.post(
           },
         });
 
-        // Send password reset email
+        // Send password reset email (BUG-001 fix)
         const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${resetToken}`;
 
-        // Note: EmailTemplateService.sendPasswordReset would be called here
-        // For MVP, log the reset URL
-        console.log(`✅ Password reset URL generated for ${user.email}: ${resetUrl}`);
-        // TODO: Uncomment when email template is ready:
-        // await EmailTemplateService.sendPasswordReset({
-        //   email: user.email,
-        //   name: user.name,
-        //   resetUrl,
-        //   expiryHours: 1,
-        // });
+        try {
+          // Send email using EmailService
+          const { EmailService } = await import('../services/email.service');
+          await EmailService.sendPasswordResetEmail(user.email, resetToken, resetUrl);
+          console.log(`✅ Password reset email sent to ${user.email}`);
+        } catch (emailError) {
+          // Log error but don't fail the request (email is queued for retry)
+          console.error('Failed to send password reset email:', emailError);
+        }
       } catch (error) {
         console.error('Failed to generate password reset token:', error);
         // Don't reveal the error to user for security

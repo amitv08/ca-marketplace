@@ -1240,7 +1240,7 @@ model IndependentWorkRequest {
   @@index([status, requestDate])
 }
 
-// 6. Firm Review - Client reviews for firms
+// 6. Firm Review - Client reviews for firms (BUG-002 fix: added isFlagged, flaggedAt)
 model FirmReview {
   id        String  @id @default(uuid())
   firmId    String
@@ -1248,12 +1248,18 @@ model FirmReview {
   requestId String  @unique // Each request can have one firm review
   rating    Int // 1-5 stars
   comment   String? @db.Text
+  review    String? @db.Text // Alias for comment (for route compatibility)
 
   // Review aspects (optional detailed ratings)
   professionalismRating Int? // 1-5
   communicationRating   Int? // 1-5
   timelinessRating      Int? // 1-5
   valueForMoneyRating   Int? // 1-5
+
+  // Moderation fields (BUG-002 fix)
+  isFlagged Boolean   @default(false)
+  flaggedAt DateTime?
+  flagReason String?  @db.Text
 
   // Relations
   firm    CAFirm         @relation(fields: [firmId], references: [id], onDelete: Cascade)

@@ -33,6 +33,12 @@ interface EnvConfig {
   CLAMAV_HOST: string;
   CLAMAV_PORT: string;
   MAX_SCAN_FILE_SIZE: string;
+  // Email Configuration (BUG-001 fix)
+  SENDGRID_API_KEY: string;
+  FROM_EMAIL: string;
+  FROM_NAME: string;
+  PLATFORM_TAN: string;
+  PLATFORM_PAN: string;
 }
 
 const getEnvVariable = (key: string, defaultValue?: string): string => {
@@ -76,6 +82,13 @@ export const env: EnvConfig = {
   CLAMAV_HOST: getEnvVariable('CLAMAV_HOST', 'localhost'),
   CLAMAV_PORT: getEnvVariable('CLAMAV_PORT', '3310'),
   MAX_SCAN_FILE_SIZE: getEnvVariable('MAX_SCAN_FILE_SIZE', '104857600'), // 100MB default
+  // Email Configuration (BUG-001 fix)
+  SENDGRID_API_KEY: getEnvVariable('SENDGRID_API_KEY', 'SG.test_key'),
+  FROM_EMAIL: getEnvVariable('FROM_EMAIL', 'noreply@camarketplace.com'),
+  FROM_NAME: getEnvVariable('FROM_NAME', 'CA Marketplace'),
+  // Platform Tax IDs (BUG-004 fix)
+  PLATFORM_TAN: getEnvVariable('PLATFORM_TAN', 'DELP12345A'),
+  PLATFORM_PAN: getEnvVariable('PLATFORM_PAN', 'AABCP1234Q'),
 };
 
 export const isDevelopment = env.NODE_ENV === 'development';

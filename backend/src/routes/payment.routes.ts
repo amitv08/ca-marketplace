@@ -575,23 +575,20 @@ async function handlePaymentCaptured(payload: any) {
       console.log(`✅ Service request ${payment.requestId} marked as ACCEPTED`);
     }
 
-    // Send payment confirmation email (async, don't block)
-    // TODO: Uncomment when EmailTemplateService.sendPaymentConfirmation is implemented
-    // setImmediate(async () => {
-    //   try {
-    //     await EmailTemplateService.sendPaymentConfirmation({
-    //       clientEmail: payment.request.client.user.email,
-    //       clientName: payment.request.client.user.name,
-    //       amount: payment.amount,
-    //       caName: payment.request.ca?.user.name || 'the CA',
-    //       serviceType: payment.request.serviceType,
-    //       escrowReleaseDays: 7,
-    //       dashboardUrl: `${process.env.FRONTEND_URL}/client/dashboard`,
-    //     });
-    //   } catch (emailError) {
-    //     console.error('Failed to send payment confirmation email:', emailError);
-    //   }
-    // });
+    // Send payment confirmation email (async, don't block) - BUG-001 fix
+    setImmediate(async () => {
+      try {
+        const { EmailService } = await import('../services/email.service');
+        await EmailService.sendPaymentConfirmation(
+          payment.request.client.user.email,
+          payment.request.client.user.name,
+          payment.amount,
+          payment.razorpayOrderId
+        );
+      } catch (emailError) {
+        console.error('Failed to send payment confirmation email:', emailError);
+      }
+    });
   });
 }
 

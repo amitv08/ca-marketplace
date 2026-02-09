@@ -28,7 +28,7 @@ import independentWorkRoutes from './independent-work.routes';
 import paymentDistributionRoutes from './payment-distribution.routes';
 import providerRoutes from './provider.routes';
 import adminFirmAnalyticsRoutes from './admin-firm-analytics.routes';
-// import firmReviewRoutes from './firm-review.routes'; // TODO: Fix FirmReview schema (review, isFlagged, flaggedAt fields)
+import firmReviewRoutes from './firm-review.routes'; // BUG-002 fix: FirmReview schema updated
 import notificationRoutes from './notification.routes';
 import escrowRoutes from './escrow.routes';
 import dashboardRoutes from './dashboard.routes';
@@ -222,7 +222,7 @@ export const registerRoutes = (app: Express): void => {
   // app.use('/api/assignments', hybridAssignmentRoutes); // Hybrid assignment system - Temporarily disabled
   app.use('/api/independent-work-requests', independentWorkRoutes); // Independent work management
   app.use('/api', paymentDistributionRoutes); // Payment distribution, wallets, payouts, taxes
-  // app.use('/api/firm-reviews', firmReviewRoutes); // TODO: Fix schema
+  app.use('/api/firm-reviews', firmReviewRoutes); // BUG-002 fix: Schema updated
 
   // Provider search, comparison, and recommendations (Phase 6)
   app.use('/api/providers', providerRoutes);

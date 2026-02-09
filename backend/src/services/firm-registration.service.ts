@@ -334,7 +334,33 @@ export class FirmRegistrationService {
       },
     });
 
-    // TODO: Send notification to admins for verification
+    // BUG-001 fix: Send notification to admins for verification
+    try {
+      const { EmailService } = await import('./email.service');
+      // Get all admin users
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN' },
+        select: { email: true, name: true },
+      });
+
+      if (admins.length > 0) {
+        await EmailService.sendEmail({
+          to: admins.map(admin => admin.email),
+          subject: `New firm pending verification: ${updatedFirm.name}`,
+          html: `
+            <h1>New Firm Verification Required</h1>
+            <p>A firm has submitted their registration for verification.</p>
+            <p><strong>Firm Name:</strong> ${updatedFirm.name}</p>
+            <p><strong>Firm Type:</strong> ${updatedFirm.firmType.replace(/_/g, ' ')}</p>
+            <p><strong>Members:</strong> ${updatedFirm.members.length}</p>
+            <p>Please log in to the admin panel to review and verify this firm.</p>
+          `,
+          text: `New firm pending verification: ${updatedFirm.name}. Please review in admin panel.`,
+        });
+      }
+    } catch (emailError) {
+      console.error('Failed to send admin notification:', emailError);
+    }
 
     return updatedFirm;
   }
@@ -465,7 +491,42 @@ export class FirmRegistrationService {
       },
     });
 
-    // TODO: Send notifications to all firm members about approval/rejection
+    // BUG-001 fix: Send notifications to all firm members about approval/rejection
+    try {
+      const { EmailService } = await import('./email.service');
+      const memberEmails = updatedFirm.members.map(m => m.ca.user.email);
+
+      if (memberEmails.length > 0) {
+        if (approved) {
+          await EmailService.sendEmail({
+            to: memberEmails,
+            subject: `${updatedFirm.name} has been verified!`,
+            html: `
+              <h1>Firm Verified</h1>
+              <p>Congratulations! ${updatedFirm.name} has been successfully verified and is now active.</p>
+              <p><strong>Verification Level:</strong> ${verificationLevel || 'VERIFIED'}</p>
+              ${verificationNotes ? `<p><strong>Notes:</strong> ${verificationNotes}</p>` : ''}
+              <p>You can now start accepting client requests through your firm.</p>
+            `,
+            text: `Congratulations! ${updatedFirm.name} has been verified and is now active.`,
+          });
+        } else {
+          await EmailService.sendEmail({
+            to: memberEmails,
+            subject: `${updatedFirm.name} verification requires attention`,
+            html: `
+              <h1>Firm Verification Status</h1>
+              <p>${updatedFirm.name} requires additional information for verification.</p>
+              ${verificationNotes ? `<p><strong>Admin Notes:</strong> ${verificationNotes}</p>` : ''}
+              <p>Please review the feedback and resubmit your firm for verification.</p>
+            `,
+            text: `${updatedFirm.name} requires additional information. Notes: ${verificationNotes || 'Please review feedback in dashboard.'}`,
+          });
+        }
+      }
+    } catch (emailError) {
+      console.error('Failed to send firm verification notification:', emailError);
+    }
 
     return updatedFirm;
   }
