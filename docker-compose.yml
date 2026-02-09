@@ -10,7 +10,7 @@ services:
       POSTGRES_USER: caadmin
       POSTGRES_PASSWORD: CaSecure123!
     ports:
-      - "5432:5432"
+      - "54320:5432"  # Non-standard port for security
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./database-scripts:/docker-entrypoint-initdb.d
@@ -28,7 +28,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@caplatform.com
       PGADMIN_DEFAULT_PASSWORD: admin123
     ports:
-      - "5050:80"
+      - "5051:80"  # Non-standard port for security
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,7 +38,7 @@ services:
     image: redis:7-alpine
     container_name: ca_redis
     ports:
-      - "6379:6379"
+      - "63790:6379"  # Non-standard port for security
     volumes:
       - redis_data:/data
     healthcheck:
@@ -53,7 +53,7 @@ services:
     build: ./backend
     container_name: ca_backend
     ports:
-      - "5000:5000"
+      - "8081:5000"  # Non-standard external port for security (8080 conflicts with other project)
     environment:
       - DATABASE_URL=postgresql://caadmin:CaSecure123!@postgres:5432/camarketplace
       - NODE_ENV=development
@@ -61,6 +61,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
+      - CLAMAV_ENABLED=true
+      - CLAMAV_HOST=localhost
+      - CLAMAV_PORT=3310
+      - MAX_SCAN_FILE_SIZE=104857600
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -77,9 +81,9 @@ services:
     build: ./frontend
     container_name: ca_frontend
     ports:
-      - "3000:3000"
+      - "3001:3000"  # Non-standard external port for security
     environment:
-      - REACT_APP_API_URL=http://localhost:5000/api
+      - REACT_APP_API_URL=http://localhost:8081/api
       - BROWSER=none
     volumes:
       - ./frontend:/app

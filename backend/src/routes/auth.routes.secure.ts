@@ -12,6 +12,9 @@ import {
 } from '../middleware/validation';
 import { authLimiter, checkLoginAttempts, loginAttemptTracker } from '../middleware/rateLimiter';
 import { asyncHandler } from '../middleware';
+import jwt from 'jsonwebtoken';
+import { env } from '../config';
+import { getCsrfToken } from '../middleware/csrf'; // SEC-013: CSRF protection
 
 const router = Router();
 
@@ -30,7 +33,7 @@ router.post(
     // Check if user exists
     const existingUser = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
     if (existingUser) {
-      return sendError(res, 'Email already registered', 400);
+      return sendError(res, 'User with this email already exists', 400);
     }
 
     // Validate and hash password
@@ -69,6 +72,7 @@ router.post(
       res,
       {
         user: userData,
+        token: accessToken, // Backwards compatibility
         accessToken,
         refreshToken,
         expiresIn: 900, // 15 minutes in seconds
@@ -126,6 +130,7 @@ router.post(
       res,
       {
         user: userData,
+        token: accessToken, // Backwards compatibility
         accessToken,
         refreshToken,
         expiresIn: 900, // 15 minutes in seconds
@@ -137,7 +142,7 @@ router.post(
 
 /**
  * @route   POST /api/auth/refresh
- * @desc    Refresh access token using refresh token
+ * @desc    Refresh tokens with rotation (SEC-012)
  * @access  Public
  */
 router.post(
@@ -150,18 +155,23 @@ router.post(
     }
 
     try {
-      // Refresh access token
-      const newAccessToken = await TokenService.refreshAccessToken(refreshToken);
+      // SEC-012: Refresh both tokens with rotation
+      const tokenPair = await TokenService.refreshTokenPair(refreshToken);
 
       sendSuccess(
         res,
         {
-          accessToken: newAccessToken,
+          accessToken: tokenPair.accessToken,
+          refreshToken: tokenPair.refreshToken, // SEC-012: Return new refresh token
           expiresIn: 900, // 15 minutes in seconds
         },
-        'Token refreshed successfully'
+        'Tokens refreshed successfully'
       );
-    } catch (error) {
+    } catch (error: any) {
+      // Check if it's a token reuse attack
+      if (error.message.includes('reuse detected')) {
+        return sendError(res, error.message, 401);
+      }
       return sendError(res, 'Invalid or expired refresh token', 401);
     }
   })
@@ -201,20 +211,20 @@ router.get(
 router.post('/logout', authenticate, logoutMiddleware);
 
 /**
- * @route   POST /api/auth/change-password
+ * @route   PUT /api/auth/change-password
  * @desc    Change user password with validation and history tracking
  * @access  Private
  */
-router.post(
+router.put(
   '/change-password',
   authenticate,
   changePasswordValidation,
   asyncHandler(async (req: Request, res: Response) => {
-    const { currentPassword, password } = req.body;
+    const { currentPassword, newPassword } = req.body;
     const userId = req.user!.userId;
 
     // Change password using PasswordService
-    const result = await PasswordService.changePassword(userId, currentPassword, password);
+    const result = await PasswordService.changePassword(userId, currentPassword, newPassword);
 
     if (!result.success) {
       return sendError(res, result.errors?.join(', ') || 'Failed to change password', 400);
@@ -280,18 +290,53 @@ router.post(
       'If an account with that email exists, a password reset link has been sent.'
     );
 
-    // TODO: Implement email sending with reset token
-    // For now, just log the reset request
+    // If user exists, send reset email
     if (user) {
-      console.log(`Password reset requested for user: ${user.email}`);
+      try {
+        console.log(`Password reset requested for user: ${user.email}`);
 
-      // TODO: Generate password reset token and send email with reset link
-      // const resetToken = TokenService.generateAccessToken({
-      //   userId: user.id,
-      //   email: user.email,
-      //   role: 'RESET',
-      // });
-      // Example: https://yourdomain.com/reset-password?token=${resetToken}
+        // Generate password reset token (valid for 1 hour)
+        const resetToken = jwt.sign(
+          {
+            userId: user.id,
+            email: user.email,
+            role: 'RESET',
+          },
+          env.JWT_SECRET,
+          { expiresIn: '1h' }
+        );
+
+        // Store reset token in database with expiry
+        const resetExpiry = new Date();
+        resetExpiry.setHours(resetExpiry.getHours() + 1);
+
+        await prisma.passwordResetToken.create({
+          data: {
+            userId: user.id,
+            token: resetToken,
+            expiresAt: resetExpiry,
+          },
+        });
+
+        // Send password reset email (BUG-001 fix)
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${resetToken}`;
+
+        try {
+          // Send email using EmailService
+          const { EmailService } = await import('../services/email.service');
+          await EmailService.sendPasswordResetEmail(user.email, resetToken, resetUrl);
+          console.log(`✅ Password reset email sent to ${user.email}`);
+        } catch (emailError) {
+          // Log error but don't fail the request (email is queued for retry)
+          console.error('Failed to send password reset email:', emailError);
+        }
+      } catch (error) {
+        console.error('Failed to generate password reset token:', error);
+        // Don't reveal the error to user for security
+      }
+    } else {
+      // Log for monitoring (potential account discovery attempts)
+      console.warn(`Password reset requested for non-existent email: ${email}`);
     }
   })
 );
@@ -374,5 +419,12 @@ router.post(
     sendSuccess(res, null, 'All sessions revoked successfully');
   })
 );
+
+/**
+ * @route   GET /api/auth/csrf-token
+ * @desc    Get CSRF token for state-changing requests (SEC-013)
+ * @access  Public
+ */
+router.get('/csrf-token', getCsrfToken);
 
 export default router;

@@ -108,6 +108,22 @@ export class CacheService {
   }
 
   /**
+   * Delete keys matching a pattern
+   * Warning: Uses KEYS command which can be slow on large datasets
+   * For production, consider using SCAN instead
+   */
+  static async deletePattern(pattern: string): Promise<void> {
+    try {
+      const keys = await redisClient.keys(pattern);
+      if (keys.length > 0) {
+        await redisClient.del(...keys);
+      }
+    } catch (error) {
+      console.error(`Cache delete pattern error for pattern ${pattern}:`, error);
+    }
+  }
+
+  /**
    * Invalidate cache by tags
    */
   static async invalidateByTags(tags: string[]): Promise<void> {

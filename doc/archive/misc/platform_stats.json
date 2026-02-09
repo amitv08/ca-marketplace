@@ -1,0 +1,51 @@
+{
+  "generated_at": "2026-01-30T15:16:20.326251",
+  "summary": {
+    "total_requests": 10,
+    "total_cas": 10,
+    "total_firms": 5,
+    "total_team_members": 39,
+    "avg_rating": 4.78,
+    "total_reviews": 4
+  },
+  "requests": {
+    "by_status": {
+      "PENDING": 3,
+      "CANCELLED": 4,
+      "IN_PROGRESS": 2,
+      "COMPLETED": 1
+    },
+    "by_type": {
+      "GST_FILING": 6,
+      "INCOME_TAX_RETURN": 1,
+      "ACCOUNTING": 1,
+      "FINANCIAL_CONSULTING": 1,
+      "AUDIT": 1
+    },
+    "by_assignment_method": {
+      "CLIENT_SPECIFIED": 2,
+      "AUTO": 5
+    },
+    "total_estimated_hours": 112
+  },
+  "cas": {
+    "total": 10,
+    "verified": 10,
+    "independent": 2,
+    "firm_affiliated": 8,
+    "specializations": {
+      "COMPANY_LAW": 4,
+      "ACCOUNTING": 5,
+      "GST": 4,
+      "INCOME_TAX": 3,
+      "TAX_PLANNING": 3,
+      "AUDIT": 1
+    },
+    "avg_hourly_rate": 2370.0
+  },
+  "firms": {
+    "total": 5,
+    "verified": 5,
+    "total_members": 39
+  }
+}

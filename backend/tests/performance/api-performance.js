@@ -33,7 +33,7 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 const TEST_USER = {
   email: 'client1@test.com',
-  password: 'Client@123',
+  password: 'ClientTestPass@68!',
 };
 
 let authToken = '';

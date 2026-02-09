@@ -13,6 +13,8 @@ const Home: React.FC = () => {
         navigate('/client/dashboard');
       } else if (user?.role === 'CA') {
         navigate('/ca/dashboard');
+      } else if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') {
+        navigate('/admin/dashboard');
       } else {
         navigate('/cas');
       }

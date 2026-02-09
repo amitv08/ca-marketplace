@@ -35,6 +35,11 @@ const Footer: React.FC = () => {
                   Register as Client
                 </Link>
               </li>
+              <li>
+                <Link to="/help" className="text-gray-300 hover:text-white text-sm">
+                  Help & Support
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -73,7 +78,7 @@ const Footer: React.FC = () => {
             <Link to="#" className="text-sm text-gray-400 hover:text-white">
               Terms of Service
             </Link>
-            <Link to="#" className="text-sm text-gray-400 hover:text-white">
+            <Link to="/help" className="text-sm text-gray-400 hover:text-white">
               Help Center
             </Link>
           </div>

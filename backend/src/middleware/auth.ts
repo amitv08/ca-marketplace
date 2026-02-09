@@ -7,6 +7,8 @@ export interface JwtPayload {
   userId: string;
   email: string;
   role: string;
+  caId?: string; // CA ID (if user is a CA)
+  clientId?: string; // Client ID (if user is a client)
   iat?: number; // Issued at
   exp?: number; // Expires at
 }
@@ -73,6 +75,11 @@ export const authorize = (...allowedRoles: string[]) => {
   return (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
       return next(new AuthenticationError('Authentication required', ErrorCode.NO_TOKEN_PROVIDED, (req as any).correlationId));
+    }
+
+    // SUPER_ADMIN has access to all routes, including ADMIN routes
+    if (req.user.role === 'SUPER_ADMIN') {
+      return next();
     }
 
     if (!allowedRoles.includes(req.user.role)) {

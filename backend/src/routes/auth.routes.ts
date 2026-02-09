@@ -3,6 +3,7 @@ import { prisma } from '../config';
 import { asyncHandler, validateBody, authenticate, generateToken } from '../middleware';
 import { sendSuccess, sendCreated, sendError, hashPassword, comparePassword, sanitizeUser } from '../utils';
 import { isValidEmail } from '../middleware';
+import { authLimiter, checkLoginAttempts, loginAttemptTracker } from '../middleware/rateLimiter'; // SEC-008: Added rate limiting
 
 const router = Router();
 
@@ -15,7 +16,8 @@ const registerSchema = {
   role: { required: true, type: 'string' as const },
 };
 
-router.post('/register', validateBody(registerSchema), asyncHandler(async (req: Request, res: Response) => {
+// SEC-008 FIX: Added rate limiting (3 registrations per hour per IP)
+router.post('/register', authLimiter, validateBody(registerSchema), asyncHandler(async (req: Request, res: Response) => {
   const { email, password, name, phone, role } = req.body;
 
   // Validate role
@@ -64,19 +66,45 @@ const loginSchema = {
   password: { required: true, type: 'string' as const },
 };
 
-router.post('/login', validateBody(loginSchema), asyncHandler(async (req: Request, res: Response) => {
+// SEC-008 FIX: Added rate limiting (5 attempts per 15 min) and login attempt tracking
+router.post('/login', authLimiter, checkLoginAttempts, validateBody(loginSchema), asyncHandler(async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   // Find user
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
+    // SEC-008: Record failed login attempt
+    await loginAttemptTracker.recordFailedAttempt(email);
     return sendError(res, 'Invalid email or password', 401);
   }
 
   // Verify password
   const isValidPassword = await comparePassword(password, user.password);
   if (!isValidPassword) {
+    // SEC-008: Record failed login attempt
+    await loginAttemptTracker.recordFailedAttempt(email);
     return sendError(res, 'Invalid email or password', 401);
+  }
+
+  // SEC-008: Reset login attempts on successful login
+  await loginAttemptTracker.resetAttempts(email);
+
+  // Get CA/Client ID for token
+  let caId: string | undefined;
+  let clientId: string | undefined;
+
+  if (user.role === 'CA') {
+    const ca = await prisma.charteredAccountant.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    caId = ca?.id;
+  } else if (user.role === 'CLIENT') {
+    const client = await prisma.client.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    });
+    clientId = client?.id;
   }
 
   // Generate token
@@ -84,6 +112,8 @@ router.post('/login', validateBody(loginSchema), asyncHandler(async (req: Reques
     userId: user.id,
     email: user.email,
     role: user.role,
+    caId,
+    clientId,
   });
 
   const userData = sanitizeUser(user);

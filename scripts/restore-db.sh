@@ -1,72 +1,97 @@
 #!/bin/bash
 
-# Database restore script
-# Usage: ./scripts/restore-db.sh <backup-file>
+# CA Marketplace - Database Restore Script
+# Restores database from a backup file
 
 set -e
 
+# Colors
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# Configuration
+BACKUP_DIR="/home/amit/ca-marketplace/backups/postgres"
+DB_NAME="${POSTGRES_DB:-camarketplace}"
+DB_USER="${POSTGRES_USER:-caadmin}"
+CONTAINER_NAME="ca_postgres_prod"
+
 # Check if backup file is provided
 if [ -z "$1" ]; then
+    echo -e "${RED}Error: No backup file specified${NC}"
+    echo ""
     echo "Usage: $0 <backup-file>"
-    echo "Example: $0 ./backups/ca_marketplace_20260104_120000.sql.gz"
     echo ""
     echo "Available backups:"
-    ls -lh ./backups/*.sql.gz 2>/dev/null || echo "No backups found"
+    ls -lh "${BACKUP_DIR}" | grep backup_
     exit 1
 fi
 
-BACKUP_FILE=$1
-POSTGRES_CONTAINER="ca_postgres_prod"
-
-# Load environment variables
-if [ -f .env.production ]; then
-    export $(cat .env.production | grep -v '^#' | xargs)
-fi
+BACKUP_FILE="$1"
 
 # Check if backup file exists
-if [ ! -f "$BACKUP_FILE" ]; then
-    echo "Error: Backup file not found: $BACKUP_FILE"
-    exit 1
+if [ ! -f "${BACKUP_FILE}" ]; then
+    # Try finding it in the backup directory
+    if [ -f "${BACKUP_DIR}/${BACKUP_FILE}" ]; then
+        BACKUP_FILE="${BACKUP_DIR}/${BACKUP_FILE}"
+    else
+        echo -e "${RED}Error: Backup file not found: ${BACKUP_FILE}${NC}"
+        exit 1
+    fi
 fi
 
-echo "==================================="
-echo "Database Restore"
-echo "Backup file: $BACKUP_FILE"
-echo "==================================="
+echo ""
+echo "================================================================"
+echo "          CA Marketplace - Database Restore"
+echo "================================================================"
+echo "Database: ${DB_NAME}"
+echo "Backup file: ${BACKUP_FILE}"
+echo "================================================================"
+echo ""
 
-# Confirm restore
-read -p "This will overwrite the current database. Continue? (yes/no): " confirm
-if [ "$confirm" != "yes" ]; then
+# Warning
+echo -e "${YELLOW}WARNING: This will delete all current data in the database!${NC}"
+read -p "Are you sure you want to continue? (yes/no): " -r
+if [[ ! $REPLY =~ ^[Yy][Ee][Ss]$ ]]; then
     echo "Restore cancelled"
     exit 0
 fi
 
-# Check if container is running
-if ! docker ps | grep -q $POSTGRES_CONTAINER; then
-    echo "Error: PostgreSQL container is not running"
+# Verify backup file integrity
+echo -e "${GREEN}Verifying backup file integrity...${NC}"
+if gunzip -t "${BACKUP_FILE}" 2>/dev/null; then
+    echo -e "${GREEN}✓ Backup file is valid${NC}"
+else
+    echo -e "${RED}✗ Backup file is corrupted!${NC}"
     exit 1
 fi
 
-# Decompress if needed
-TEMP_FILE="/tmp/restore_$(date +%s).sql"
-if [[ $BACKUP_FILE == *.gz ]]; then
-    echo "Decompressing backup..."
-    gunzip -c $BACKUP_FILE > $TEMP_FILE
-else
-    cp $BACKUP_FILE $TEMP_FILE
-fi
+# Create a backup of current database before restore
+echo -e "${GREEN}Creating safety backup of current database...${NC}"
+SAFETY_BACKUP="${BACKUP_DIR}/pre-restore_${DB_NAME}_$(date +%Y%m%d_%H%M%S).sql.gz"
+docker exec "${CONTAINER_NAME}" pg_dump -U "${DB_USER}" "${DB_NAME}" | gzip > "${SAFETY_BACKUP}"
+echo "Safety backup created: ${SAFETY_BACKUP}"
 
-echo "Restoring database..."
-
-# Drop existing connections
-docker exec $POSTGRES_CONTAINER psql -U ${POSTGRES_USER:-postgres} -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${POSTGRES_DB:-ca_marketplace}' AND pid <> pg_backend_pid();"
+# Drop all connections
+echo -e "${GREEN}Dropping all database connections...${NC}"
+docker exec "${CONTAINER_NAME}" psql -U "${DB_USER}" -c \
+  "SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '${DB_NAME}' AND pid <> pg_backend_pid();" || true
 
 # Restore database
-cat $TEMP_FILE | docker exec -i $POSTGRES_CONTAINER psql -U ${POSTGRES_USER:-postgres} ${POSTGRES_DB:-ca_marketplace}
+echo -e "${GREEN}Restoring database from backup...${NC}"
+gunzip -c "${BACKUP_FILE}" | docker exec -i "${CONTAINER_NAME}" psql -U "${DB_USER}" -d "${DB_NAME}"
 
-# Clean up
-rm -f $TEMP_FILE
+if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✓ Database restored successfully${NC}"
+else
+    echo -e "${RED}✗ Database restore failed!${NC}"
+    echo "You can restore from the safety backup: ${SAFETY_BACKUP}"
+    exit 1
+fi
 
-echo "==================================="
-echo "Restore Complete!"
-echo "==================================="
+echo ""
+echo "================================================================"
+echo -e "${GREEN}Restore completed successfully!${NC}"
+echo "================================================================"
+echo ""

@@ -11,8 +11,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production --ignore-scripts && \
+# Install production dependencies only (without --ignore-scripts to build native modules like bcrypt)
+RUN npm ci --only=production && \
     npm cache clean --force
 
 # ============================================
@@ -32,7 +32,9 @@ RUN npm ci --ignore-scripts && \
 # Copy Prisma schema
 COPY prisma ./prisma/
 
-# Generate Prisma Client
+# Generate Prisma Client (requires DATABASE_URL to be set, even though it doesn't connect)
+# Use a dummy URL for the build process - actual DATABASE_URL will be set at runtime
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 RUN npx prisma generate
 
 # Copy TypeScript configuration and source code
@@ -70,12 +72,16 @@ COPY --from=dependencies --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/prisma ./prisma
 
+# Copy Prisma generated client from builder stage (overwrite @prisma/client from dependencies)
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nodejs:nodejs /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
 # Copy package files
 COPY --chown=nodejs:nodejs package*.json ./
 
-# Create uploads directory with proper permissions
-RUN mkdir -p /app/uploads && \
-    chown -R nodejs:nodejs /app/uploads
+# Create uploads and logs directories with proper permissions
+RUN mkdir -p /app/uploads /app/logs && \
+    chown -R nodejs:nodejs /app/uploads /app/logs
 
 # Switch to non-root user
 USER nodejs

@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { prisma, onlineUsers, getSocketIO } from '../config';
 import { asyncHandler, authenticate, upload, handleUploadError } from '../middleware';
+import { virusScanMiddleware } from '../middleware/fileUpload';
 import { sendSuccess, sendCreated, sendError } from '../utils';
+import { EmailTemplateService } from '../services/email-template.service';
 
 const router = Router();
 
-router.post('/', authenticate, upload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+router.post('/', authenticate, upload.single('file'), virusScanMiddleware, asyncHandler(async (req: Request, res: Response) => {
   try {
     const { receiverId, requestId, content } = req.body;
     const file = req.file;
@@ -84,6 +86,7 @@ router.post('/', authenticate, upload.single('file'), asyncHandler(async (req: R
         select: {
           id: true,
           name: true,
+          email: true,
           profileImage: true,
           role: true,
         },
@@ -98,13 +101,38 @@ router.post('/', authenticate, upload.single('file'), asyncHandler(async (req: R
     },
   });
 
+  // Send email notification to recipient
+  try {
+    const messagePreview = content.substring(0, 150);
+    const messageUrl = requestId
+      ? `${process.env.FRONTEND_URL || 'http://localhost:3001'}/requests/${requestId}/messages`
+      : `${process.env.FRONTEND_URL || 'http://localhost:3001'}/messages/${message.sender.id}`;
+
+    await EmailTemplateService.sendNewMessage({
+      recipientEmail: message.receiver.email,
+      recipientName: message.receiver.name,
+      senderName: message.sender.name,
+      serviceType: message.request?.serviceType || 'General Communication',
+      requestId: requestId || 'N/A',
+      messagePreview,
+      messageUrl,
+      hasAttachment: !!attachments,
+    });
+  } catch (emailError) {
+    console.error('Failed to send new message email:', emailError);
+    // Don't fail the message creation if email fails
+  }
+
   // Emit real-time message to recipient if they're online
   const recipientSocketId = onlineUsers.get(receiverId);
   if (recipientSocketId) {
-    getSocketIO().to(recipientSocketId).emit('message:receive', {
-      message,
-      timestamp: new Date().toISOString(),
-    });
+    const io = getSocketIO();
+    if (io) {
+      io.to(recipientSocketId).emit('message:receive', {
+        message,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
   sendCreated(res, message, 'Message sent successfully');
@@ -313,11 +341,14 @@ router.patch('/:id/read', authenticate, asyncHandler(async (req: Request, res: R
   // Emit read status to sender if online
   const senderSocketId = onlineUsers.get(message.senderId);
   if (senderSocketId) {
-    getSocketIO().to(senderSocketId).emit('message:read', {
-      messageId: id,
-      readBy: req.user!.userId,
-      timestamp: new Date().toISOString(),
-    });
+    const io = getSocketIO();
+    if (io) {
+      io.to(senderSocketId).emit('message:read', {
+        messageId: id,
+        readBy: req.user!.userId,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
   sendSuccess(res, updated, 'Message marked as read');
@@ -347,11 +378,14 @@ router.put('/:id/read', authenticate, asyncHandler(async (req: Request, res: Res
   // Emit read status to sender if online
   const senderSocketId = onlineUsers.get(message.senderId);
   if (senderSocketId) {
-    getSocketIO().to(senderSocketId).emit('message:read', {
-      messageId: id,
-      readBy: req.user!.userId,
-      timestamp: new Date().toISOString(),
-    });
+    const io = getSocketIO();
+    if (io) {
+      io.to(senderSocketId).emit('message:read', {
+        messageId: id,
+        readBy: req.user!.userId,
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 
   sendSuccess(res, updated, 'Message marked as read');

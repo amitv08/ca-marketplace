@@ -20,7 +20,7 @@ import {
 describe('Helper Functions', () => {
   describe('hashPassword', () => {
     it('should hash a password', async () => {
-      const password = 'Test@123';
+      const password = 'TestPassword@24!';
       const hash = await hashPassword(password);
 
       expect(hash).toBeDefined();
@@ -29,7 +29,7 @@ describe('Helper Functions', () => {
     });
 
     it('should generate different hashes for same password', async () => {
-      const password = 'Test@123';
+      const password = 'TestPassword@24!';
       const hash1 = await hashPassword(password);
       const hash2 = await hashPassword(password);
 
@@ -39,7 +39,7 @@ describe('Helper Functions', () => {
 
   describe('comparePassword', () => {
     it('should return true for matching password', async () => {
-      const password = 'Test@123';
+      const password = 'TestPassword@24!';
       const hash = await hashPassword(password);
       const result = await comparePassword(password, hash);
 
@@ -47,7 +47,7 @@ describe('Helper Functions', () => {
     });
 
     it('should return false for non-matching password', async () => {
-      const password = 'Test@123';
+      const password = 'TestPassword@24!';
       const hash = await hashPassword(password);
       const result = await comparePassword('WrongPassword', hash);
 

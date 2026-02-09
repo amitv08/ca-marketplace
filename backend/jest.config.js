@@ -10,6 +10,9 @@ module.exports = {
     '^.+\\.ts$': ['ts-jest', {
       isolatedModules: true,
     }],
+    '^.+\\.js$': ['ts-jest', {
+      isolatedModules: true,
+    }],
   },
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -33,11 +36,20 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@tests/(.*)$': '<rootDir>/tests/$1',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!uuid)',
+  ],
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
   verbose: true,
-  forceExit: true,
+  forceExit: true,  // Required: prevents hanging from Redis/Prisma connections
+  detectOpenHandles: false,  // Disabled: adds overhead and not needed with forceExit
   clearMocks: true,
   resetMocks: true,
   restoreMocks: true,
+
+  // Note: The "Force exiting Jest" warning with forceExit: true is EXPECTED and harmless.
+  // It simply means Jest is forcefully terminating instead of waiting for connections to close.
+  // We minimize open handles via cleanup hooks, but some (Redis, Prisma internal pools)
+  // are difficult to fully close, so forceExit is the pragmatic solution.
 };

@@ -116,7 +116,7 @@ describe('Security Tests - Injection Attacks', () => {
         .send({
           name: '<script>alert("XSS")</script>',
           email: 'xsstest@test.com',
-          password: 'ValidPassword@123',
+          password: 'ValidPassword@24!',
           role: 'CLIENT',
         });
 

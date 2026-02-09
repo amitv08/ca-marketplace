@@ -1,0 +1,69 @@
+{
+  "remote.autoForwardPorts": false,
+  "remote.autoForwardPortsSource": "process",
+  "remote.portsAttributes": {
+    "54320": {
+      "label": "PostgreSQL Database",
+      "onAutoForward": "notify",
+      "elevateIfNeeded": false,
+      "requireLocalPort": false
+    },
+    "63790": {
+      "label": "Redis Cache",
+      "onAutoForward": "notify",
+      "elevateIfNeeded": false,
+      "requireLocalPort": false
+    },
+    "8081": {
+      "label": "Backend API",
+      "onAutoForward": "openBrowser",
+      "elevateIfNeeded": false,
+      "requireLocalPort": false,
+      "protocol": "http"
+    },
+    "3001": {
+      "label": "Frontend React App",
+      "onAutoForward": "openBrowser",
+      "elevateIfNeeded": false,
+      "requireLocalPort": false,
+      "protocol": "http"
+    },
+    "5051": {
+      "label": "PGAdmin",
+      "onAutoForward": "silent",
+      "elevateIfNeeded": false,
+      "requireLocalPort": false,
+      "protocol": "http"
+    }
+  },
+  "remote.forwardOnOpen": false,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/.git": true,
+    "**/coverage": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/package-lock.json": true
+  }
+}

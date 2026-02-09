@@ -16,6 +16,7 @@ describe('Authentication API', () => {
 
   afterAll(async () => {
     await clearDatabase();
+    // Note: Global cleanup (Prisma, Redis) handled in tests/setup.ts afterAll
   });
 
   describe('POST /api/auth/register', () => {
@@ -25,7 +26,7 @@ describe('Authentication API', () => {
         .send({
           name: 'New Client',
           email: 'newclient@test.com',
-          password: 'ValidPassword@123',
+          password: 'ValidPassword@24!',
           role: 'CLIENT',
           phoneNumber: '+919876543220',
           address: 'New Client Address',
@@ -44,7 +45,7 @@ describe('Authentication API', () => {
         .send({
           name: 'New CA',
           email: 'newca@test.com',
-          password: 'ValidPassword@123',
+          password: 'ValidPassword@24!',
           role: 'CA',
           phoneNumber: '+919876543221',
           address: 'New CA Address',
@@ -74,7 +75,7 @@ describe('Authentication API', () => {
         .send({
           name: 'Duplicate User',
           email: testUsers.client1.email,
-          password: 'ValidPassword@123',
+          password: 'ValidPassword@24!',
           role: 'CLIENT',
         });
 
@@ -88,7 +89,7 @@ describe('Authentication API', () => {
         .send({
           name: 'Test User',
           email: 'invalid-email',
-          password: 'ValidPassword@123',
+          password: 'ValidPassword@24!',
           role: 'CLIENT',
         });
 
@@ -125,7 +126,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send({
           email: testUsers.client1.email,
-          password: 'WrongPassword@123',
+          password: 'WrongPassword@97!',
         });
 
       expect(response.status).toBe(401);
@@ -137,7 +138,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send({
           email: 'nonexistent@test.com',
-          password: 'Password@123',
+          password: 'Password@Pass24!',
         });
 
       expect(response.status).toBe(401);
@@ -230,8 +231,8 @@ describe('Authentication API', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({
           currentPassword: credentials.password,
-          newPassword: 'NewValidPassword@123',
-          confirmPassword: 'NewValidPassword@123',
+          newPassword: 'NewValidPassword@24!',
+          confirmPassword: 'NewValidPassword@24!',
         });
 
       expect(response.status).toBe(200);
@@ -241,7 +242,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send({
           email: credentials.email,
-          password: 'NewValidPassword@123',
+          password: 'NewValidPassword@24!',
         });
 
       expect(newLoginResponse.status).toBe(200);
@@ -260,8 +261,8 @@ describe('Authentication API', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({
           currentPassword: 'WrongPassword',
-          newPassword: 'NewValidPassword@123',
-          confirmPassword: 'NewValidPassword@123',
+          newPassword: 'NewValidPassword@24!',
+          confirmPassword: 'NewValidPassword@24!',
         });
 
       expect(response.status).toBe(400);
@@ -280,8 +281,8 @@ describe('Authentication API', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({
           currentPassword: credentials.password,
-          newPassword: 'NewValidPassword@123',
-          confirmPassword: 'DifferentPassword@123',
+          newPassword: 'NewValidPassword@24!',
+          confirmPassword: 'DifferentPassword@Pass24!',
         });
 
       expect(response.status).toBe(400);

@@ -176,11 +176,38 @@ export const errorHandler = (
     MetricsService.recordDatabaseError(error.code);
   }
 
+  // SEC-014: Sanitize error message for production
+  let sanitizedMessage = error.message;
+  if (!isDevelopment) {
+    // In production, use generic messages for system errors
+    if (error.category === ErrorCategory.SYSTEM || error.category === ErrorCategory.DATABASE) {
+      // Don't expose internal details
+      if (error.statusCode >= 500) {
+        sanitizedMessage = 'An internal error occurred. Please try again later.';
+      }
+    }
+
+    // Don't expose database details
+    if (error.category === ErrorCategory.DATABASE) {
+      if (error.message.toLowerCase().includes('prisma') ||
+          error.message.toLowerCase().includes('database') ||
+          error.message.toLowerCase().includes('sql')) {
+        sanitizedMessage = 'A database error occurred. Please try again later.';
+      }
+    }
+
+    // Don't expose authentication details that could aid attacks
+    if (error.category === ErrorCategory.AUTHENTICATION) {
+      // Keep the generic "Invalid credentials" message
+      // Don't reveal if email exists, account locked, etc.
+    }
+  }
+
   // Send error response
   const errorResponse: any = {
     success: false,
     error: {
-      message: error.message,
+      message: sanitizedMessage,
       code: error.code,
       category: error.category,
       correlationId: error.correlationId || correlationId,
@@ -188,12 +215,12 @@ export const errorHandler = (
     },
   };
 
-  // Add stack trace in development
+  // SEC-014: Only add stack trace in development
   if (isDevelopment && error.stack) {
     errorResponse.error.stack = error.stack;
   }
 
-  // Add context if available and in development
+  // SEC-014: Only add context in development
   if (error.context && isDevelopment) {
     errorResponse.error.context = error.context;
   }

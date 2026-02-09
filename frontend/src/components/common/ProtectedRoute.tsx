@@ -4,7 +4,7 @@ import { useAppSelector } from '../../store/hooks';
 
 interface ProtectedRouteProps {
   children: React.ReactElement;
-  allowedRoles?: ('CLIENT' | 'CA' | 'ADMIN')[];
+  allowedRoles?: ('CLIENT' | 'CA' | 'ADMIN' | 'SUPER_ADMIN')[];
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles }) => {
@@ -20,7 +20,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRoles 
       return <Navigate to="/client/dashboard" replace />;
     } else if (user.role === 'CA') {
       return <Navigate to="/ca/dashboard" replace />;
-    } else if (user.role === 'ADMIN') {
+    } else if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
       return <Navigate to="/admin/dashboard" replace />;
     }
     return <Navigate to="/" replace />;

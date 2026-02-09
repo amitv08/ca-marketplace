@@ -12,6 +12,25 @@ export interface AuthenticatedSocket extends Socket {
 // Online users tracking
 export const onlineUsers = new Map<string, string>(); // userId -> socketId
 
+// Socket.IO instance (for accessing after initialization)
+let socketIOInstance: SocketIOServer | null = null;
+
+/**
+ * Set the Socket.IO instance (for initialization)
+ * @param instance SocketIOServer instance
+ */
+export const setSocketIO = (instance: SocketIOServer): void => {
+  socketIOInstance = instance;
+};
+
+/**
+ * Get the Socket.IO instance
+ * @returns SocketIOServer instance or null if not initialized
+ */
+export const getSocketIO = (): SocketIOServer | null => {
+  return socketIOInstance;
+};
+
 // Initialize Socket.IO server
 export const initializeSocketIO = (httpServer: HTTPServer): SocketIOServer => {
   const io = new SocketIOServer(httpServer, {
@@ -39,13 +58,19 @@ export const initializeSocketIO = (httpServer: HTTPServer): SocketIOServer => {
     }
   });
 
+  // Store the instance for later use
+  socketIOInstance = io;
+
   // Connection handler
   io.on('connection', (socket: AuthenticatedSocket) => {
     console.log(`✅ User connected: ${socket.user?.userId} (${socket.id})`);
 
-    // Add user to online users
+    // Add user to online users and join user-specific room
     if (socket.user?.userId) {
       onlineUsers.set(socket.user.userId, socket.id);
+
+      // Join user-specific room for targeted notifications
+      socket.join(`user:${socket.user.userId}`);
 
       // Broadcast online status to all clients
       io.emit('user:online', {

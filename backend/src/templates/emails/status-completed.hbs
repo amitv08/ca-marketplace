@@ -1,0 +1,83 @@
+<div class="email-container">
+  <!-- Header -->
+  <div class="email-header">
+    <h1>✅ Service Completed!</h1>
+    <p>Your request has been successfully completed</p>
+  </div>
+
+  <!-- Body -->
+  <div class="email-body">
+    <div class="greeting">Hi {{clientName}},</div>
+
+    <div class="content">
+      <p>Great news! <strong>{{caName}}</strong> has marked your <strong>{{serviceType}}</strong> request as completed.</p>
+    </div>
+
+    <div class="success-box">
+      <p><strong>✓ Work Delivered Successfully</strong></p>
+      <p style="margin-top: 10px; font-size: 14px;">Please review the deliverables and confirm completion. If you're satisfied with the work, don't forget to leave a review!</p>
+    </div>
+
+    <div class="info-box">
+      <div class="info-box-row">
+        <span class="info-label">Service Type:</span>
+        <span class="info-value">{{serviceType}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">CA Name:</span>
+        <span class="info-value">{{caName}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">Completed On:</span>
+        <span class="info-value">{{formatDate completedDate}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">Request ID:</span>
+        <span class="info-value">#{{requestId}}</span>
+      </div>
+      <div class="info-box-row">
+        <span class="info-label">Status:</span>
+        <span class="info-value">
+          <span class="status-badge" style="background-color: {{statusColor 'COMPLETED'}}; color: white;">COMPLETED</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="content">
+      <h3 style="margin: 20px 0 10px; color: #333;">Next Steps:</h3>
+      <ul style="padding-left: 20px; color: #555;">
+        <li>Review the completed work and deliverables</li>
+        <li>Download any necessary documents</li>
+        <li>Rate your experience with {{caName}}</li>
+        <li>Leave a review to help other clients</li>
+      </ul>
+    </div>
+
+    <!-- Call to Action -->
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{reviewUrl}}" class="btn">Leave a Review</a>
+      <a href="{{dashboardUrl}}" class="btn btn-secondary" style="margin-left: 10px;">View Details</a>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="content" style="font-size: 13px; color: #6c757d;">
+      <p><strong>Your Feedback Matters!</strong></p>
+      <p>Help other clients by sharing your experience. Your review will be visible on {{caName}}'s profile.</p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="email-footer">
+    <p><strong>CA Marketplace</strong></p>
+    <p>Connecting Clients with Trusted Chartered Accountants</p>
+    <div class="social-links">
+      <a href="#">About Us</a> |
+      <a href="#">Help Center</a> |
+      <a href="#">Contact Support</a>
+    </div>
+    <p style="margin-top: 15px; font-size: 12px;">
+      © 2026 CA Marketplace. All rights reserved.
+    </p>
+  </div>
+</div>

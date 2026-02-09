@@ -16,6 +16,9 @@ jest.setTimeout(30000);
 // Mock environment variables for testing
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-testing';
+process.env.JWT_REFRESH_SECRET = 'test-jwt-refresh-secret-key-for-testing';
+process.env.JWT_EXPIRES_IN = '15m';
+process.env.JWT_REFRESH_EXPIRES_IN = '7d';
 process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || process.env.DATABASE_URL;
 process.env.REDIS_URL = process.env.TEST_REDIS_URL || 'redis://localhost:6379/1';
 
@@ -48,6 +51,48 @@ global.prisma = new PrismaClient({
   },
 });
 
+// Ensure database is ready before running tests
+beforeAll(async () => {
+  try {
+    // Verify database connection and schema
+    await global.prisma.$connect();
+    console.log('✓ Database connected');
+
+    // Check if migrations have been applied by checking for User table
+    const result = await global.prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'User'
+      );
+    `;
+
+    if (!result || !(result as any)[0]?.exists) {
+      console.warn('⚠ Database tables not found. Run migrations with: npx prisma migrate deploy');
+    } else {
+      console.log('✓ Database schema verified');
+    }
+
+    // Check for SecurityScan table (new security audit feature)
+    const securityScanExists = await global.prisma.$queryRaw`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'SecurityScan'
+      );
+    `;
+
+    if (!securityScanExists || !(securityScanExists as any)[0]?.exists) {
+      console.warn('⚠ SecurityScan table not found. Security audit tests may fail.');
+      console.warn('Run migrations: npx prisma migrate deploy');
+    } else {
+      console.log('✓ Security audit tables verified');
+    }
+  } catch (error) {
+    console.error('✗ Database setup error:', error);
+  }
+});
+
 // Test utilities
 global.testUtils = {
   /**
@@ -55,6 +100,19 @@ global.testUtils = {
    */
   async clearDatabase() {
     const tables = [
+      // Analytics tables (new)
+      'ReportExecution',
+      'ScheduledReport',
+      'ExperimentAssignment',
+      'Experiment',
+      'UserSegment',
+      'FeatureFlag',
+      'DailyMetric',
+      'AnalyticsEvent',
+      // Security tables
+      'CspViolation',
+      'SecurityScan',
+      // Core tables
       'Message',
       'Review',
       'Payment',
@@ -66,9 +124,14 @@ global.testUtils = {
     ];
 
     for (const table of tables) {
-      await global.prisma.$executeRawUnsafe(
-        `TRUNCATE TABLE "${table}" CASCADE;`
-      );
+      try {
+        await global.prisma.$executeRawUnsafe(
+          `TRUNCATE TABLE "${table}" CASCADE;`
+        );
+      } catch (error) {
+        // Table might not exist yet (e.g., analytics tables before migration)
+        console.warn(`Could not truncate table ${table}:`, (error as Error).message);
+      }
     }
   },
 
@@ -83,8 +146,41 @@ global.testUtils = {
 
 // Cleanup after all tests
 afterAll(async () => {
-  await global.prisma.$disconnect();
-});
+  try {
+    console.log('🧹 Starting cleanup...');
 
-// Export for use in tests
-export { global as testGlobals };
+    // Close Prisma connection
+    if (global.prisma) {
+      await global.prisma.$disconnect();
+      console.log('✓ Prisma disconnected');
+    }
+
+    // Close Redis connection
+    try {
+      const { redisClient } = require('../src/config/redis');
+      if (redisClient && redisClient.status === 'ready') {
+        await redisClient.quit();
+        console.log('✓ Redis disconnected');
+      }
+    } catch (error) {
+      console.log('Redis not initialized or already closed');
+    }
+
+    // Close any other connections from database utils
+    try {
+      const { closeDatabaseConnections } = require('./utils/database.utils');
+      if (closeDatabaseConnections) {
+        await closeDatabaseConnections();
+      }
+    } catch (error) {
+      // Function might not exist yet
+    }
+
+    console.log('✅ Cleanup complete');
+  } catch (error) {
+    console.warn('⚠️  Cleanup warning:', error);
+  }
+
+  // Small delay to ensure all connections are fully closed
+  await new Promise(resolve => setTimeout(resolve, 100));
+});

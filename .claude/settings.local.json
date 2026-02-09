@@ -43,7 +43,19 @@
       "Bash(bash -c '\nurl=\"\"http://localhost:5000/api/auth/login\"\"\nexpected_code=\"\"400|401\"\"\n\nresponse=$\\(curl -s -o /dev/null -w \"\"%{http_code}\"\" --max-time 10 \"\"$url\"\"\\)\necho \"\"Response: $response\"\"\necho \"\"Expected: $expected_code\"\"\n\necho \"\"$expected_code\"\" | grep -q -E \"\"\\(^|\\\\\\\\|\\)${response}\\(\\\\\\\\||$\\)\"\" && echo \"\"MATCH\"\" || echo \"\"NO MATCH\"\"\n')",
       "Bash(git checkout:*)",
       "Bash(gh api:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(docker build:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker run:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker rm:*)",
+      "Bash(grep:*)",
+      "Bash(docker restart:*)",
+      "Bash(./test-firm-registration.sh)",
+      "Bash(node -e:*)",
+      "Bash(/tmp/claude/-home-amit-ca-marketplace/30e17127-7f3b-4cd3-b5b8-2d71e30f46ca/scratchpad/generate-demo-reports.sh:*)",
+      "Bash([ -d /home/amit/ca-marketplace/frontend/node_modules/cypress ])"
     ]
   }
 }

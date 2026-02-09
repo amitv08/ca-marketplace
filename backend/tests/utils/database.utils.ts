@@ -36,29 +36,46 @@ export async function clearDatabase() {
   ];
 
   try {
+    // First, check which tables actually exist
+    const existingTables: string[] = [];
+    for (const table of tables) {
+      try {
+        const result = await prisma.$queryRawUnsafe<any[]>(
+          `SELECT to_regclass('public."${table}"') as exists;`
+        );
+        if (result[0]?.exists) {
+          existingTables.push(table);
+        }
+      } catch (error: any) {
+        // Silently skip if we can't check table existence
+        console.log(`Could not check table ${table}, skipping`);
+      }
+    }
+
+    // If no tables exist, migrations probably haven't run yet
+    if (existingTables.length === 0) {
+      console.log('No tables found - database might not be migrated yet');
+      return;
+    }
+
     // Disable foreign key checks
     await prisma.$executeRaw`SET session_replication_role = 'replica';`;
 
-    for (const table of tables) {
+    // Only truncate tables that exist
+    for (const table of existingTables) {
       try {
         await prisma.$executeRawUnsafe(
           `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`
         );
       } catch (error: any) {
-        // Ignore "table does not exist" errors (happens on first run before migrations)
-        // Prisma wraps the error, so check both error.code and error.meta?.code
-        const errorCode = error.code || error.meta?.code;
-        if (errorCode !== '42P01' && errorCode !== 'P2010') {
-          console.warn(`Error truncating table ${table}:`, error.message);
-        }
-        // Silently ignore table-not-found errors
+        console.warn(`Error truncating table ${table}:`, error.message);
       }
     }
 
     // Re-enable foreign key checks
     await prisma.$executeRaw`SET session_replication_role = 'origin';`;
   } catch (error: any) {
-    // Silently ignore session_replication_role errors if tables don't exist
+    // Log but don't throw - allow tests to continue
     console.warn('Error in clearDatabase:', error.message);
   }
 }
@@ -70,64 +87,94 @@ export async function seedDatabase() {
   console.log('🌱 Seeding test database...');
 
   try {
-    // Create additional user for unverified CA
-    await prisma.user.create({
-      data: {
+    // Create additional user for unverified CA (use upsert to avoid duplicates)
+    await prisma.user.upsert({
+      where: { id: '00000000-0000-0000-0000-000000000007' },
+      update: {},
+      create: {
         id: '00000000-0000-0000-0000-000000000007',
         email: 'unverifiedca@test.com',
-        password: await require('bcrypt').hash('CA@123', 10),
+        password: await require('bcrypt').hash('CATestingPass@95!', 10),
         name: 'Unverified CA User',
         role: 'CA',
         phone: '+919876543216',
       },
     });
 
-    // Seed users
+    // Seed users (use upsert to avoid duplicates)
     const users = await getUsersForSeeding();
     for (const user of users) {
-      await prisma.user.create({ data: user });
+      await prisma.user.upsert({
+        where: { id: user.id },
+        update: {},
+        create: user,
+      });
     }
     console.log('✓ Users seeded');
 
-    // Seed CAs
+    // Seed CAs (use upsert to avoid duplicates)
     const cas = await getCAsForSeeding();
     for (const ca of cas) {
-      await prisma.charteredAccountant.create({ data: ca });
+      await prisma.charteredAccountant.upsert({
+        where: { id: ca.id },
+        update: {},
+        create: ca,
+      });
     }
     console.log('✓ CAs seeded');
 
-    // Seed availability
+    // Seed availability (use upsert to avoid duplicates)
     const availability = await getAvailabilityForSeeding();
     for (const avail of availability) {
-      await prisma.availability.create({ data: avail });
+      await prisma.availability.upsert({
+        where: { id: avail.id },
+        update: {},
+        create: avail,
+      });
     }
     console.log('✓ Availability seeded');
 
-    // Seed clients
+    // Seed clients (use upsert to avoid duplicates)
     const clients = await getClientsForSeeding();
     for (const client of clients) {
-      await prisma.client.create({ data: client });
+      await prisma.client.upsert({
+        where: { id: client.id },
+        update: {},
+        create: client,
+      });
     }
     console.log('✓ Clients seeded');
 
-    // Seed service requests
+    // Seed service requests (use upsert to avoid duplicates)
     const requests = await getServiceRequestsForSeeding();
     for (const request of requests) {
-      await prisma.serviceRequest.create({ data: request });
+      await prisma.serviceRequest.upsert({
+        where: { id: request.id },
+        update: {},
+        create: request,
+      });
     }
     console.log('✓ Service requests seeded');
 
-    // Seed payments
+    // Seed payments (use upsert to avoid duplicates)
     const payments = await getPaymentsForSeeding();
     for (const payment of payments) {
-      await prisma.payment.create({ data: payment });
+      await prisma.payment.upsert({
+        where: { id: payment.id },
+        update: {},
+        create: payment,
+      });
     }
     console.log('✓ Payments seeded');
 
-    // Seed reviews
+    // Seed reviews (use upsert to avoid duplicates)
     const reviews = await getReviewsForSeeding();
     for (const review of reviews) {
-      await prisma.review.create({ data: review });
+      await prisma.review.upsert({
+        where: { id: review.id },
+        update: {},
+        create: review,
+      });
     }
     console.log('✓ Reviews seeded');
 
@@ -209,6 +256,18 @@ export async function getDatabaseStats() {
  */
 export async function disconnectDatabase() {
   await prisma.$disconnect();
+}
+
+/**
+ * Close all database-related connections
+ * This is called at the end of test suites to prevent hanging
+ */
+export async function closeDatabaseConnections() {
+  try {
+    await prisma.$disconnect();
+  } catch (error) {
+    console.warn('Error disconnecting Prisma:', error);
+  }
 }
 
 export { prisma };

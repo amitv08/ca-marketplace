@@ -9,7 +9,7 @@ export const testUsers = {
   admin: {
     id: '00000000-0000-0000-0000-000000000001',
     email: 'admin@test.com',
-    password: 'Admin@123',
+    password: 'AdminTestPass@24!',
     passwordHash: '', // Will be set below
     name: 'Test Admin',
     role: UserRole.ADMIN,
@@ -22,7 +22,7 @@ export const testUsers = {
   ca1: {
     id: '00000000-0000-0000-0000-000000000002',
     email: 'ca1@test.com',
-    password: 'CA@123',
+    password: 'CATestingPass@95!',
     passwordHash: '',
     name: 'John CA',
     role: UserRole.CA,
@@ -35,7 +35,7 @@ export const testUsers = {
   ca2: {
     id: '00000000-0000-0000-0000-000000000003',
     email: 'ca2@test.com',
-    password: 'CA@123',
+    password: 'CATestingPass@86!',
     passwordHash: '',
     name: 'Jane CA',
     role: UserRole.CA,
@@ -48,7 +48,7 @@ export const testUsers = {
   client1: {
     id: '00000000-0000-0000-0000-000000000004',
     email: 'client1@test.com',
-    password: 'Client@123',
+    password: 'ClientTestPass@68!',
     passwordHash: '',
     name: 'Test Client 1',
     role: UserRole.CLIENT,
@@ -61,7 +61,7 @@ export const testUsers = {
   client2: {
     id: '00000000-0000-0000-0000-000000000005',
     email: 'client2@test.com',
-    password: 'Client@123',
+    password: 'ClientTestPass@97!',
     passwordHash: '',
     name: 'Test Client 2',
     role: UserRole.CLIENT,
@@ -74,7 +74,7 @@ export const testUsers = {
   unverifiedUser: {
     id: '00000000-0000-0000-0000-000000000006',
     email: 'unverified@test.com',
-    password: 'User@123',
+    password: 'UserTestingPass@42!',
     passwordHash: '',
     name: 'Unverified User',
     role: UserRole.CLIENT,

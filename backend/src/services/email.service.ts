@@ -2,6 +2,8 @@ import { LoggerService } from './logger.service';
 import { retry } from '../utils/retry';
 import { CircuitBreakerRegistry } from '../utils/circuitBreaker';
 import { FailedOperationQueue } from '../utils/fallback';
+import sgMail from '@sendgrid/mail';
+import { env } from '../config/env';
 
 /**
  * Email data structure
@@ -183,13 +185,17 @@ export class EmailService {
 
   /**
    * Internal email sending implementation
-   *
-   * TODO: Integrate with actual email service (SendGrid, AWS SES, etc.)
+   * BUG-001 FIX: Now uses SendGrid for actual email delivery
    */
   private static async sendEmailInternal(emailData: EmailData): Promise<void> {
-    // In development/test, just log the email
-    if (process.env.NODE_ENV !== 'production') {
-      LoggerService.info('Email would be sent (dev mode)', {
+    // Initialize SendGrid
+    if (!sgMail.client) {
+      sgMail.setApiKey(env.SENDGRID_API_KEY);
+    }
+
+    // In development/test, just log the email (unless SENDGRID_API_KEY is set)
+    if (process.env.NODE_ENV !== 'production' && env.SENDGRID_API_KEY === 'SG.test_key') {
+      LoggerService.info('Email would be sent (dev mode - no SendGrid key)', {
         to: emailData.to,
         subject: emailData.subject,
         from: emailData.from || this.config.from,
@@ -197,20 +203,38 @@ export class EmailService {
       return;
     }
 
-    // TODO: Implement actual email sending with SendGrid/SES
-    // Example with SendGrid:
-    // const sgMail = require('@sendgrid/mail');
-    // sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    // await sgMail.send({
-    //   to: emailData.to,
-    //   from: emailData.from || this.config.from,
-    //   subject: emailData.subject,
-    //   text: emailData.text,
-    //   html: emailData.html,
-    // });
+    // Send via SendGrid
+    const msg: any = {
+      to: emailData.to,
+      from: {
+        email: emailData.from || env.FROM_EMAIL,
+        name: env.FROM_NAME,
+      },
+      subject: emailData.subject,
+      text: emailData.text,
+      html: emailData.html,
+    };
 
-    // For now, simulate email sending
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Add optional fields
+    if (emailData.cc) msg.cc = emailData.cc;
+    if (emailData.bcc) msg.bcc = emailData.bcc;
+    if (emailData.attachments) msg.attachments = emailData.attachments;
+
+    try {
+      await sgMail.send(msg);
+      LoggerService.info('Email sent via SendGrid', {
+        to: emailData.to,
+        subject: emailData.subject,
+      });
+    } catch (error: any) {
+      LoggerService.error('SendGrid error', error, {
+        to: emailData.to,
+        subject: emailData.subject,
+        statusCode: error.code,
+        message: error.message,
+      });
+      throw error;
+    }
   }
 
   /**

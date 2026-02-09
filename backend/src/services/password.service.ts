@@ -14,6 +14,20 @@ export class PasswordService {
   private static readonly MIN_LENGTH = 12;
   private static readonly SALT_ROUNDS = 12;
 
+  // SEC-011: Common weak passwords to block
+  private static readonly COMMON_PASSWORDS = [
+    'password', 'password123', 'password1', 'password1!', 'password!',
+    'admin', 'admin123', 'administrator', 'admin@123',
+    'welcome', 'welcome123', 'welcome1',
+    'qwerty', 'qwerty123', 'qwertyuiop',
+    'letmein', 'letmein123',
+    'monkey', 'dragon', 'master',
+    '123456', '1234567890', '12345678',
+    'abc123', 'abc@123',
+    'iloveyou', 'sunshine', 'princess',
+    'football', 'baseball', 'starwars',
+  ];
+
   /**
    * Validate password against policy
    */
@@ -50,7 +64,7 @@ export class PasswordService {
       errors.push('Password must contain at least one special character');
     }
 
-    // Check for common patterns
+    // SEC-011: Enhanced pattern checking
     const commonPatterns = [
       /^(123|abc|qwerty|password|admin)/i,
       /(.)\1{3,}/, // Same character repeated 4+ times
@@ -65,6 +79,42 @@ export class PasswordService {
       }
     }
 
+    // SEC-011: Check against common passwords list
+    const passwordLower = password.toLowerCase();
+    for (const commonPwd of this.COMMON_PASSWORDS) {
+      if (passwordLower === commonPwd || passwordLower.includes(commonPwd)) {
+        errors.push('Password is too common or contains common words');
+        break;
+      }
+    }
+
+    // SEC-011: Check for repeated character patterns (e.g., "Aaaaaa1!")
+    const repeatedChars = /^(.)\1+$/;
+    const parts = password.match(/(.)\1{2,}/g);
+    if (parts && parts.length > 2) {
+      errors.push('Password has too many repeated characters');
+    }
+
+    // SEC-011: Check entropy/complexity
+    const entropy = this.calculateEntropy(password);
+    if (entropy < 40) {
+      errors.push('Password is not complex enough (low entropy)');
+    }
+
+    // SEC-011: Check for keyboard patterns
+    const keyboardPatterns = [
+      'qwertyuiop', 'asdfghjkl', 'zxcvbnm',
+      'qweasd', 'asdzxc', 'qweasdzxc',
+      '1qaz2wsx', '!qaz@wsx',
+    ];
+
+    for (const pattern of keyboardPatterns) {
+      if (passwordLower.includes(pattern)) {
+        errors.push('Password contains keyboard patterns');
+        break;
+      }
+    }
+
     return {
       valid: errors.length === 0,
       errors,
@@ -72,7 +122,24 @@ export class PasswordService {
   }
 
   /**
+   * SEC-011: Calculate password entropy (bits)
+   * Higher entropy = more secure password
+   */
+  private static calculateEntropy(password: string): number {
+    let charSetSize = 0;
+
+    if (/[a-z]/.test(password)) charSetSize += 26;
+    if (/[A-Z]/.test(password)) charSetSize += 26;
+    if (/[0-9]/.test(password)) charSetSize += 10;
+    if (/[^a-zA-Z0-9]/.test(password)) charSetSize += 32;
+
+    // Entropy = log2(charSetSize^length)
+    return Math.log2(Math.pow(charSetSize, password.length));
+  }
+
+  /**
    * Calculate password strength score
+   * SEC-011: Enhanced with entropy-based scoring
    */
   static calculatePasswordStrength(password: string): PasswordStrength {
     let score = 0;
@@ -100,6 +167,16 @@ export class PasswordService {
     if (charTypes >= 3) score += 15;
     if (charTypes === 4) score += 10;
 
+    // SEC-011: Entropy scoring
+    const entropy = this.calculateEntropy(password);
+    if (entropy >= 60) score += 15;
+    else if (entropy >= 50) score += 10;
+    else if (entropy >= 40) score += 5;
+    else if (entropy < 40) {
+      score -= 15;
+      feedback.push('Password complexity is too low');
+    }
+
     // Penalize common patterns
     if (/(123|abc|qwerty|password)/i.test(password)) {
       score -= 20;
@@ -109,6 +186,26 @@ export class PasswordService {
     if (/(.)\1{2,}/.test(password)) {
       score -= 10;
       feedback.push('Avoid repeating characters');
+    }
+
+    // SEC-011: Check for common passwords
+    const passwordLower = password.toLowerCase();
+    for (const commonPwd of this.COMMON_PASSWORDS) {
+      if (passwordLower === commonPwd || passwordLower.includes(commonPwd)) {
+        score -= 30;
+        feedback.push('Password contains common words');
+        break;
+      }
+    }
+
+    // SEC-011: Check for keyboard patterns
+    const keyboardPatterns = ['qwerty', 'asdf', 'zxcv'];
+    for (const pattern of keyboardPatterns) {
+      if (passwordLower.includes(pattern)) {
+        score -= 15;
+        feedback.push('Avoid keyboard patterns');
+        break;
+      }
     }
 
     // Determine strength level

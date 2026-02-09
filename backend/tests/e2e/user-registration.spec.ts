@@ -13,8 +13,8 @@ test.describe('User Registration Flow', () => {
     // Fill registration form
     await page.fill('input[name="name"]', 'Test Client');
     await page.fill('input[name="email"]', `client${Date.now()}@test.com`);
-    await page.fill('input[name="password"]', 'ValidPassword@123');
-    await page.fill('input[name="confirmPassword"]', 'ValidPassword@123');
+    await page.fill('input[name="password"]', 'ValidPassword@24!');
+    await page.fill('input[name="confirmPassword"]', 'ValidPassword@24!');
     await page.fill('input[name="phoneNumber"]', '9876543210');
     await page.selectOption('select[name="role"]', 'CLIENT');
 
@@ -33,8 +33,8 @@ test.describe('User Registration Flow', () => {
     // Fill registration form
     await page.fill('input[name="name"]', 'Test CA');
     await page.fill('input[name="email"]', `ca${Date.now()}@test.com`);
-    await page.fill('input[name="password"]', 'ValidPassword@123');
-    await page.fill('input[name="confirmPassword"]', 'ValidPassword@123');
+    await page.fill('input[name="password"]', 'ValidPassword@24!');
+    await page.fill('input[name="confirmPassword"]', 'ValidPassword@24!');
     await page.fill('input[name="phoneNumber"]', '9876543211');
     await page.selectOption('select[name="role"]', 'CA');
 
@@ -72,8 +72,8 @@ test.describe('User Registration Flow', () => {
   test('should show error for mismatched passwords', async ({ page }) => {
     await page.fill('input[name="name"]', 'Test User');
     await page.fill('input[name="email"]', `test${Date.now()}@test.com`);
-    await page.fill('input[name="password"]', 'ValidPassword@123');
-    await page.fill('input[name="confirmPassword"]', 'DifferentPassword@123');
+    await page.fill('input[name="password"]', 'ValidPassword@24!');
+    await page.fill('input[name="confirmPassword"]', 'DifferentPassword@97!');
     await page.selectOption('select[name="role"]', 'CLIENT');
 
     await page.click('button[type="submit"]');
@@ -87,8 +87,8 @@ test.describe('User Registration Flow', () => {
     // Register first time
     await page.fill('input[name="name"]', 'Test User 1');
     await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', 'ValidPassword@123');
-    await page.fill('input[name="confirmPassword"]', 'ValidPassword@123');
+    await page.fill('input[name="password"]', 'ValidPassword@24!');
+    await page.fill('input[name="confirmPassword"]', 'ValidPassword@24!');
     await page.selectOption('select[name="role"]', 'CLIENT');
     await page.click('button[type="submit"]');
 
@@ -100,8 +100,8 @@ test.describe('User Registration Flow', () => {
 
     await page.fill('input[name="name"]', 'Test User 2');
     await page.fill('input[name="email"]', email);
-    await page.fill('input[name="password"]', 'ValidPassword@123');
-    await page.fill('input[name="confirmPassword"]', 'ValidPassword@123');
+    await page.fill('input[name="password"]', 'ValidPassword@24!');
+    await page.fill('input[name="confirmPassword"]', 'ValidPassword@24!');
     await page.selectOption('select[name="role"]', 'CLIENT');
     await page.click('button[type="submit"]');
 
@@ -139,8 +139,8 @@ test.describe('User Registration Flow', () => {
   test('should validate phone number format', async ({ page }) => {
     await page.fill('input[name="name"]', 'Test User');
     await page.fill('input[name="email"]', `test${Date.now()}@test.com`);
-    await page.fill('input[name="password"]', 'ValidPassword@123');
-    await page.fill('input[name="confirmPassword"]', 'ValidPassword@123');
+    await page.fill('input[name="password"]', 'ValidPassword@24!');
+    await page.fill('input[name="confirmPassword"]', 'ValidPassword@24!');
     await page.fill('input[name="phoneNumber"]', '123'); // Invalid
     await page.selectOption('select[name="role"]', 'CLIENT');
 

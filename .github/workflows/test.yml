@@ -64,9 +64,15 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         run: |
-          cp .env.example .env.test
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
+          echo "Generating Prisma client..."
           npx prisma generate
-          npx prisma migrate deploy
+          echo "Running database migrations..."
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Run unit tests
         working-directory: backend
@@ -74,8 +80,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:unit
@@ -139,9 +145,15 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         run: |
-          cp .env.example .env.test || echo "No .env.example found, skipping"
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
+          echo "Generating Prisma client..."
           npx prisma generate
-          npx prisma migrate deploy
+          echo "Running database migrations..."
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Run integration tests
         working-directory: backend
@@ -149,8 +161,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:integration
@@ -214,9 +226,15 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         run: |
-          cp .env.example .env.test || echo "No .env.example found, skipping"
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
+          echo "Generating Prisma client..."
           npx prisma generate
-          npx prisma migrate deploy
+          echo "Running database migrations..."
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Run security tests
         working-directory: backend
@@ -224,8 +242,8 @@ jobs:
           DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:security
@@ -286,9 +304,15 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
         run: |
-          cp .env.example .env.test || echo "No .env.example found, skipping"
+          cp .env.example .env.test || echo "No .env.example, continuing"
+          echo "Checking migration files..."
+          ls -la prisma/migrations/ || echo "No migrations directory"
+          echo "Generating Prisma client..."
           npx prisma generate
-          npx prisma migrate deploy
+          echo "Running database migrations..."
+          npx prisma migrate deploy || (echo "Migration failed, trying reset..." && npx prisma migrate reset --force --skip-seed)
+          echo "Verifying database schema..."
+          npx prisma db execute --stdin <<< "SELECT tablename FROM pg_tables WHERE schemaname = 'public';" || echo "Could not verify schema"
 
       - name: Build application
         working-directory: backend
@@ -301,8 +325,8 @@ jobs:
           REDIS_URL: redis://localhost:6379
           NODE_ENV: test
           BASE_URL: http://localhost:3000
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
+          JWT_SECRET: test-jwt-secret-key-for-testing
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-testing
           JWT_EXPIRES_IN: 15m
           JWT_REFRESH_EXPIRES_IN: 7d
         run: npm run test:e2e
@@ -336,6 +360,13 @@ jobs:
         working-directory: backend
         run: npm ci
 
+      - name: Generate Prisma Client
+        working-directory: backend
+        env:
+          # Use a dummy DATABASE_URL for Prisma client generation
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+        run: npx prisma generate
+
       - name: Run ESLint
         working-directory: backend
         run: npm run lint || true
@@ -347,20 +378,6 @@ jobs:
       - name: Run npm audit
         working-directory: backend
         run: npm audit --production || true
-
-      - name: Generate test coverage
-        working-directory: backend
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/ca_marketplace_test
-          REDIS_URL: redis://localhost:6379
-          NODE_ENV: test
-          JWT_SECRET: test-jwt-secret-key-for-ci-testing-only-not-for-production
-          JWT_REFRESH_SECRET: test-jwt-refresh-secret-key-for-ci-testing-only
-          JWT_EXPIRES_IN: 15m
-          JWT_REFRESH_EXPIRES_IN: 7d
-        run: |
-          npx prisma generate
-          npm test -- --coverage --testPathPattern="tests/unit" || true
 
       - name: SonarCloud Scan
         if: ${{ vars.SONAR_ENABLED == 'true' || github.event_name == 'push' }}

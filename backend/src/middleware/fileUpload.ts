@@ -3,6 +3,8 @@ import path from 'path';
 import crypto from 'crypto';
 import { Request } from 'express';
 import fs from 'fs';
+// SEC-010: Added file-type for robust file type detection
+import { fileTypeFromFile } from 'file-type';
 
 // File type configurations
 const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
@@ -38,12 +40,54 @@ const FILE_SIGNATURES: { [key: string]: number[][] } = {
 
 /**
  * Validate file type against magic numbers
+ * SEC-010 FIX: Enhanced with file-type library for robust detection
  */
 async function validateFileSignature(filePath: string, mimeType: string): Promise<boolean> {
   try {
+    // SEC-010: Use file-type library for comprehensive file type detection
+    const detectedType = await fileTypeFromFile(filePath);
+
+    if (!detectedType) {
+      // File type could not be determined - check if it's a plain text file
+      if (mimeType === 'text/plain') {
+        // For text files, basic signature check is sufficient
+        return validateBasicSignature(filePath, mimeType);
+      }
+      console.warn(`Could not determine file type for: ${filePath}`);
+      return false;
+    }
+
+    // Verify the detected MIME type matches the claimed MIME type
+    if (detectedType.mime !== mimeType) {
+      // Allow some known compatible types
+      const compatibleTypes: { [key: string]: string[] } = {
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['application/zip'],
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['application/zip'],
+        'application/msword': ['application/x-cfb'],
+        'application/vnd.ms-excel': ['application/x-cfb'],
+      };
+
+      const allowedTypes = compatibleTypes[mimeType] || [];
+      if (!allowedTypes.includes(detectedType.mime)) {
+        console.warn(`File type mismatch: claimed=${mimeType}, detected=${detectedType.mime}`);
+        return false;
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error validating file signature:', error);
+    return false;
+  }
+}
+
+/**
+ * Basic signature validation (fallback for text files)
+ */
+function validateBasicSignature(filePath: string, mimeType: string): boolean {
+  try {
     const signatures = FILE_SIGNATURES[mimeType];
     if (!signatures) {
-      // No signature validation for this type
       return true;
     }
 
@@ -52,12 +96,11 @@ async function validateFileSignature(filePath: string, mimeType: string): Promis
     fs.readSync(fd, buffer, 0, 8, 0);
     fs.closeSync(fd);
 
-    // Check if file starts with any of the valid signatures
     return signatures.some((signature) => {
       return signature.every((byte, index) => buffer[index] === byte);
     });
   } catch (error) {
-    console.error('Error validating file signature:', error);
+    console.error('Error in basic signature validation:', error);
     return false;
   }
 }
@@ -224,15 +267,73 @@ export const validateUploadedFiles = async (
         });
       }
 
-      // Check for null bytes (potential malware)
-      const buffer = Buffer.alloc(1024);
+      // SEC-010: Enhanced security checks
+      // Check for double extensions (e.g., file.pdf.exe)
+      const fileName = uploadedFile.originalname;
+      const extensionCount = (fileName.match(/\./g) || []).length;
+      if (extensionCount > 1) {
+        const parts = fileName.split('.');
+        const lastExt = parts[parts.length - 1].toLowerCase();
+        const secondLastExt = parts[parts.length - 2].toLowerCase();
+
+        // Only allow known safe double extensions
+        const safeDoubleExtensions = ['tar.gz', 'tar.bz2'];
+        const doubleExt = `${secondLastExt}.${lastExt}`;
+        if (!safeDoubleExtensions.includes(doubleExt)) {
+          fs.unlinkSync(uploadedFile.path);
+          return res.status(400).json({
+            error: 'Invalid file',
+            message: 'Files with multiple extensions are not allowed for security reasons',
+          });
+        }
+      }
+
+      // Check for executable content in the first few KB
+      const buffer = Buffer.alloc(4096);
       const fd = fs.openSync(uploadedFile.path, 'r');
-      fs.readSync(fd, buffer, 0, 1024, 0);
+      const bytesRead = fs.readSync(fd, buffer, 0, 4096, 0);
       fs.closeSync(fd);
 
-      if (buffer.includes(0x00)) {
-        // Null bytes found - suspicious
-        console.warn(`⚠️ Null bytes detected in file: ${uploadedFile.originalname}`);
+      // Check for executable headers (PE, ELF, Mach-O)
+      const executableSignatures = [
+        [0x4d, 0x5a], // PE (Windows .exe)
+        [0x7f, 0x45, 0x4c, 0x46], // ELF (Linux)
+        [0xcf, 0xfa, 0xed, 0xfe], // Mach-O 32-bit
+        [0xcf, 0xfa, 0xed, 0xff], // Mach-O 64-bit
+      ];
+
+      for (const sig of executableSignatures) {
+        let matches = true;
+        for (let i = 0; i < sig.length; i++) {
+          if (buffer[i] !== sig[i]) {
+            matches = false;
+            break;
+          }
+        }
+        if (matches) {
+          fs.unlinkSync(uploadedFile.path);
+          return res.status(400).json({
+            error: 'Invalid file',
+            message: 'Executable files are not allowed',
+          });
+        }
+      }
+
+      // Check for suspicious patterns (scripts, macros)
+      const content = buffer.slice(0, bytesRead).toString('utf8', 0, Math.min(bytesRead, 1024));
+      const suspiciousPatterns = [
+        /<script/i,
+        /javascript:/i,
+        /vbscript:/i,
+        /on(load|error|click)=/i,
+        /eval\(/i,
+      ];
+
+      for (const pattern of suspiciousPatterns) {
+        if (pattern.test(content)) {
+          console.warn(`⚠️ Suspicious pattern detected in file: ${uploadedFile.originalname}`);
+          // Don't reject for now, just warn (PDFs and docs may contain legitimate scripts)
+        }
       }
     }
 
@@ -311,50 +412,89 @@ export const scanFilename = (filename: string): boolean => {
 };
 
 /**
- * Virus scan placeholder (integrate with ClamAV or similar)
+ * Virus scan using ClamAV integration
+ * Scans uploaded files for malware and viruses
  */
 export const virusScan = async (filePath: string): Promise<boolean> => {
-  // TODO: Integrate with antivirus service like ClamAV
-  // For now, perform basic checks
+  const { VirusScanService } = await import('../services/virus-scan.service');
 
   try {
-    const stats = fs.statSync(filePath);
+    const result = await VirusScanService.scanFile(filePath);
 
-    // Check file size (suspicious if too large)
-    if (stats.size > 100 * 1024 * 1024) {
-      // 100MB
-      console.warn(`⚠️ Suspicious large file: ${filePath}`);
+    if (!result.clean) {
+      console.error(`🦠 Virus detected in file: ${filePath}`, {
+        virus: result.virus,
+        method: result.method,
+        message: result.message,
+      });
+
       return false;
     }
 
-    // Check for executable patterns in content
-    const buffer = Buffer.alloc(Math.min(stats.size, 4096));
-    const fd = fs.openSync(filePath, 'r');
-    fs.readSync(fd, buffer, 0, buffer.length, 0);
-    fs.closeSync(fd);
+    console.log(`✅ File scan clean: ${filePath} (${result.method}, ${result.scanTime}ms)`);
+    return true;
+  } catch (error) {
+    console.error('❌ Virus scan error:', error);
+    // Fail-safe: reject file if scan fails
+    return false;
+  }
+};
 
-    const content = buffer.toString('binary');
+/**
+ * Virus scan middleware - scans uploaded files for malware
+ * Use this after multer upload middleware to scan files before processing
+ */
+export const virusScanMiddleware = async (
+  req: Request,
+  res: any,
+  next: any
+): Promise<void> => {
+  try {
+    const files = req.files as Express.Multer.File[];
+    const file = req.file as Express.Multer.File;
 
-    // Check for suspicious patterns
-    const suspiciousPatterns = [
-      'MZ', // Windows executable
-      '#!/bin/bash',
-      '#!/bin/sh',
-      '<?php',
-      '<script>',
-      'eval(',
-    ];
+    const filesToScan = files || (file ? [file] : []);
 
-    for (const pattern of suspiciousPatterns) {
-      if (content.includes(pattern)) {
-        console.warn(`⚠️ Suspicious pattern detected: ${pattern}`);
-        // Don't reject, just warn - might be legitimate
+    if (filesToScan.length === 0) {
+      // No files uploaded, proceed
+      return next();
+    }
+
+    console.log(`🔍 Scanning ${filesToScan.length} file(s) for viruses...`);
+
+    // Scan each file
+    for (const uploadedFile of filesToScan) {
+      const isClean = await virusScan(uploadedFile.path);
+
+      if (!isClean) {
+        // Delete infected file immediately
+        if (fs.existsSync(uploadedFile.path)) {
+          fs.unlinkSync(uploadedFile.path);
+        }
+
+        // Clean up any other uploaded files in this request
+        cleanupUploadedFiles(req);
+
+        return res.status(400).json({
+          success: false,
+          error: 'File rejected',
+          message: `File "${uploadedFile.originalname}" failed virus scan and has been rejected for security reasons`,
+        });
       }
     }
 
-    return true;
+    console.log(`✅ All files passed virus scan`);
+    next();
   } catch (error) {
-    console.error('Virus scan error:', error);
-    return false;
+    console.error('❌ Virus scan middleware error:', error);
+
+    // Delete all uploaded files on error
+    cleanupUploadedFiles(req);
+
+    res.status(500).json({
+      success: false,
+      error: 'Scan failed',
+      message: 'File virus scan failed - all files rejected for safety',
+    });
   }
 };

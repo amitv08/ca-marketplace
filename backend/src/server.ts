@@ -3,11 +3,12 @@ import { createServer } from 'http';
 import cors from 'cors';
 import { env, connectDatabase, disconnectDatabase, corsOptions, setSocketIO } from './config';
 import { initializeSocketIO } from './config/socket';
-import { errorHandler, notFoundHandler } from './middleware';
+import { errorHandler, notFoundHandler, httpsRedirectMiddleware, secureHeadersMiddleware } from './middleware';
 import { correlationIdMiddleware, httpLogger } from './middleware/httpLogger';
 import { metricsTracker } from './middleware/metricsTracker';
 import { MetricsService } from './services/metrics.service';
 import { LoggerService } from './services/logger.service';
+import { JobSchedulerService } from './services/job-scheduler.service';
 import { sendSuccess } from './utils';
 
 // Initialize Express app
@@ -22,8 +23,14 @@ setSocketIO(io);
 
 // Middleware
 app.use(cors(corsOptions));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// SEC-024: Request size limits (10MB max to prevent DoS)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// HTTPS enforcement and secure headers (production only)
+app.use(httpsRedirectMiddleware);
+app.use(secureHeadersMiddleware);
 
 // Serve uploaded files statically
 app.use('/uploads', express.static('uploads'));
@@ -75,6 +82,12 @@ const startServer = async (): Promise<void> => {
     // Connect to database
     await connectDatabase();
 
+    // Initialize job scheduler
+    await JobSchedulerService.initializeQueues();
+    await JobSchedulerService.scheduleDailyAggregation();
+    LoggerService.info('Job scheduler initialized');
+    console.log('⚙️  Job scheduler initialized (daily aggregation at midnight)');
+
     // Start listening
     httpServer.listen(env.PORT, () => {
       LoggerService.info('Server started successfully', {
@@ -105,6 +118,11 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
   console.log(`\n${signal} received. Starting graceful shutdown...`);
 
   try {
+    // Shutdown job scheduler - Temporarily disabled
+    // await JobSchedulerService.shutdown();
+    LoggerService.info('Job scheduler shutdown skipped (temporarily disabled)');
+    console.log('⚙️  Job scheduler shutdown skipped');
+
     // Close Socket.IO connections
     io.close(() => {
       LoggerService.info('Socket.IO connections closed');

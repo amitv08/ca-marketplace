@@ -38,7 +38,7 @@ const Login: React.FC = () => {
           navigate('/client/dashboard');
         } else if (response.data.user.role === 'CA') {
           navigate('/ca/dashboard');
-        } else if (response.data.user.role === 'ADMIN') {
+        } else if (response.data.user.role === 'ADMIN' || response.data.user.role === 'SUPER_ADMIN') {
           navigate('/admin/dashboard');
         } else {
           navigate('/');

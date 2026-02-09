@@ -32,14 +32,19 @@ export interface LoginResponse {
   success: boolean;
   data: {
     user: {
-      userId: string;
+      id: string;
       email: string;
-      role: 'CLIENT' | 'CA' | 'ADMIN';
+      role: 'CLIENT' | 'CA' | 'ADMIN' | 'SUPER_ADMIN';
       name: string;
       phone?: string;
       profileImage?: string;
+      createdAt?: string;
+      updatedAt?: string;
     };
     token: string;
+    accessToken?: string;
+    refreshToken?: string;
+    expiresIn?: number;
   };
   message: string;
 }

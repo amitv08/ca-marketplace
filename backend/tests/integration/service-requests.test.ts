@@ -16,6 +16,7 @@ describe('Service Requests API', () => {
 
   afterAll(async () => {
     await clearDatabase();
+    // Note: Global cleanup (Prisma, Redis) handled in tests/setup.ts afterAll
   });
 
   describe('POST /api/service-requests', () => {

@@ -18,6 +18,7 @@ yarn.lock
 .env.test
 .env.production
 .env.staging
+.secrets.txt
 
 # Database
 *.db
@@ -35,7 +36,8 @@ Thumbs.db
 *~
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/settings.json
 .idea/
 *.iml
 
@@ -66,3 +68,7 @@ nginx/logs/
 
 # Prisma
 backend/prisma/migrations/*_*/
+*.env
+backend/uploads/
+*.backup
+DEMO_CREDENTIALS.txt
