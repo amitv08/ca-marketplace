@@ -1,0 +1,682 @@
+# .github/workflows/mvp-complete-tests.yml
+# Complete CI for Positive / Negative / Security Tests
+#
+# Triggers: push/PR to main or develop, weekly schedule (Sunday 02:00 UTC),
+#           and manual dispatch.
+#
+# Jobs:
+#   1. backend-tests   — unit · integration · negative · security (sequential)
+#   2. frontend-tests  — Jest + build verification
+#   3. security-scan   — npm audit (CRITICAL threshold) + Snyk OSS SARIF
+#   4. test-report     — Step summary + PR comment (upsert)
+
+name: MVP Complete Tests (Positive/Negative/Security)
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 2 * * 0'   # Weekly — Sundays 02:00 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write   # SARIF upload to GitHub Security tab
+  pull-requests: write     # Post coverage comments on PRs
+
+# ── Shared values ─────────────────────────────────────────────────────────────
+env:
+  NODE_VERSION: "20"
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/camarketplace_test
+  REDIS_URL: redis://localhost:6379
+  JWT_SECRET: ci-complete-tests-jwt-secret
+  JWT_REFRESH_SECRET: ci-complete-tests-refresh-secret
+  NODE_ENV: test
+
+# ══════════════════════════════════════════════════════════════════════════════
+# JOB 1 — Backend Tests (positive · negative · security)
+# All four suites run sequentially in one job to share the migrated DB and
+# avoid redundant Postgres / Redis service startup time.
+# ══════════════════════════════════════════════════════════════════════════════
+jobs:
+  backend-tests:
+    name: Backend Tests (Positive / Negative / Security)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: camarketplace_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d camarketplace_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Run migrations
+        working-directory: backend
+        # `migrate deploy` applies pending migrations; no --name flag needed
+        run: npx prisma migrate deploy
+
+      - name: Seed E2E demo data
+        working-directory: backend
+        # Seed is non-fatal: some test suites work without seeded records
+        run: npm run seed:e2e || echo "seed:e2e skipped (no seed data needed for unit tests)"
+
+      # ── 1a. Positive: Unit tests ───────────────────────────────────────────
+      - name: Unit tests (positive)
+        id: unit
+        working-directory: backend
+        run: |
+          npm run test:unit -- \
+            --ci \
+            --runInBand \
+            --coverage \
+            --coverageReporters=text \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary \
+            --coverageDirectory=coverage/unit \
+            --forceExit
+
+      # ── 1b. Positive: Integration tests ───────────────────────────────────
+      - name: Integration tests (positive)
+        id: integration
+        working-directory: backend
+        run: |
+          npm run test:integration -- \
+            --ci \
+            --runInBand \
+            --coverage \
+            --coverageReporters=text \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary \
+            --coverageDirectory=coverage/integration \
+            --forceExit
+
+      # ── 1c. Negative: Boundary / validation / rejection tests ─────────────
+      # Tests that intentionally send bad input and assert correct error codes.
+      - name: Negative tests
+        id: negative
+        working-directory: backend
+        run: |
+          npx jest \
+            --testPathPattern="tests/negative" \
+            --ci \
+            --runInBand \
+            --coverage \
+            --coverageReporters=text \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary \
+            --coverageDirectory=coverage/negative \
+            --passWithNoTests \
+            --forceExit
+
+      # ── 1d. Security: Injection / auth bypass / pentest-style tests ───────
+      - name: Security tests
+        id: security
+        working-directory: backend
+        run: |
+          npm run test:security -- \
+            --ci \
+            --runInBand \
+            --coverage \
+            --coverageReporters=text \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary \
+            --coverageDirectory=coverage/security \
+            --forceExit
+
+      # ── Coverage summary across all four suites ───────────────────────────
+      - name: Print combined coverage report
+        if: always()
+        working-directory: backend
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, sys
+
+          BOLD  = "\033[1m";  RESET = "\033[0m"
+          GREEN = "\033[0;32m"; YELLOW = "\033[1;33m"; RED = "\033[0;31m"
+          GH    = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")
+
+          def bar(pct, width=24):
+              filled = round(pct / 100 * width)
+              return "█" * filled + "░" * (width - filled)
+
+          def colour(pct):
+              if pct >= 70: return GREEN
+              if pct >= 50: return YELLOW
+              return RED
+
+          def emoji(pct):
+              if pct >= 70: return "✅"
+              if pct >= 50: return "⚠️"
+              return "❌"
+
+          suites = [
+              ("Unit",        "coverage/unit/coverage-summary.json"),
+              ("Integration", "coverage/integration/coverage-summary.json"),
+              ("Negative",    "coverage/negative/coverage-summary.json"),
+              ("Security",    "coverage/security/coverage-summary.json"),
+          ]
+
+          print(f"\n{BOLD}══ Coverage by Suite {'═'*40}{RESET}")
+          md_rows = []
+          for label, path in suites:
+              if not os.path.exists(path):
+                  print(f"  {label:12s} — not found")
+                  md_rows.append(f"| {label} | ⏭️ n/a | n/a | n/a | n/a |")
+                  continue
+              try:
+                  with open(path) as f:
+                      data = json.load(f)
+              except Exception as e:
+                  print(f"  {label:12s} — parse error: {e}")
+                  continue
+              t = data.get("total", {})
+              ln = t.get("lines",     {}).get("pct", 0)
+              br = t.get("branches",  {}).get("pct", 0)
+              fn = t.get("functions", {}).get("pct", 0)
+              st = t.get("statements",{}).get("pct", 0)
+              c  = colour(ln)
+              print(f"  {BOLD}{label:12s}{RESET}  {c}{bar(ln)}{RESET}  "
+                    f"Lines {ln:5.1f}%  Branches {br:5.1f}%  Fns {fn:5.1f}%")
+              md_rows.append(
+                  f"| {label} | {emoji(ln)} {ln:.0f}% | {br:.0f}% "
+                  f"| {fn:.0f}% | {st:.0f}% |"
+              )
+          print(f"{BOLD}{'═'*60}{RESET}\n")
+
+          with open(GH, "a") as f:
+              f.write("## 📊 Backend Coverage by Test Suite\n\n")
+              f.write("| Suite | Lines | Branches | Functions | Statements |\n")
+              f.write("|-------|-------|----------|-----------|------------|\n")
+              for row in md_rows:
+                  f.write(row + "\n")
+              f.write("\n")
+          PYEOF
+
+      - name: Upload all backend coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage-${{ github.run_number }}
+          path: backend/coverage/
+          retention-days: 14
+
+      - name: Upload backend failure logs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: backend-test-failures-${{ github.run_number }}
+          path: |
+            backend/coverage/
+            backend/reports/
+          retention-days: 7
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # JOB 2 — Frontend Tests (Jest + build)
+  # ══════════════════════════════════════════════════════════════════════════
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          REACT_APP_API_URL: http://localhost:8081/api
+          CI: "false"          # CRA: warnings ≠ build failure in CI
+        run: npm run build
+
+      - name: Run Jest tests
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: |
+          npm test -- \
+            --coverage \
+            --watchAll=false \
+            --passWithNoTests \
+            --coverageReporters=text \
+            --coverageReporters=lcov \
+            --coverageReporters=json-summary \
+            --forceExit
+
+      - name: Print frontend coverage
+        if: always()
+        working-directory: frontend
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+
+          GH = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")
+          path = "coverage/coverage-summary.json"
+          if not os.path.exists(path):
+              print("No coverage summary found")
+              exit(0)
+
+          with open(path) as f:
+              data = json.load(f)
+          t = data.get("total", {})
+          lines = t.get("lines", {}).get("pct", 0)
+          branches = t.get("branches", {}).get("pct", 0)
+          funcs = t.get("functions", {}).get("pct", 0)
+
+          emoji = lambda p: "✅" if p >= 70 else ("⚠️" if p >= 50 else "❌")
+
+          with open(GH, "a") as f:
+              f.write("## 📊 Frontend Coverage\n\n")
+              f.write("| Metric | Coverage |\n|--------|----------|\n")
+              f.write(f"| Lines | {emoji(lines)} {lines:.0f}% |\n")
+              f.write(f"| Branches | {emoji(branches)} {branches:.0f}% |\n")
+              f.write(f"| Functions | {emoji(funcs)} {funcs:.0f}% |\n\n")
+
+          print(f"Lines: {lines:.1f}%  Branches: {branches:.1f}%  Functions: {funcs:.1f}%")
+          PYEOF
+
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-${{ github.run_number }}
+          path: frontend/coverage/
+          retention-days: 14
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # JOB 3 — Security Scan (npm audit + Snyk SARIF)
+  # Runs in parallel with backend/frontend tests — no dependency needed.
+  # ══════════════════════════════════════════════════════════════════════════
+  security-scan:
+    name: Security Scan (npm audit + Snyk)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install dependencies (backend + frontend)
+        run: |
+          npm ci --prefix backend
+          npm ci --prefix frontend
+
+      # ── npm audit ─────────────────────────────────────────────────────────
+      - name: npm audit — backend
+        working-directory: backend
+        run: npm audit --json > backend-audit.json 2>&1 || true
+
+      - name: npm audit — frontend
+        working-directory: frontend
+        run: npm audit --json > frontend-audit.json 2>&1 || true
+
+      - name: Evaluate audit results (FAIL on CRITICAL)
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys, os
+
+          BOLD  = "\033[1m";  RESET  = "\033[0m"
+          RED   = "\033[0;31m"; GREEN = "\033[0;32m"; YELLOW = "\033[1;33m"
+          GH    = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")
+
+          total_critical = 0
+          total_high     = 0
+          rows = []
+
+          def check(path, label):
+              global total_critical, total_high
+              try:
+                  with open(path) as f:
+                      data = json.load(f)
+              except Exception as e:
+                  print(f"  [{label}] parse error: {e}")
+                  rows.append(f"| {label} | — | — | — | — | ⏭️ skipped |")
+                  return
+              v = data.get("metadata", {}).get("vulnerabilities", {})
+              c = v.get("critical", 0); h = v.get("high", 0)
+              m = v.get("moderate", 0); l = v.get("low", 0)
+              total_critical += c; total_high += h
+              col    = RED if (c or h) else GREEN
+              status = "❌ FAIL" if c else ("⚠️ WARN" if h else "✅ PASS")
+              print(f"  {BOLD}[{label}]{RESET}  {col}critical:{c}  high:{h}{RESET}  moderate:{m}  low:{l}")
+              rows.append(f"| {label} | {c} | {h} | {m} | {l} | {status} |")
+
+              for _id, adv in data.get("vulnerabilities", {}).items():
+                  sev = adv.get("severity", "")
+                  if sev in ("critical", "high"):
+                      c2 = RED if sev == "critical" else YELLOW
+                      print(f"    {c2}[{sev.upper()}] {adv.get('name', _id)}{RESET}")
+
+          print(f"\n{BOLD}── npm audit ────────────────────────────────────{RESET}")
+          check("backend/backend-audit.json",  "Backend")
+          check("frontend/frontend-audit.json", "Frontend")
+          print()
+
+          with open(GH, "a") as f:
+              f.write("## 🔐 npm Audit Results\n\n")
+              f.write("| Package | Critical | High | Moderate | Low | Status |\n")
+              f.write("|---------|----------|------|----------|-----|--------|\n")
+              for row in rows:
+                  f.write(row + "\n")
+              f.write("\n")
+
+          if total_critical:
+              print(f"{RED}{BOLD}FAIL: {total_critical} CRITICAL vulnerability/ies found. "
+                    f"Pipeline blocked.{RESET}")
+              sys.exit(1)
+          elif total_high:
+              print(f"{YELLOW}WARN: {total_high} HIGH vulnerability/ies. Review recommended.{RESET}")
+          else:
+              print(f"{GREEN}PASS: No CRITICAL or HIGH vulnerabilities.{RESET}")
+          PYEOF
+
+      # ── Snyk OSS scan (SARIF → GitHub Security tab) ───────────────────────
+      - name: Snyk OSS — backend
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        with:
+          args: >-
+            --severity-threshold=high
+            --file=backend/package.json
+            --sarif-file-output=snyk-backend.sarif
+            --project-name=ca-marketplace-backend
+
+      - name: Snyk OSS — frontend
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        with:
+          args: >-
+            --severity-threshold=high
+            --file=frontend/package.json
+            --sarif-file-output=snyk-frontend.sarif
+            --project-name=ca-marketplace-frontend
+
+      - name: Upload SARIF to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: "."
+          category: complete-tests-snyk
+
+      - name: Upload audit reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-audit-${{ github.run_number }}
+          path: |
+            backend/backend-audit.json
+            frontend/frontend-audit.json
+            snyk-backend.sarif
+            snyk-frontend.sarif
+          retention-days: 30
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # JOB 4 — Test Report (Step summary + PR comment)
+  # Always runs; downloads artifacts from jobs 1–3.
+  # ══════════════════════════════════════════════════════════════════════════
+  test-report:
+    name: Test Report
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, security-scan]
+    if: always()
+
+    steps:
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: backend-coverage-${{ github.run_number }}
+          path: backend-coverage/
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: frontend-coverage-${{ github.run_number }}
+          path: frontend-coverage/
+
+      - name: Download security reports
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: security-audit-${{ github.run_number }}
+          path: security-audit/
+
+      - name: Build consolidated report
+        id: report
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+
+          GH   = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")
+          REPO = os.environ.get("GITHUB_REPOSITORY", "")
+          RUN  = os.environ.get("GITHUB_RUN_ID", "")
+          SVR  = os.environ.get("GITHUB_SERVER_URL", "https://github.com")
+          SHA  = os.environ.get("GITHUB_SHA", "")[:12]
+          REF  = os.environ.get("GITHUB_REF_NAME", "")
+
+          def icon(r):
+              return {"success": "✅", "failure": "❌", "cancelled": "⏹️"}.get(r, "⏭️")
+
+          backend  = os.environ.get("BACKEND_RESULT",  "skipped")
+          frontend = os.environ.get("FRONTEND_RESULT", "skipped")
+          security = os.environ.get("SECURITY_RESULT", "skipped")
+
+          # ── coverage helper ────────────────────────────────────────────────
+          def cov(base, suite=None):
+              candidates = []
+              if suite:
+                  candidates.append(f"{base}/{suite}/coverage-summary.json")
+              candidates += [
+                  f"{base}/combined/coverage-summary.json",
+                  f"{base}/coverage-summary.json",
+              ]
+              for p in candidates:
+                  if not os.path.exists(p):
+                      continue
+                  try:
+                      with open(p) as f:
+                          d = json.load(f)
+                      t = d.get("total", {})
+                      return {k: t.get(k, {}).get("pct", 0)
+                              for k in ("lines", "branches", "functions", "statements")}
+                  except Exception:
+                      continue
+              return None
+
+          def emoji(p):
+              return "✅" if p >= 70 else ("⚠️" if p >= 50 else "❌")
+
+          def cov_row(label, base, suite=None):
+              c = cov(base, suite)
+              if not c:
+                  return f"| {label} | ⏭️ n/a | n/a | n/a |"
+              l = c["lines"]; b = c["branches"]; fn = c["functions"]
+              return f"| {label} | {emoji(l)} {l:.0f}% | {emoji(b)} {b:.0f}% | {emoji(fn)} {fn:.0f}% |"
+
+          # ── audit counts ───────────────────────────────────────────────────
+          def audit_counts(path):
+              try:
+                  with open(path) as f:
+                      d = json.load(f)
+                  v = d.get("metadata", {}).get("vulnerabilities", {})
+                  return v.get("critical", 0), v.get("high", 0)
+              except Exception:
+                  return None
+
+          be_audit = audit_counts("security-audit/backend-audit.json")
+          fe_audit = audit_counts("security-audit/frontend-audit.json")
+
+          def audit_cell(counts):
+              if counts is None: return "⏭️ n/a"
+              c, h = counts
+              if c: return f"❌ {c} critical"
+              if h: return f"⚠️ {h} high"
+              return "✅ clean"
+
+          # ── compose markdown ───────────────────────────────────────────────
+          lines = [
+              f"## 🧪 MVP Complete Test Report\n",
+              "### Job Results\n",
+              "| Job | Result |",
+              "|-----|--------|",
+              f"| Backend (unit + integration + negative + security) | {icon(backend)} `{backend}` |",
+              f"| Frontend | {icon(frontend)} `{frontend}` |",
+              f"| Security Scan | {icon(security)} `{security}` |",
+              "",
+              "### Test Coverage\n",
+              "| Suite | Lines | Branches | Functions |",
+              "|-------|-------|----------|-----------|",
+              cov_row("Backend — Unit",        "backend-coverage", "unit"),
+              cov_row("Backend — Integration", "backend-coverage", "integration"),
+              cov_row("Backend — Negative",    "backend-coverage", "negative"),
+              cov_row("Backend — Security",    "backend-coverage", "security"),
+              cov_row("Frontend",              "frontend-coverage"),
+              "",
+              "### Dependency Audit\n",
+              "| Package | Result |",
+              "|---------|--------|",
+              f"| Backend  | {audit_cell(be_audit)} |",
+              f"| Frontend | {audit_cell(fe_audit)} |",
+              "",
+              f"> **Commit:** `{SHA}`  **Branch:** `{REF}`",
+              f"> [View full run]({SVR}/{REPO}/actions/runs/{RUN})",
+          ]
+
+          content = "\n".join(lines)
+          print(content)
+
+          with open(GH, "a") as f:
+              f.write(content + "\n")
+
+          # Write to file for the PR comment step
+          with open("pr-comment.md", "w") as f:
+              f.write(content)
+          PYEOF
+        env:
+          BACKEND_RESULT: ${{ needs.backend-tests.result }}
+          FRONTEND_RESULT: ${{ needs.frontend-tests.result }}
+          SECURITY_RESULT: ${{ needs.security-scan.result }}
+
+      # Post / update a single bot comment on the PR (idempotent)
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.existsSync('pr-comment.md')
+              ? fs.readFileSync('pr-comment.md', 'utf8')
+              : '⚠️ Test report unavailable.';
+
+            const marker = '<!-- mvp-complete-tests -->';
+            const fullBody = marker + '\n' + body;
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            // Find existing bot comment from this workflow
+            const existing = comments.find(
+              c => c.user.type === 'Bot' && c.body.startsWith(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body: fullBody,
+              });
+              console.log('Updated existing PR comment:', existing.id);
+            } else {
+              const { data: created } = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: fullBody,
+              });
+              console.log('Created new PR comment:', created.id);
+            }
+
+      - name: Gate — fail if required jobs failed
+        run: |
+          BACKEND="${{ needs.backend-tests.result }}"
+          FRONTEND="${{ needs.frontend-tests.result }}"
+          if [ "$BACKEND" = "failure" ] || [ "$FRONTEND" = "failure" ]; then
+            echo "❌ Required jobs failed: backend=$BACKEND frontend=$FRONTEND"
+            exit 1
+          fi
+          echo "✅ All required jobs passed."
