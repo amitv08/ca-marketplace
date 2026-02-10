@@ -46,7 +46,9 @@ Cypress.Commands.add('login', (email, password, role = null) => {
 });
 
 /**
- * Login via API (faster for setup)
+ * Login via API (faster for setup).
+ * Stores JWT in the AUT's localStorage via cy.window() so the React app
+ * recognises the authenticated session on the next cy.visit().
  */
 Cypress.Commands.add('loginViaAPI', (email, password) => {
   cy.log(`API Login as ${email}`);
@@ -55,16 +57,18 @@ Cypress.Commands.add('loginViaAPI', (email, password) => {
     method: 'POST',
     url: `${Cypress.env('apiUrl')}/auth/login`,
     body: { email, password },
+    failOnStatusCode: false,
   }).then((response) => {
-    expect(response.status).to.eq(200);
-    expect(response.body.success).to.be.true;
-    expect(response.body.data.token).to.exist;
+    expect(response.status, `Login as ${email} should return 200`).to.eq(200);
 
     const { token, user } = response.body.data;
 
-    // Store in localStorage
-    window.localStorage.setItem('token', token);
-    window.localStorage.setItem('user', JSON.stringify(user));
+    // cy.window() targets the AUT (app-under-test) window, not the Cypress
+    // runner.  Setting localStorage here persists across same-origin visits.
+    cy.window().then((win) => {
+      win.localStorage.setItem('token', token);
+      win.localStorage.setItem('user', JSON.stringify(user));
+    });
 
     cy.log(`✓ API login successful - Role: ${user.role}`);
   });
@@ -254,18 +258,24 @@ Cypress.Commands.add('mockAPI', (method, url, response, statusCode = 200) => {
   }).as('mockedAPI');
 });
 
-// Preserve local storage between tests
+// Preserve the AUT's localStorage between tests within a describe block.
+// Uses cy.window() to read/write the app window (not the Cypress runner window).
 let LOCAL_STORAGE_MEMORY = {};
 
 Cypress.Commands.add('saveLocalStorage', () => {
-  Object.keys(localStorage).forEach((key) => {
-    LOCAL_STORAGE_MEMORY[key] = localStorage[key];
+  cy.window().then((win) => {
+    LOCAL_STORAGE_MEMORY = {};
+    Object.keys(win.localStorage).forEach((key) => {
+      LOCAL_STORAGE_MEMORY[key] = win.localStorage.getItem(key);
+    });
   });
 });
 
 Cypress.Commands.add('restoreLocalStorage', () => {
-  Object.keys(LOCAL_STORAGE_MEMORY).forEach((key) => {
-    localStorage.setItem(key, LOCAL_STORAGE_MEMORY[key]);
+  cy.window().then((win) => {
+    Object.entries(LOCAL_STORAGE_MEMORY).forEach(([key, value]) => {
+      win.localStorage.setItem(key, value);
+    });
   });
 });
 

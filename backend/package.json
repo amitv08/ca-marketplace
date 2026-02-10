@@ -12,6 +12,7 @@
     "prisma:studio": "npx prisma studio",
     "seed": "ts-node prisma/seed-analytics.ts",
     "seed:analytics": "ts-node prisma/seed-analytics.ts",
+    "seed:e2e": "ts-node prisma/seed-e2e.ts",
     "test": "jest --coverage",
     "test:watch": "jest --watch",
     "test:unit": "jest --testPathPattern=tests/unit --coverage",

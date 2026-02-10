@@ -1,0 +1,194 @@
+# docker-compose.e2e.yml
+# Dockerized E2E test stack for local and CI use.
+# Isolated ports, fresh DB per run, Cypress runs inside container.
+#
+# Usage:
+#   docker-compose -f docker-compose.e2e.yml up --build --abort-on-container-exit
+#   docker-compose -f docker-compose.e2e.yml down --volumes   # clean up
+
+version: '3.8'
+
+x-restart: &no-restart
+  restart: "no"
+
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://caadmin:CaSecure123!@postgres-e2e:5432/camarketplace_e2e
+  REDIS_URL: redis://redis-e2e:6379/0
+  JWT_SECRET: e2e-test-jwt-secret-not-for-production
+  JWT_REFRESH_SECRET: e2e-test-refresh-secret-not-for-production
+  JWT_EXPIRES_IN: 24h
+  JWT_REFRESH_EXPIRES_IN: 7d
+  NODE_ENV: development          # 'development' so seed scripts run
+  PORT: 5000
+  CORS_ORIGIN: http://frontend-e2e:3000
+  CLAMAV_ENABLED: "false"        # Disable virus scanning in tests
+
+services:
+
+  # ── Infrastructure ────────────────────────────────────────────────────────
+
+  postgres-e2e:
+    image: postgres:15-alpine
+    container_name: ca_postgres_e2e
+    <<: *no-restart
+    environment:
+      POSTGRES_DB: camarketplace_e2e
+      POSTGRES_USER: caadmin
+      POSTGRES_PASSWORD: CaSecure123!
+    ports:
+      - "54322:5432"       # Isolated (dev=54320, test=54321)
+    tmpfs:
+      - /var/lib/postgresql/data   # Wiped on every run — guaranteed clean state
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U caadmin -d camarketplace_e2e"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis-e2e:
+    image: redis:7-alpine
+    container_name: ca_redis_e2e
+    <<: *no-restart
+    ports:
+      - "63792:6379"       # Isolated (dev=63790, unit-test=63791)
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Migrate + seed (exits 0, unblocks backend) ───────────────────────────
+
+  migrate-e2e:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_migrate_e2e
+    <<: *no-restart
+    environment:
+      <<: *backend-env
+    command: >
+      sh -c "
+        echo '→ Waiting for Postgres...' &&
+        until pg_isready -h postgres-e2e -U caadmin -d camarketplace_e2e 2>/dev/null; do
+          sleep 1
+        done &&
+        echo '→ Running migrations...' &&
+        npx prisma migrate deploy &&
+        echo '→ Seeding demo data for E2E...' &&
+        npm run seed:e2e &&
+        echo '✓ Database ready'
+      "
+    depends_on:
+      postgres-e2e:
+        condition: service_healthy
+      redis-e2e:
+        condition: service_healthy
+
+  # ── Backend API server ───────────────────────────────────────────────────
+
+  backend-e2e:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_backend_e2e
+    <<: *no-restart
+    environment:
+      <<: *backend-env
+    ports:
+      - "5002:5000"
+    command: >
+      sh -c "
+        npx prisma generate &&
+        npm run build &&
+        npm run start
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    depends_on:
+      migrate-e2e:
+        condition: service_completed_successfully
+
+  # ── Frontend dev server (built for E2E) ──────────────────────────────────
+
+  frontend-e2e:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ca_frontend_e2e
+    <<: *no-restart
+    environment:
+      REACT_APP_API_URL: http://backend-e2e:5000/api
+      PORT: 3000
+      CI: "false"         # CRA: warnings don't kill the dev server
+      WDS_SOCKET_PORT: 0  # Prevent HMR websocket issues inside Docker
+    ports:
+      - "3002:3000"       # Isolated (dev=3001)
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s   # CRA dev server takes time to start
+    depends_on:
+      backend-e2e:
+        condition: service_healthy
+
+  # ── Cypress runner ────────────────────────────────────────────────────────
+  # cypress/included already contains a browser (Chrome + Electron).
+  # Volumes mount the local test files so you can edit tests without rebuild.
+
+  cypress:
+    image: cypress/included:13.6.3
+    container_name: ca_cypress_e2e
+    <<: *no-restart
+    working_dir: /e2e
+    environment:
+      # Cypress reads these as Cypress.env('...')
+      CYPRESS_baseUrl: http://frontend-e2e:3000
+      CYPRESS_apiUrl: http://backend-e2e:5000/api
+      CYPRESS_clientEmail: client1@demo.com
+      CYPRESS_clientPassword: Demo@123
+      CYPRESS_caEmail: ca1@demo.com
+      CYPRESS_caPassword: Demo@123
+      CYPRESS_firmAdminEmail: shahandassociates.1@demo.com
+      CYPRESS_firmAdminPassword: Demo@123
+      CYPRESS_client2Email: client5@demo.com
+      CYPRESS_client2Password: Demo@123
+      # Admin credentials for the admin-verify-ca flow
+      CYPRESS_adminEmail: admin@caplatform.com
+      CYPRESS_adminPassword: Admin@123!
+      # Test run config
+      CYPRESS_video: "true"
+      CYPRESS_screenshotOnRunFailure: "true"
+      # Reduce flakiness in Docker
+      CYPRESS_defaultCommandTimeout: "15000"
+      CYPRESS_requestTimeout: "15000"
+      CYPRESS_responseTimeout: "15000"
+      CYPRESS_pageLoadTimeout: "60000"
+    volumes:
+      # Mount only test files — no node_modules from host
+      - ./frontend/cypress:/e2e/cypress
+      - ./frontend/cypress.config.js:/e2e/cypress.config.js
+      # Output directories (written by container, readable on host)
+      - ./frontend/cypress/videos:/e2e/cypress/videos
+      - ./frontend/cypress/screenshots:/e2e/cypress/screenshots
+    command: >
+      cypress run
+        --browser chrome
+        --headless
+        --spec "cypress/e2e/mvp-flows/**/*.cy.js"
+        --reporter spec
+        --reporter-options "toConsole=true"
+    depends_on:
+      frontend-e2e:
+        condition: service_healthy
+      backend-e2e:
+        condition: service_healthy

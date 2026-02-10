@@ -381,7 +381,7 @@ jobs:
         run: |
           npx prisma generate
           npx prisma migrate deploy
-          npm run seed || true
+          npm run seed:e2e || true
 
       - name: Build and start backend
         working-directory: backend

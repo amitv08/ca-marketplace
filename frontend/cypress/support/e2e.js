@@ -22,11 +22,8 @@ if (!app.document.head.querySelector('[data-hide-command-log-request]')) {
   app.document.head.appendChild(style);
 }
 
-// Preserve cookies between tests
-Cypress.Cookies.debug(true);
-
 // Ignore uncaught exceptions from the application
-Cypress.on('uncaught:exception', (err, runnable) => {
+Cypress.on('uncaught:exception', (err, _runnable) => {
   // Returning false here prevents Cypress from failing the test
   // Log the error but don't fail
   console.error('Uncaught exception:', err.message);

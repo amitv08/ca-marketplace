@@ -11,11 +11,13 @@ module.exports = defineConfig({
     // API configuration
     env: {
       apiUrl: 'http://localhost:8081/api',
-      // Demo credentials
+      // Demo credentials — must match prisma/seed-e2e.ts
       clientEmail: 'client1@demo.com',
       clientPassword: 'Demo@123',
       caEmail: 'ca1@demo.com',
       caPassword: 'Demo@123',
+      adminEmail: 'admin@caplatform.com',
+      adminPassword: 'Admin@123!',
       firmAdminEmail: 'shahandassociates.1@demo.com',
       firmAdminPassword: 'Demo@123',
       // Alternative client with fewer pending requests
@@ -33,6 +35,7 @@ module.exports = defineConfig({
     defaultCommandTimeout: 10000,
     requestTimeout: 10000,
     responseTimeout: 10000,
+    pageLoadTimeout: 30000,
 
     setupNodeEvents(on, config) {
       // implement node event listeners here
