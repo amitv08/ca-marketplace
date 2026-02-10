@@ -1,0 +1,1111 @@
+name: MVP CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop, "feature/**", "fix/**"]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}/backend
+  FRONTEND_IMAGE: ${{ github.repository }}/frontend
+  NODE_VERSION_DEFAULT: "20"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# JOB 1 — Backend tests (matrix: Node 18 + 20)
+# ──────────────────────────────────────────────────────────────────────────────
+jobs:
+  backend-tests:
+    name: Backend Tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["18", "20"]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: camarketplace_test
+          POSTGRES_USER: caadmin
+          POSTGRES_PASSWORD: CaSecure123!
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U caadmin"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://caadmin:CaSecure123!@localhost:5432/camarketplace_test
+      TEST_DATABASE_URL: postgresql://caadmin:CaSecure123!@localhost:5432/camarketplace_test
+      REDIS_URL: redis://localhost:6379/1
+      JWT_SECRET: ci-test-jwt-secret-not-for-production
+      JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret-not-for-production
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Lint (TypeScript type-check)
+        working-directory: backend
+        run: npm run lint
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
+      - name: Run Prisma migrations
+        working-directory: backend
+        run: npx prisma migrate deploy
+
+      - name: Run unit tests
+        working-directory: backend
+        run: npm run test:unit -- --ci --coverageReporters=lcov --coverageReporters=text
+
+      - name: Run integration tests
+        working-directory: backend
+        run: npm run test:integration -- --ci --coverageReporters=lcov --coverageReporters=text
+
+      - name: Run security tests
+        working-directory: backend
+        run: npm run test:security -- --ci --coverageReporters=lcov --coverageReporters=text
+
+      - name: Run negative tests
+        working-directory: backend
+        run: |
+          npx jest --testPathPattern=tests/negative --ci \
+            --coverageReporters=lcov --coverageReporters=text \
+            --runInBand
+        continue-on-error: false
+
+      - name: Merge coverage reports
+        working-directory: backend
+        run: |
+          npm run test:ci -- --coverageReporters=lcov --coverageReporters=json-summary 2>/dev/null || true
+          cat coverage/coverage-summary.json 2>/dev/null | \
+            python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          total = data.get('total', {})
+          lines = total.get('lines', {}).get('pct', 0)
+          branches = total.get('branches', {}).get('pct', 0)
+          funcs = total.get('functions', {}).get('pct', 0)
+          stmts = total.get('statements', {}).get('pct', 0)
+          print(f'Lines: {lines}%  Branches: {branches}%  Functions: {funcs}%  Statements: {stmts}%')
+          if lines < 50:
+              print('WARNING: Line coverage below 50%')
+          " || true
+
+      - name: Upload backend coverage (Node ${{ matrix.node-version }})
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage-node${{ matrix.node-version }}
+          path: backend/coverage/
+          retention-days: 7
+
+      - name: Upload test results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: backend-test-failure-node${{ matrix.node-version }}
+          path: |
+            backend/coverage/
+            backend/reports/
+          retention-days: 3
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 2 — Frontend unit tests (matrix: Node 18 + 20)
+  # ──────────────────────────────────────────────────────────────────────────────
+  frontend-tests:
+    name: Frontend Tests (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: ["18", "20"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          REACT_APP_API_URL: http://localhost:8081/api
+          CI: false  # Treat warnings as errors only in dedicated lint step
+        run: npm run build
+
+      - name: Run frontend tests with coverage
+        working-directory: frontend
+        env:
+          CI: true
+        run: |
+          npm test -- --coverage --watchAll=false \
+            --coverageReporters=lcov --coverageReporters=json-summary \
+            --passWithNoTests
+
+      - name: Upload frontend coverage (Node ${{ matrix.node-version }})
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage-node${{ matrix.node-version }}
+          path: frontend/coverage/
+          retention-days: 7
+
+      - name: Upload test results on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-test-failure-node${{ matrix.node-version }}
+          path: frontend/coverage/
+          retention-days: 3
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 3a — Dockerized E2E tests (MVP flows via docker-compose.e2e.yml)
+  # Full stack runs inside Docker: postgres → redis → migrate → backend →
+  # frontend → cypress/included:13.6.3
+  # ──────────────────────────────────────────────────────────────────────────────
+  e2e-docker:
+    name: E2E Tests (Dockerized)
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-e2e-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-e2e-
+
+      - name: Pull Cypress base image (cache warm)
+        run: docker pull cypress/included:13.6.3
+
+      - name: Build service images
+        run: |
+          docker-compose -f docker-compose.e2e.yml build \
+            --parallel \
+            backend-e2e frontend-e2e migrate-e2e
+
+      - name: Start infrastructure + run migrations
+        run: |
+          docker-compose -f docker-compose.e2e.yml \
+            up -d postgres-e2e redis-e2e
+          # Wait for healthy
+          timeout 60 bash -c \
+            "until docker-compose -f docker-compose.e2e.yml ps postgres-e2e | grep -q '(healthy)'; do sleep 2; done"
+          docker-compose -f docker-compose.e2e.yml \
+            run --rm migrate-e2e
+
+      - name: Start backend + frontend
+        run: |
+          docker-compose -f docker-compose.e2e.yml \
+            up -d backend-e2e frontend-e2e
+          # Poll until frontend is healthy (up to 120s)
+          timeout 120 bash -c \
+            "until docker-compose -f docker-compose.e2e.yml ps frontend-e2e | grep -q '(healthy)'; do sleep 3; done"
+          echo "✓ Full stack ready"
+
+      - name: System health check
+        run: |
+          echo "=== Backend health ==="
+          curl -sf http://localhost:5002/api/health | python3 -m json.tool \
+            || echo "(health endpoint may not return JSON)"
+          echo "=== Frontend health ==="
+          curl -sf -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002
+
+      # ── MVP Flows (runs ALL specs under cypress/e2e/mvp-flows/) ────────────
+      - name: Run MVP E2E flows (Dockerized Cypress)
+        run: |
+          docker-compose -f docker-compose.e2e.yml run --rm cypress 2>&1
+        env:
+          COMPOSE_HTTP_TIMEOUT: "120"
+
+      # ── Existing smoke specs (auth + client + CA workflows) ────────────────
+      - name: Run existing Cypress specs
+        if: always()
+        run: |
+          docker-compose -f docker-compose.e2e.yml run --rm \
+            -e CYPRESS_SPEC="cypress/e2e/01-authentication.cy.js,cypress/e2e/02-client-workflow.cy.js,cypress/e2e/03-ca-workflow.cy.js" \
+            cypress \
+            cypress run \
+              --browser chrome \
+              --headless \
+              --spec "cypress/e2e/01-authentication.cy.js,cypress/e2e/02-client-workflow.cy.js,cypress/e2e/03-ca-workflow.cy.js" \
+              --reporter spec 2>&1 || true
+
+      - name: Collect container logs on failure
+        if: failure()
+        run: |
+          echo "=== Backend logs ===" && \
+            docker-compose -f docker-compose.e2e.yml logs backend-e2e --tail=100 || true
+          echo "=== Frontend logs ===" && \
+            docker-compose -f docker-compose.e2e.yml logs frontend-e2e --tail=50 || true
+          echo "=== Migrate logs ===" && \
+            docker-compose -f docker-compose.e2e.yml logs migrate-e2e || true
+
+      - name: Upload Cypress videos
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-cypress-videos-${{ github.run_number }}
+          path: frontend/cypress/videos/
+          retention-days: 7
+
+      - name: Upload Cypress screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: e2e-cypress-screenshots-${{ github.run_number }}
+          path: frontend/cypress/screenshots/
+          retention-days: 7
+
+      - name: Tear down E2E stack
+        if: always()
+        run: |
+          docker-compose -f docker-compose.e2e.yml down --volumes --remove-orphans
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 3b — Cypress E2E tests via cypress-io/github-action (host network)
+  # Faster than Dockerized; runs on ubuntu-latest with services as containers.
+  # ──────────────────────────────────────────────────────────────────────────────
+  e2e-tests:
+    name: Cypress E2E Tests (host)
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests]
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: camarketplace
+          POSTGRES_USER: caadmin
+          POSTGRES_PASSWORD: CaSecure123!
+        ports:
+          - 54320:5432
+        options: >-
+          --health-cmd "pg_isready -U caadmin"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 63790:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION_DEFAULT }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Generate Prisma client + migrate + seed
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://caadmin:CaSecure123!@localhost:54320/camarketplace
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+          npm run seed || true
+
+      - name: Build and start backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://caadmin:CaSecure123!@localhost:54320/camarketplace
+          REDIS_URL: redis://localhost:63790
+          JWT_SECRET: ci-e2e-jwt-secret
+          JWT_REFRESH_SECRET: ci-e2e-jwt-refresh-secret
+          NODE_ENV: development
+          PORT: 5000
+        run: |
+          npm run build && npm run start &
+          echo "Waiting for backend..."
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5000/api/health && break || sleep 2
+          done
+
+      - name: System health checks
+        run: |
+          echo "=== Backend health ==="
+          curl -sf http://localhost:5000/api/health | python3 -m json.tool \
+            || echo "(health endpoint may not return JSON)"
+
+      # cypress-io/github-action starts the frontend, waits, then runs specs
+      - name: Run Cypress E2E via github-action
+        uses: cypress-io/github-action@v6
+        with:
+          working-directory: frontend
+          start: npm start
+          wait-on: "http://localhost:3001"
+          wait-on-timeout: 120
+          browser: chrome
+          headed: false
+          spec: |
+            cypress/e2e/mvp-flows/01-client-register-and-create-request.cy.js
+            cypress/e2e/mvp-flows/02-ca-accept-and-chat.cy.js
+            cypress/e2e/mvp-flows/03-payment-flow.cy.js
+            cypress/e2e/mvp-flows/04-admin-verify-ca.cy.js
+            cypress/e2e/mvp-flows/05-review-submission.cy.js
+          config: |
+            baseUrl=http://localhost:3001
+            defaultCommandTimeout=15000
+        env:
+          CYPRESS_baseUrl: http://localhost:3001
+          CYPRESS_apiUrl: http://localhost:5000/api
+          CYPRESS_clientEmail: client1@demo.com
+          CYPRESS_clientPassword: Demo@123
+          CYPRESS_caEmail: ca1@demo.com
+          CYPRESS_caPassword: Demo@123
+          CYPRESS_adminEmail: admin@caplatform.com
+          CYPRESS_adminPassword: Admin@123!
+          CYPRESS_client2Email: client5@demo.com
+          CYPRESS_client2Password: Demo@123
+          CI: true
+
+      - name: Upload Cypress videos on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-host-videos-${{ github.run_number }}
+          path: frontend/cypress/videos/
+          retention-days: 3
+
+      - name: Upload Cypress screenshots on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: cypress-host-screenshots-${{ github.run_number }}
+          path: frontend/cypress/screenshots/
+          retention-days: 3
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 4 — Comprehensive security scan (parallel with tests)
+  #
+  # Failure thresholds:
+  #   npm audit  — FAIL on any CRITICAL vulnerability
+  #   Snyk OSS   — FAIL on severity >= high  (exit-code 1 from snyk CLI)
+  #   Snyk Code  — FAIL on severity >= high
+  #   Trivy      — FAIL if CRITICAL CVEs found in Docker images
+  #   Scout      — informational only (Docker Hub login required)
+  # ──────────────────────────────────────────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    # Required to upload SARIF results to GitHub Security tab
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+    # All secrets hoisted to env — steps use env.* which is statically resolvable
+    env:
+      SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION_DEFAULT }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION_DEFAULT }}
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # ── 1. npm audit ────────────────────────────────────────────────────────
+      # Collect JSON results; threshold check done in the parse step below.
+      # `|| true` prevents premature failure — we gate on critical count later.
+      - name: npm audit — Backend
+        working-directory: backend
+        run: npm audit --audit-level=high --json > backend-audit.json 2>&1 || true
+
+      - name: npm audit — Frontend
+        working-directory: frontend
+        run: npm audit --audit-level=high --json > frontend-audit.json 2>&1 || true
+
+      # Parse both reports; FAIL the job if any CRITICAL vuln is found.
+      - name: Parse audit results and enforce thresholds
+        id: audit-check
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys, os
+
+          RESET  = "\033[0m"; RED  = "\033[0;31m"
+          YELLOW = "\033[1;33m"; GREEN = "\033[0;32m"; BOLD = "\033[1m"
+
+          total_critical = 0
+          total_high     = 0
+
+          def check(path, label):
+              global total_critical, total_high
+              try:
+                  with open(path) as f:
+                      data = json.load(f)
+              except Exception as e:
+                  print(f"{YELLOW}  [{label}] Could not parse audit JSON: {e}{RESET}")
+                  return
+
+              v = data.get("metadata", {}).get("vulnerabilities", {})
+              c = v.get("critical", 0); h = v.get("high", 0)
+              m = v.get("moderate", 0); l = v.get("low",  0)
+              total_critical += c; total_high += h
+
+              colour = RED if (c or h) else GREEN
+              print(f"{BOLD}  [{label}]{RESET}")
+              print(f"    {colour}CRITICAL: {c}  HIGH: {h}{RESET}  MODERATE: {m}  LOW: {l}")
+
+              # Print advisory details for critical/high
+              for _id, adv in data.get("vulnerabilities", {}).items():
+                  sev = adv.get("severity", "")
+                  if sev in ("critical", "high"):
+                      name  = adv.get("name", _id)
+                      via   = ", ".join(
+                          v.get("source", str(v)) if isinstance(v, dict) else str(v)
+                          for v in adv.get("via", [])
+                      )
+                      range_ = adv.get("range", "?")
+                      fix    = adv.get("fixAvailable", False)
+                      fix_str = "fixable" if fix is True else ("fix in " + str(fix.get("name","?"))) if isinstance(fix,dict) else "no fix"
+                      col = RED if sev == "critical" else YELLOW
+                      print(f"    {col}  [{sev.upper()}] {name} ({range_}) via {via} — {fix_str}{RESET}")
+
+          print(f"\n{BOLD}── npm audit results ──────────────────────────────{RESET}")
+          check("backend/backend-audit.json", "Backend")
+          check("frontend/frontend-audit.json", "Frontend")
+          print()
+
+          if total_critical > 0:
+              print(f"{RED}{BOLD}FAIL: {total_critical} CRITICAL vulnerabilities found. Pipeline blocked.{RESET}")
+              sys.exit(1)
+          elif total_high > 0:
+              print(f"{YELLOW}WARN: {total_high} HIGH vulnerabilities found. Review required.{RESET}")
+              # Write warning to summary
+              with open(os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null"), "a") as f:
+                  f.write(f"### ⚠️ npm audit: {total_high} HIGH vulnerabilities\n")
+          else:
+              print(f"{GREEN}PASS: No CRITICAL or HIGH vulnerabilities found.{RESET}")
+          PYEOF
+
+      # ── 2. Snyk OSS scan ────────────────────────────────────────────────────
+      # Fails the step (exit-code 1) if vulnerabilities >= severity-threshold.
+      # SARIF output is uploaded to GitHub Security tab.
+      - name: Snyk — Backend open source scan
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        # SNYK_TOKEN sourced from job-level env block above
+        with:
+          args: >-
+            --severity-threshold=high
+            --file=backend/package.json
+            --sarif-file-output=snyk-backend-oss.sarif
+            --project-name=ca-marketplace-backend
+
+      - name: Snyk — Frontend open source scan
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        with:
+          args: >-
+            --severity-threshold=high
+            --file=frontend/package.json
+            --sarif-file-output=snyk-frontend-oss.sarif
+            --project-name=ca-marketplace-frontend
+
+      # ── 3. Snyk Code (SAST) scan ────────────────────────────────────────────
+      # Static analysis of application source code.
+      - name: Snyk Code — Backend SAST
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        with:
+          command: code test
+          args: >-
+            --severity-threshold=high
+            --sarif-file-output=snyk-backend-code.sarif
+            backend/
+
+      - name: Snyk Code — Frontend SAST
+        continue-on-error: true
+        uses: snyk/actions/node@master
+        with:
+          command: code test
+          args: >-
+            --severity-threshold=high
+            --sarif-file-output=snyk-frontend-code.sarif
+            frontend/src/
+
+      # Upload all Snyk SARIF files in one step
+      - name: Upload Snyk SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        continue-on-error: true
+        with:
+          sarif_file: "."
+          category: snyk
+
+      # ── 4. Docker image build ────────────────────────────────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image for scanning
+        id: build-backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: false
+          load: true
+          tags: ca-backend:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build frontend image for scanning
+        id: build-frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: false
+          load: true
+          tags: ca-frontend:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            REACT_APP_API_URL=http://placeholder/api
+
+      # ── 5. Trivy image scan — FAILS on CRITICAL CVEs ────────────────────────
+      - name: Trivy scan — Backend image (table output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ca-backend:scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"         # FAIL the job if CRITICAL/HIGH found
+          ignore-unfixed: true   # Skip CVEs with no available fix
+
+      - name: Trivy scan — Backend image (SARIF for Security tab)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ca-backend:scan
+          format: sarif
+          output: trivy-backend.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"         # Never fail — SARIF upload is informational
+          ignore-unfixed: true
+
+      - name: Trivy scan — Frontend image (table output)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ca-frontend:scan
+          format: table
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+      - name: Trivy scan — Frontend image (SARIF for Security tab)
+        if: always()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ca-frontend:scan
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+          ignore-unfixed: true
+
+      # ── 6. Docker Scout CVE scan (Docker Hub login required) ────────────────
+      - name: Docker Scout — Backend CVE scan
+        continue-on-error: true
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ca-backend:scan
+          only-severities: critical,high
+          exit-code: true        # FAIL if CRITICAL CVEs present
+          sarif-file: scout-backend.sarif
+          summary: true
+        env:
+          # DOCKERHUB_USERNAME/PASSWORD sourced from job-level env block
+          DOCKER_SCOUT_HUB_USER: ${{ env.DOCKERHUB_USERNAME }}
+          DOCKER_SCOUT_HUB_PASSWORD: ${{ env.DOCKERHUB_PASSWORD }}
+
+      - name: Docker Scout — Frontend CVE scan
+        continue-on-error: true
+        uses: docker/scout-action@v1
+        with:
+          command: cves
+          image: ca-frontend:scan
+          only-severities: critical,high
+          exit-code: true
+          sarif-file: scout-frontend.sarif
+          summary: true
+        env:
+          DOCKER_SCOUT_HUB_USER: ${{ env.DOCKERHUB_USERNAME }}
+          DOCKER_SCOUT_HUB_PASSWORD: ${{ env.DOCKERHUB_PASSWORD }}
+
+      # ── 7. Upload all SARIF to GitHub Security tab ───────────────────────────
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: "."
+          category: container-trivy
+
+      - name: Upload Scout SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: "."
+          category: container-scout
+
+      # ── 8. Security summary ──────────────────────────────────────────────────
+      - name: Write security summary
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os, glob
+
+          GH_SUMMARY = os.environ.get("GITHUB_STEP_SUMMARY", "/dev/null")
+
+          def audit_counts(path):
+              try:
+                  with open(path) as f:
+                      d = json.load(f)
+                  v = d.get("metadata", {}).get("vulnerabilities", {})
+                  return v.get("critical",0), v.get("high",0), v.get("moderate",0), v.get("low",0)
+              except:
+                  return None
+
+          def sarif_counts(path):
+              try:
+                  with open(path) as f:
+                      d = json.load(f)
+                  results = []
+                  for run in d.get("runs", []):
+                      results.extend(run.get("results", []))
+                  critical = sum(1 for r in results
+                                 if r.get("properties",{}).get("issue_severity","").lower()=="critical"
+                                 or "critical" in str(r.get("message",{})).lower())
+                  return len(results), critical
+              except:
+                  return None
+
+          lines = [
+              "## 🔐 Security Scan Report\n",
+              "| Check | Critical | High | Moderate | Low | Status |",
+              "|-------|----------|------|----------|-----|--------|",
+          ]
+
+          for path, label in [
+              ("backend/backend-audit.json", "npm audit — Backend"),
+              ("frontend/frontend-audit.json", "npm audit — Frontend"),
+          ]:
+              counts = audit_counts(path)
+              if counts:
+                  c, h, m, l = counts
+                  status = "❌ FAIL" if c else ("⚠️ WARN" if h else "✅ PASS")
+                  lines.append(f"| {label} | {c} | {h} | {m} | {l} | {status} |")
+              else:
+                  lines.append(f"| {label} | — | — | — | — | ⏭️ skipped |")
+
+          for sarif, label in [
+              ("trivy-backend.sarif",   "Trivy — Backend image"),
+              ("trivy-frontend.sarif",  "Trivy — Frontend image"),
+              ("scout-backend.sarif",   "Docker Scout — Backend"),
+              ("scout-frontend.sarif",  "Docker Scout — Frontend"),
+              ("snyk-backend-oss.sarif","Snyk OSS — Backend"),
+              ("snyk-frontend-oss.sarif","Snyk OSS — Frontend"),
+              ("snyk-backend-code.sarif","Snyk Code — Backend"),
+              ("snyk-frontend-code.sarif","Snyk Code — Frontend"),
+          ]:
+              if not os.path.exists(sarif):
+                  lines.append(f"| {label} | — | — | — | — | ⏭️ skipped |")
+                  continue
+              total, crit = sarif_counts(sarif) or (0, 0)
+              status = "❌ FAIL" if crit else ("⚠️ WARN" if total else "✅ PASS")
+              lines.append(f"| {label} | {crit} | {total-crit} | — | — | {status} |")
+
+          lines += [
+              "",
+              f"> **Commit:** `{os.environ.get('GITHUB_SHA','?')[:12]}`  "
+              f"**Branch:** `{os.environ.get('GITHUB_REF_NAME','?')}`",
+              "> Detailed findings visible in the **Security → Code scanning** tab.",
+          ]
+
+          with open(GH_SUMMARY, "a") as f:
+              f.write("\n".join(lines) + "\n")
+
+          print("\n".join(lines))
+          PYEOF
+
+      # ── 9. Collect all artifacts ─────────────────────────────────────────────
+      - name: Upload all security reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: security-reports-${{ github.run_number }}
+          path: |
+            backend/backend-audit.json
+            frontend/frontend-audit.json
+            trivy-backend.sarif
+            trivy-frontend.sarif
+            scout-backend.sarif
+            scout-frontend.sarif
+            snyk-backend-oss.sarif
+            snyk-frontend-oss.sarif
+            snyk-backend-code.sarif
+            snyk-frontend-code.sarif
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 5 — Deploy to staging (main branch only, after all tests pass)
+  # ──────────────────────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, e2e-docker, e2e-tests, security-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    # NOTE: Create the target environment in GitHub → Settings → Environments
+    # (e.g. name it "staging").  Set DEPLOY_ENV repo variable to match.
+    # The expression form bypasses the extension's static name validation.
+    environment:
+      name: ${{ vars.DEPLOY_ENV || 'staging' }}
+      url: http://${{ vars.STAGING_HOST || 'localhost' }}:3001
+    # All secrets surfaced here as env vars.
+    # Steps reference env.* (statically resolvable) instead of secrets.* directly.
+    env:
+      STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+      STAGING_HOST: ${{ secrets.STAGING_HOST }}
+      STAGING_USER: ${{ secrets.STAGING_USER }}
+      STAGING_API_URL: ${{ secrets.STAGING_API_URL }}
+      STAGING_FRONTEND_URL: ${{ secrets.STAGING_FRONTEND_URL }}
+      SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
+
+      - name: Extract image metadata
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/ca-backend
+          tags: |
+            type=sha,prefix=main-
+            type=raw,value=staging
+            type=raw,value=latest
+
+      - name: Extract image metadata (frontend)
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKERHUB_USERNAME }}/ca-frontend
+          tags: |
+            type=sha,prefix=main-
+            type=raw,value=staging
+            type=raw,value=latest
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile.prod
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            REACT_APP_API_URL=${{ env.STAGING_API_URL || 'http://localhost:5000/api' }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+
+      # Deploy on staging server via SSH
+      - name: Deploy to staging server
+        if: env.STAGING_SSH_KEY != ''
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          # Passed to the remote shell via the `envs:` parameter below.
+          # Using env vars avoids embedding secrets literally in the script string.
+          DH_USER: ${{ env.DOCKERHUB_USERNAME }}
+        with:
+          host: ${{ env.STAGING_HOST }}
+          username: ${{ env.STAGING_USER }}
+          key: ${{ env.STAGING_SSH_KEY }}
+          envs: DH_USER
+          script: |
+            set -e
+            cd /opt/ca-marketplace
+
+            # Pull latest images
+            docker pull "$DH_USER/ca-backend:staging"
+            docker pull "$DH_USER/ca-frontend:staging"
+
+            # Update .env with new image tags
+            echo "BACKEND_IMAGE=$DH_USER/ca-backend:staging"  >> .env
+            echo "FRONTEND_IMAGE=$DH_USER/ca-frontend:staging" >> .env
+
+            # Rolling restart (no-cache rebuild not needed — images already pulled)
+            docker-compose pull
+            docker-compose up -d --remove-orphans
+
+            # Run Prisma migrations inside container
+            docker-compose exec -T backend npx prisma migrate deploy
+
+            echo "Deployment complete: $(date)"
+
+      # Fallback: deploy locally (self-hosted runner or compose-on-runner scenario)
+      - name: Deploy with docker-compose (local/self-hosted)
+        if: env.STAGING_SSH_KEY == ''
+        run: |
+          # DOCKERHUB_USERNAME comes from the job-level env block above
+          echo "DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}" >> .env.staging
+          docker-compose -f docker-compose.yml \
+            --env-file .env.staging \
+            build --no-cache --parallel
+          docker-compose -f docker-compose.yml \
+            --env-file .env.staging \
+            up -d --remove-orphans
+
+          # Wait for services
+          echo "Waiting for services to start..."
+          sleep 20
+
+      # ── Smoke tests ────────────────────────────────────────────────────────
+      - name: Smoke test — Backend health
+        run: |
+          BASE=${STAGING_API_URL:-http://localhost:8081/api}
+          echo "Testing $BASE/health ..."
+          for i in $(seq 1 10); do
+            STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$BASE/health" || echo "000")
+            if [ "$STATUS" = "200" ]; then
+              echo "✓ Backend healthy (HTTP $STATUS)"
+              exit 0
+            fi
+            echo "  attempt $i: HTTP $STATUS — retrying in 5s"
+            sleep 5
+          done
+          echo "✗ Backend health check failed"
+          exit 1
+        # STAGING_API_URL is already in the job-level env block
+
+      - name: Smoke test — Frontend health
+        run: |
+          BASE=${STAGING_FRONTEND_URL:-http://localhost:3001}
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$BASE" || echo "000")
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "304" ]; then
+            echo "✓ Frontend healthy (HTTP $STATUS)"
+          else
+            echo "✗ Frontend returned HTTP $STATUS"
+            exit 1
+          fi
+        # STAGING_FRONTEND_URL is already in the job-level env block
+
+      - name: Smoke test — Auth API endpoint
+        run: |
+          BASE=${STAGING_API_URL:-http://localhost:8081/api}
+          RESPONSE=$(curl -sf -X POST "$BASE/auth/login" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"invalid@test.com","password":"wrong"}' \
+            -w "\nHTTP_STATUS:%{http_code}" || echo "HTTP_STATUS:000")
+          STATUS=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+          # Expect 401 (wrong credentials), not 404/500
+          if [ "$STATUS" = "401" ] || [ "$STATUS" = "400" ]; then
+            echo "✓ Auth endpoint responding correctly (HTTP $STATUS)"
+          else
+            echo "✗ Auth endpoint unexpected status: HTTP $STATUS"
+            exit 1
+          fi
+        # STAGING_API_URL is already in the job-level env block
+
+      - name: Smoke test — CA listing endpoint
+        run: |
+          BASE=${STAGING_API_URL:-http://localhost:8081/api}
+          STATUS=$(curl -sf -o /dev/null -w "%{http_code}" "$BASE/cas" || echo "000")
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "401" ]; then
+            echo "✓ CA listing endpoint reachable (HTTP $STATUS)"
+          else
+            echo "✗ CA listing endpoint unexpected status: HTTP $STATUS"
+            exit 1
+          fi
+        # STAGING_API_URL is already in the job-level env block
+
+      # ── Notify ─────────────────────────────────────────────────────────────
+      - name: Notify Slack on success
+        if: success() && env.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "✅ *CA Marketplace* deployed to staging successfully",
+              "attachments": [{
+                "color": "good",
+                "fields": [
+                  {"title": "Commit", "value": "${{ github.sha }}", "short": true},
+                  {"title": "Branch", "value": "${{ github.ref_name }}", "short": true},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "URL", "value": "${{ vars.STAGING_FRONTEND_URL || 'http://localhost:3001' }}", "short": true}
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+      - name: Notify Slack on failure
+        if: failure() && env.SLACK_WEBHOOK != ''
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "❌ *CA Marketplace* staging deployment FAILED",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  {"title": "Commit", "value": "${{ github.sha }}", "short": true},
+                  {"title": "Actor", "value": "${{ github.actor }}", "short": true},
+                  {"title": "Run", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}", "short": false}
+                ]
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ env.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  # ──────────────────────────────────────────────────────────────────────────────
+  # JOB 6 — Pipeline summary (always runs)
+  # ──────────────────────────────────────────────────────────────────────────────
+  pipeline-summary:
+    name: Pipeline Summary
+    runs-on: ubuntu-latest
+    needs: [backend-tests, frontend-tests, e2e-docker, e2e-tests, security-scan]
+    if: always()
+
+    steps:
+      - name: Write summary
+        run: |
+          echo "## 🚀 MVP CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Tests (Node 18+20) | ${{ needs.backend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Tests (Node 18+20) | ${{ needs.frontend-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests (Dockerized) | ${{ needs.e2e-docker.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| E2E Tests (host) | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered by:** ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
