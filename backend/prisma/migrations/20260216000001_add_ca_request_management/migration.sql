@@ -1,8 +1,39 @@
 -- ============================================================
--- Migration: Add missing CA fields + Notification, PlatformConfig, Dispute, PasswordResetToken
+-- Migration: Add missing schema fields (enums, columns, tables)
 -- ============================================================
 
 -- 1. New Enums
+
+CREATE TYPE "EscrowStatus" AS ENUM (
+  'NOT_REQUIRED',
+  'PENDING_PAYMENT',
+  'ESCROW_HELD',
+  'PENDING_RELEASE',
+  'ESCROW_RELEASED',
+  'ESCROW_DISPUTED',
+  'ESCROW_REFUNDED'
+);
+
+CREATE TYPE "RefundReason" AS ENUM (
+  'CANCELLATION_BEFORE_START',
+  'CANCELLATION_IN_PROGRESS',
+  'CA_ABANDONMENT',
+  'QUALITY_ISSUE',
+  'DISPUTE_RESOLUTION',
+  'ADMIN_REFUND',
+  'OTHER'
+);
+
+CREATE TYPE "AbandonmentReason" AS ENUM (
+  'EMERGENCY',
+  'ILLNESS',
+  'OVERCOMMITTED',
+  'PERSONAL_REASONS',
+  'TECHNICAL_ISSUES',
+  'CLIENT_UNRESPONSIVE',
+  'OTHER'
+);
+
 CREATE TYPE "NotificationType" AS ENUM (
   'REQUEST_ACCEPTED',
   'REQUEST_REJECTED',
@@ -41,7 +72,52 @@ ALTER TABLE "CharteredAccountant"
   ADD COLUMN "lastAbandonedAt" TIMESTAMP(3),
   ADD COLUMN "reputationScore" DOUBLE PRECISION NOT NULL DEFAULT 5.0;
 
--- 3. Notification table
+-- 3. Add missing columns to ServiceRequest
+ALTER TABLE "ServiceRequest"
+  ADD COLUMN "escrowStatus" "EscrowStatus" NOT NULL DEFAULT 'NOT_REQUIRED',
+  ADD COLUMN "escrowAmount" DOUBLE PRECISION,
+  ADD COLUMN "escrowPaidAt" TIMESTAMP(3),
+  ADD COLUMN "rejectionHistory" JSONB DEFAULT '[]',
+  ADD COLUMN "reopenedCount" INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN "abandonedBy" TEXT,
+  ADD COLUMN "abandonedAt" TIMESTAMP(3),
+  ADD COLUMN "abandonmentReason" TEXT,
+  ADD COLUMN "compensationOffered" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN "acceptedAt" TIMESTAMP(3),
+  ADD COLUMN "startedAt" TIMESTAMP(3),
+  ADD COLUMN "completedAt" TIMESTAMP(3),
+  ADD COLUMN "cancelledAt" TIMESTAMP(3),
+  ADD COLUMN "disputedAt" TIMESTAMP(3),
+  ADD COLUMN "disputeReason" TEXT,
+  ADD COLUMN "disputeResolvedAt" TIMESTAMP(3),
+  ADD COLUMN "disputeResolution" TEXT;
+
+CREATE INDEX "ServiceRequest_escrowStatus_idx" ON "ServiceRequest" ("escrowStatus");
+CREATE INDEX "ServiceRequest_status_escrowStatus_idx" ON "ServiceRequest" ("status", "escrowStatus");
+CREATE INDEX "ServiceRequest_escrowStatus_disputedAt_idx" ON "ServiceRequest" ("escrowStatus", "disputedAt");
+
+-- 4. Add missing columns to Payment
+ALTER TABLE "Payment"
+  ADD COLUMN "isEscrow" BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN "escrowHeldAt" TIMESTAMP(3),
+  ADD COLUMN "escrowReleasedAt" TIMESTAMP(3),
+  ADD COLUMN "releaseApprovedBy" TEXT,
+  ADD COLUMN "autoReleaseAt" TIMESTAMP(3),
+  ADD COLUMN "refundReason" "RefundReason",
+  ADD COLUMN "refundReasonText" TEXT,
+  ADD COLUMN "refundedAt" TIMESTAMP(3),
+  ADD COLUMN "razorpayRefundId" TEXT,
+  ADD COLUMN "refundPercentage" DOUBLE PRECISION,
+  ADD COLUMN "refundProcessedBy" TEXT;
+
+CREATE UNIQUE INDEX "Payment_razorpayRefundId_key" ON "Payment" ("razorpayRefundId");
+CREATE INDEX "Payment_isEscrow_idx" ON "Payment" ("isEscrow");
+CREATE INDEX "Payment_autoReleaseAt_idx" ON "Payment" ("autoReleaseAt");
+CREATE INDEX "Payment_refundedAt_idx" ON "Payment" ("refundedAt");
+CREATE INDEX "Payment_isEscrow_autoReleaseAt_idx" ON "Payment" ("isEscrow", "autoReleaseAt");
+CREATE INDEX "Payment_isEscrow_status_idx" ON "Payment" ("isEscrow", "status");
+
+-- 5. Notification table
 CREATE TABLE "Notification" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
@@ -64,7 +140,7 @@ CREATE INDEX "Notification_type_idx" ON "Notification" ("type");
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey"
   FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- 4. platform_config table
+-- 6. platform_config table
 CREATE TABLE "platform_config" (
   "id" TEXT NOT NULL,
   "individualPlatformFeePercent" DOUBLE PRECISION NOT NULL DEFAULT 10.0,
@@ -96,7 +172,7 @@ CREATE TABLE "platform_config" (
   CONSTRAINT "platform_config_pkey" PRIMARY KEY ("id")
 );
 
--- 5. disputes table
+-- 7. disputes table
 CREATE TABLE "disputes" (
   "id" TEXT NOT NULL,
   "requestId" TEXT NOT NULL,
@@ -149,7 +225,7 @@ ALTER TABLE "disputes" ADD CONSTRAINT "disputes_caId_fkey"
 ALTER TABLE "disputes" ADD CONSTRAINT "disputes_firmId_fkey"
   FOREIGN KEY ("firmId") REFERENCES "CAFirm"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
--- 6. PasswordResetToken table
+-- 8. PasswordResetToken table
 CREATE TABLE "PasswordResetToken" (
   "id" TEXT NOT NULL,
   "userId" TEXT NOT NULL,
