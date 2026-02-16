@@ -69,7 +69,7 @@ CREATE TABLE "platform_config" (
   "id" TEXT NOT NULL,
   "individualPlatformFeePercent" DOUBLE PRECISION NOT NULL DEFAULT 10.0,
   "firmPlatformFeePercent" DOUBLE PRECISION NOT NULL DEFAULT 15.0,
-  "enabledServiceTypes" "ServiceType"[] DEFAULT ARRAY['GST_FILING':"ServiceType", 'INCOME_TAX_RETURN':"ServiceType", 'AUDIT':"ServiceType", 'ACCOUNTING':"ServiceType"],
+  "enabledServiceTypes" "ServiceType"[] DEFAULT ARRAY['GST_FILING'::"ServiceType", 'INCOME_TAX_RETURN'::"ServiceType", 'AUDIT'::"ServiceType", 'ACCOUNTING'::"ServiceType"],
   "autoVerifyCAAfterDays" INTEGER NOT NULL DEFAULT 0,
   "requireDocumentUpload" BOOLEAN NOT NULL DEFAULT true,
   "minimumExperienceYears" INTEGER NOT NULL DEFAULT 0,
