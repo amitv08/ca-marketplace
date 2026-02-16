@@ -608,17 +608,13 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
   try {
     // escrowOrder = await EscrowService.createEscrowOrder( // TEMPORARILY DISABLED
     escrowOrder = null; // TEMP: Skip escrow for testing
-    if (false) { const _unused = await Promise.resolve(
-      updated.id,
-      estimatedAmount,
-      updated.client.userId
-    );
-
-    console.log('Escrow order created:', {
-      requestId: updated.id,
-      paymentId: escrowOrder.payment.id,
-      amount: estimatedAmount,
-    });
+    if (false) {
+      const _unused = await Promise.resolve(
+        updated.id,
+        estimatedAmount,
+        updated.client.userId
+      );
+    }
   } catch (escrowError: any) {
     // Rollback request status if escrow creation fails
     await prisma.serviceRequest.update({
@@ -668,17 +664,17 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
     console.error('Failed to send in-app notification:', notifError);
   }
 
-  // Return response with escrow details
+  // Return response (escrow temporarily disabled)
   sendSuccess(res, {
     request: updated,
-    escrow: {
-      paymentId: escrowOrder.payment.id,
+    escrow: escrowOrder ? {
+      paymentId: (escrowOrder as any).payment.id,
       amount: estimatedAmount,
-      razorpayOrderId: escrowOrder.razorpayOrder.id,
+      razorpayOrderId: (escrowOrder as any).razorpayOrder.id,
       status: 'PENDING_PAYMENT',
       message: 'Please complete payment to start work',
-    },
-  }, 'Service request accepted. Client must pay into escrow before work begins.');
+    } : null,
+  }, 'Service request accepted successfully.');
 }));
 
 // PUT version for Phase-5 spec compatibility
