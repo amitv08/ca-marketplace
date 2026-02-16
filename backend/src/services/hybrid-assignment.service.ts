@@ -1,6 +1,6 @@
 import { PrismaClient, AssignmentMethod, ServiceType, ServiceRequestStatus } from '@prisma/client';
 import { CacheService } from './cache.service';
-import { EmailNotificationService } from './email-notification.service';
+import { EmailTemplateService } from './email-template.service';
 
 const prisma = new PrismaClient();
 
@@ -215,7 +215,7 @@ export class HybridAssignmentService {
     // Assign the request
     await prisma.serviceRequest.update({
       where: { id: requestId },
-      data: {
+      context: {
         caId: topCandidate.caId,
         assignmentMethod: AssignmentMethod.AUTO,
         autoAssignmentScore: Math.round(topCandidate.score),
@@ -319,7 +319,7 @@ export class HybridAssignmentService {
     // Assign the request
     await prisma.serviceRequest.update({
       where: { id: data.requestId },
-      data: {
+      context: {
         caId: data.caId,
         assignmentMethod: AssignmentMethod.MANUAL,
         assignedByUserId: data.assignedBy,
@@ -738,11 +738,11 @@ export class HybridAssignmentService {
     }
 
     // Notify client
-    await EmailNotificationService.sendEmail({
+    await EmailTemplateService.sendEmail({
       to: client.user.email,
       subject: 'Your Service Request Has Been Assigned',
       template: 'request-assigned-to-client',
-      data: {
+      context: {
         clientName: client.user.name,
         firmName: firm.firmName,
         caName: ca.user.name,
@@ -753,11 +753,11 @@ export class HybridAssignmentService {
     });
 
     // Notify assigned CA
-    await EmailNotificationService.sendEmail({
+    await EmailTemplateService.sendEmail({
       to: ca.user.email,
       subject: 'New Service Request Assigned to You',
       template: 'request-assigned-to-ca',
-      data: {
+      context: {
         caName: ca.user.name,
         clientName: client.user.name,
         firmName: firm.firmName,
@@ -803,11 +803,11 @@ export class HybridAssignmentService {
     if (!firm) return;
 
     for (const admin of firmAdmins) {
-      await EmailNotificationService.sendEmail({
+      await EmailTemplateService.sendEmail({
         to: admin.ca.user.email,
         subject: `Manual Assignment Required - ${firm.firmName}`,
         template: 'manual-assignment-required',
-        data: {
+        context: {
           adminName: admin.ca.user.name,
           firmName: firm.firmName,
           requestId,
@@ -879,7 +879,7 @@ export class HybridAssignmentService {
     // Update assignment
     await prisma.serviceRequest.update({
       where: { id: requestId },
-      data: {
+      context: {
         caId: newCaId,
         assignmentMethod: AssignmentMethod.MANUAL,
         assignedByUserId: overriddenBy,

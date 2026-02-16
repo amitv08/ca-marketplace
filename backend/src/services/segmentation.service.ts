@@ -51,7 +51,7 @@ export class SegmentationService {
       data: {
         name: data.name,
         description: data.description,
-        rules: data.rules,
+        rules: data.rules as unknown as import('@prisma/client').Prisma.InputJsonValue,
         userIds: [],
       },
     });
@@ -75,7 +75,12 @@ export class SegmentationService {
   ) {
     const segment = await prisma.userSegment.update({
       where: { id: segmentId },
-      data: updates,
+      data: {
+        ...updates,
+        ...(updates.rules !== undefined && {
+          rules: updates.rules as unknown as import('@prisma/client').Prisma.InputJsonValue,
+        }),
+      },
     });
 
     // Refresh cache after update

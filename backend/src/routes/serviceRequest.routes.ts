@@ -608,13 +608,7 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
   try {
     // escrowOrder = await EscrowService.createEscrowOrder( // TEMPORARILY DISABLED
     escrowOrder = null; // TEMP: Skip escrow for testing
-    if (false) {
-      const _unused = await Promise.resolve(
-        updated.id,
-        estimatedAmount,
-        updated.client.userId
-      );
-    }
+    // Escrow creation temporarily disabled
   } catch (escrowError: any) {
     // Rollback request status if escrow creation fails
     await prisma.serviceRequest.update({
