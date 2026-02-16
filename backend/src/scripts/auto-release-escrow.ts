@@ -5,7 +5,7 @@
  *
  * Run this script via cron job:
  * - Every hour: `0 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
- * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+ * - Every 30 minutes: `* /30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
  *
  * Usage:
  * npx ts-node src/scripts/auto-release-escrow.ts
@@ -99,6 +99,9 @@ async function autoReleaseEscrowPayments(): Promise<AutoReleaseStats> {
         // Send notification emails
         try {
           // Email to CA
+          const releasedDate = new Date();
+          const expectedTransferDate = new Date(releasedDate.getTime() + 2 * 24 * 60 * 60 * 1000); // +2 days
+
           if (payment.request.ca) {
             await EmailTemplateService.sendPaymentReleased({
               caEmail: payment.request.ca.user.email,
@@ -106,6 +109,10 @@ async function autoReleaseEscrowPayments(): Promise<AutoReleaseStats> {
               amount: payment.caAmount || payment.amount,
               clientName: payment.request.client.user.name,
               serviceType: payment.request.serviceType,
+              requestId: payment.requestId,
+              releasedDate,
+              expectedTransferDate,
+              transactionId: payment.id,
               dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
             });
             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
@@ -118,6 +125,10 @@ async function autoReleaseEscrowPayments(): Promise<AutoReleaseStats> {
             amount: payment.amount,
             clientName: payment.request.ca?.user.name || 'the CA',
             serviceType: payment.request.serviceType,
+            requestId: payment.requestId,
+            releasedDate,
+            expectedTransferDate,
+            transactionId: payment.id,
             dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/dashboard`,
           });
           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
