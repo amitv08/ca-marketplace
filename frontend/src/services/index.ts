@@ -30,9 +30,9 @@ export type { Notification, NotificationResponse, UnreadCountResponse } from './
 export type {
   RefundEligibility,
   RefundRequest,
-  RefundReason,
   RefundStatus
 } from './refundService';
+export { RefundReason } from './refundService';
 export type {
   ClientDashboardMetrics,
   CADashboardMetrics,

@@ -67,7 +67,6 @@ certbot/www/
 nginx/logs/
 
 # Prisma
-backend/prisma/migrations/*_*/
 *.env
 backend/uploads/
 *.backup
