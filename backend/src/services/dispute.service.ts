@@ -4,6 +4,8 @@ import { DisputeStatus, DisputeResolution } from '@prisma/client';
 interface CreateDisputeParams {
   requestId: string;
   clientId: string;
+  caId?: string;
+  firmId?: string;
   reason: string;
   amount: number;
   evidence?: Array<{
@@ -440,6 +442,70 @@ class DisputeService {
     });
 
     return updatedDispute;
+  }
+  /**
+   * Alias for createDispute - used by routes
+   */
+  static async raiseDispute(params: CreateDisputeParams) {
+    return this.createDispute(params);
+  }
+
+  /**
+   * Alias for addEvidence - used by routes for CA-specific evidence
+   */
+  static async addCAEvidence(params: AddEvidenceParams) {
+    return this.addEvidence(params);
+  }
+
+  /**
+   * Get dispute statistics for admin dashboard
+   */
+  static async getDisputeStats() {
+    const [total, open, underReview, awaitingEvidence, resolved, escalated] = await Promise.all([
+      prisma.dispute.count(),
+      prisma.dispute.count({ where: { status: DisputeStatus.OPEN } }),
+      prisma.dispute.count({ where: { status: DisputeStatus.UNDER_REVIEW } }),
+      prisma.dispute.count({ where: { status: DisputeStatus.AWAITING_EVIDENCE } }),
+      prisma.dispute.count({ where: { status: DisputeStatus.RESOLVED } }),
+      prisma.dispute.count({ where: { priority: { gte: 8 } } }),
+    ]);
+
+    return {
+      total,
+      open,
+      underReview,
+      awaitingEvidence,
+      resolved,
+      escalated,
+      avgResolutionTime: null, // TODO: Calculate average resolution time
+    };
+  }
+
+  /**
+   * Update dispute priority
+   */
+  static async updatePriority(disputeId: string, priority: number, updatedBy: string) {
+    if (priority < 1 || priority > 10) {
+      throw new Error('Priority must be between 1 and 10');
+    }
+
+    const dispute = await prisma.dispute.update({
+      where: { id: disputeId },
+      data: {
+        priority,
+        updatedAt: new Date(),
+      },
+      include: {
+        request: {
+          include: {
+            client: { include: { user: true } },
+            ca: { include: { user: true } },
+          },
+        },
+      },
+    });
+
+    return dispute;
   }
 }
 

@@ -5,8 +5,8 @@ import { sendSuccess, sendError, parsePaginationParams, createPaginationResponse
 
 const router = Router();
 
-// GET /api/cas - List all verified CAs (for clients to browse)
-router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
+// GET /api/cas - List all verified CAs (for clients to browse) - PUBLIC
+router.get('/', asyncHandler(async (req: Request, res: Response) => {
   const { specialization, minRating, maxHourlyRate, page, limit, sortBy = 'rating' } = req.query;
   const { skip, take } = parsePaginationParams(page as string, limit as string);
 
@@ -104,8 +104,8 @@ router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) =
   sendSuccess(res, createPaginationResponse(paginatedCAs, total, pageNum, limitNum));
 }));
 
-// GET /api/cas/:id - Get CA details by ID
-router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response) => {
+// GET /api/cas/:id - Get CA details by ID - PUBLIC
+router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   const { id } = req.params;
 
   const ca = await prisma.charteredAccountant.findUnique({
@@ -133,6 +133,11 @@ router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response
               },
             },
           },
+          request: {
+            select: {
+              serviceType: true,
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -150,6 +155,14 @@ router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response
         },
         take: 20, // Next 20 available slots
       },
+      currentFirm: {
+        select: {
+          id: true,
+          firmName: true,
+          firmType: true,
+          logoUrl: true,
+        },
+      },
     },
   });
 
@@ -157,8 +170,8 @@ router.get('/:id', authenticate, asyncHandler(async (req: Request, res: Response
     return sendError(res, 'Chartered Accountant not found', 404);
   }
 
-  // Only show verified CAs to non-admin users
-  if (ca.verificationStatus !== 'VERIFIED' && req.user!.role !== 'ADMIN') {
+  // Only show verified CAs to non-authenticated users
+  if (ca.verificationStatus !== 'VERIFIED') {
     return sendError(res, 'Chartered Accountant not found', 404);
   }
 

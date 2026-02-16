@@ -177,11 +177,14 @@ router.get(
   asyncHandler(async (req: Request, res: Response) => {
     const { status, priority, page, limit } = req.query;
 
+    const pageNum = page ? parseInt(page as string) : 1;
+    const limitNum = limit ? parseInt(limit as string) : 20;
+
     const result = await DisputeService.getDisputes({
       status: status as DisputeStatus | undefined,
       priority: priority ? parseInt(priority as string) : undefined,
-      page: page ? parseInt(page as string) : 1,
-      limit: limit ? parseInt(limit as string) : 20,
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
     });
 
     sendSuccess(res, result);
@@ -314,7 +317,7 @@ router.patch(
     const { id } = req.params;
     const { priority } = req.body;
 
-    const updated = await DisputeService.updatePriority(id, priority);
+    const updated = await DisputeService.updatePriority(id, priority, (req.user as any).userId || (req.user as any).id);
     sendSuccess(res, updated, `Priority updated to ${priority}`);
   })
 );
@@ -378,7 +381,11 @@ router.post(
       return sendError(res, 'Access denied to this dispute', 403);
     }
 
-    const updated = await DisputeService.addCAEvidence(id, evidence);
+    const updated = await DisputeService.addCAEvidence({
+      disputeId: id,
+      evidence,
+      uploadedBy: 'CA',
+    });
     sendSuccess(res, updated, 'Evidence added successfully');
   })
 );

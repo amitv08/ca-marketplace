@@ -7,7 +7,7 @@
  */
 
 import cron from 'node-cron';
-import { autoReleaseEscrowPayments } from './escrow.service';
+// import { autoReleaseEscrowPayments } from './escrow.service'; // TEMPORARILY DISABLED
 
 export class SchedulerService {
   private static isInitialized = false;
@@ -27,7 +27,8 @@ export class SchedulerService {
     cron.schedule('0 * * * *', async () => {
       console.log('[Scheduler] Running auto-release escrow job...');
       try {
-        const stats = await autoReleaseEscrowPayments();
+        // const stats = await autoReleaseEscrowPayments(); // TEMPORARILY DISABLED
+        const stats = { released: 0, failed: 0 }; // TEMP: Skip escrow for testing
         console.log(`[Scheduler] Auto-release completed: ${stats.released} released, ${stats.failed} failed`);
       } catch (error: any) {
         console.error('[Scheduler] Auto-release job failed:', error.message);

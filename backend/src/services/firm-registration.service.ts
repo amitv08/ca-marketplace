@@ -211,7 +211,12 @@ export class FirmRegistrationService {
     // 1. Get firm with members and documents
     const firm = await prisma.cAFirm.findUnique({
       where: { id: firmId },
-      include: {
+      select: {
+        id: true,
+        firmName: true,
+        firmType: true,
+        status: true,
+        gstin: true,
         members: {
           where: { isActive: true },
           include: {
@@ -319,7 +324,11 @@ export class FirmRegistrationService {
       data: {
         status: FirmStatus.PENDING_VERIFICATION,
       },
-      include: {
+      select: {
+        id: true,
+        firmName: true,
+        firmType: true,
+        status: true,
         members: {
           where: { isActive: true },
           include: {
@@ -346,16 +355,16 @@ export class FirmRegistrationService {
       if (admins.length > 0) {
         await EmailService.sendEmail({
           to: admins.map(admin => admin.email),
-          subject: `New firm pending verification: ${updatedFirm.name}`,
+          subject: `New firm pending verification: ${updatedFirm.firmName}`,
           html: `
             <h1>New Firm Verification Required</h1>
             <p>A firm has submitted their registration for verification.</p>
-            <p><strong>Firm Name:</strong> ${updatedFirm.name}</p>
+            <p><strong>Firm Name:</strong> ${updatedFirm.firmName}</p>
             <p><strong>Firm Type:</strong> ${updatedFirm.firmType.replace(/_/g, ' ')}</p>
             <p><strong>Members:</strong> ${updatedFirm.members.length}</p>
             <p>Please log in to the admin panel to review and verify this firm.</p>
           `,
-          text: `New firm pending verification: ${updatedFirm.name}. Please review in admin panel.`,
+          text: `New firm pending verification: ${updatedFirm.firmName}. Please review in admin panel.`,
         });
       }
     } catch (emailError) {
@@ -376,7 +385,13 @@ export class FirmRegistrationService {
         where: {
           status: FirmStatus.PENDING_VERIFICATION,
         },
-        include: {
+        select: {
+          id: true,
+            firmName: true,
+          firmType: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
           members: {
             where: { isActive: true },
             include: {
@@ -441,7 +456,11 @@ export class FirmRegistrationService {
     // 1. Get firm
     const firm = await prisma.cAFirm.findUnique({
       where: { id: firmId },
-      include: {
+      select: {
+        id: true,
+        firmName: true,
+        firmType: true,
+        status: true,
         members: {
           where: { isActive: true },
           include: {
@@ -477,7 +496,11 @@ export class FirmRegistrationService {
         verifiedBy: approved ? verifiedByUserId : null,
         verificationNotes,
       },
-      include: {
+      select: {
+        id: true,
+        firmName: true,
+        firmType: true,
+        status: true,
         members: {
           where: { isActive: true },
           include: {
@@ -500,27 +523,27 @@ export class FirmRegistrationService {
         if (approved) {
           await EmailService.sendEmail({
             to: memberEmails,
-            subject: `${updatedFirm.name} has been verified!`,
+            subject: `${updatedFirm.firmName} has been verified!`,
             html: `
               <h1>Firm Verified</h1>
-              <p>Congratulations! ${updatedFirm.name} has been successfully verified and is now active.</p>
+              <p>Congratulations! ${updatedFirm.firmName} has been successfully verified and is now active.</p>
               <p><strong>Verification Level:</strong> ${verificationLevel || 'VERIFIED'}</p>
               ${verificationNotes ? `<p><strong>Notes:</strong> ${verificationNotes}</p>` : ''}
               <p>You can now start accepting client requests through your firm.</p>
             `,
-            text: `Congratulations! ${updatedFirm.name} has been verified and is now active.`,
+            text: `Congratulations! ${updatedFirm.firmName} has been verified and is now active.`,
           });
         } else {
           await EmailService.sendEmail({
             to: memberEmails,
-            subject: `${updatedFirm.name} verification requires attention`,
+            subject: `${updatedFirm.firmName} verification requires attention`,
             html: `
               <h1>Firm Verification Status</h1>
-              <p>${updatedFirm.name} requires additional information for verification.</p>
+              <p>${updatedFirm.firmName} requires additional information for verification.</p>
               ${verificationNotes ? `<p><strong>Admin Notes:</strong> ${verificationNotes}</p>` : ''}
               <p>Please review the feedback and resubmit your firm for verification.</p>
             `,
-            text: `${updatedFirm.name} requires additional information. Notes: ${verificationNotes || 'Please review feedback in dashboard.'}`,
+            text: `${updatedFirm.firmName} requires additional information. Notes: ${verificationNotes || 'Please review feedback in dashboard.'}`,
           });
         }
       }
@@ -537,7 +560,12 @@ export class FirmRegistrationService {
   static async getFirmRegistrationStatus(firmId: string) {
     const firm = await prisma.cAFirm.findUnique({
       where: { id: firmId },
-      include: {
+      select: {
+        id: true,
+        firmName: true,
+        firmType: true,
+        status: true,
+        gstin: true,
         members: {
           where: { isActive: true },
           include: {
@@ -643,7 +671,9 @@ export class FirmRegistrationService {
     // 1. Get firm
     const firm = await prisma.cAFirm.findUnique({
       where: { id: firmId },
-      include: {
+      select: {
+        id: true,
+        status: true,
         members: {
           where: {
             caId,

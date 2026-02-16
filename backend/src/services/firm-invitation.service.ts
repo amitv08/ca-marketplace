@@ -157,17 +157,17 @@ export class FirmInvitationService {
 
       await EmailService.sendEmail({
         to: invitation.email,
-        subject: `Invitation to join ${invitation.firm.name}`,
+        subject: `Invitation to join ${invitation.firm.firmName}`,
         html: `
           <h1>Firm Invitation</h1>
           <p>Hi,</p>
-          <p>${invitation.invitedBy.user.name} has invited you to join ${invitation.firm.name} as a ${invitation.role.replace('_', ' ')}.</p>
+          <p>${invitation.invitedBy.user.name} has invited you to join ${invitation.firm.firmName} as a ${invitation.role.replace('_', ' ')}.</p>
           ${invitation.message ? `<p><strong>Message:</strong> ${invitation.message}</p>` : ''}
           <p>Click the link below to view and respond to this invitation:</p>
           <a href="${invitationUrl}">View Invitation</a>
           <p>This invitation expires on ${invitation.expiresAt.toLocaleDateString()}.</p>
         `,
-        text: `You have been invited to join ${invitation.firm.name}. Visit: ${invitationUrl}`,
+        text: `You have been invited to join ${invitation.firm.firmName}. Visit: ${invitationUrl}`,
       });
     } catch (emailError) {
       console.error('Failed to send invitation email:', emailError);
@@ -299,10 +299,10 @@ export class FirmInvitationService {
         html: `
           <h1>Invitation Accepted</h1>
           <p>Hi ${invitation.invitedBy.user.name},</p>
-          <p>${ca.user.name} has accepted your invitation to join ${invitation.firm.name}.</p>
+          <p>${ca.user.name} has accepted your invitation to join ${invitation.firm.firmName}.</p>
           <p>They are now an active member of your firm.</p>
         `,
-        text: `${ca.user.name} has accepted your invitation to join ${invitation.firm.name}.`,
+        text: `${ca.user.name} has accepted your invitation to join ${invitation.firm.firmName}.`,
       });
     } catch (emailError) {
       console.error('Failed to send acceptance notification:', emailError);
@@ -376,9 +376,9 @@ export class FirmInvitationService {
         html: `
           <h1>Invitation Declined</h1>
           <p>Hi ${updatedInvitation.invitedBy.user.name},</p>
-          <p>The invitation to join ${updatedInvitation.firm.name} sent to ${updatedInvitation.email} has been declined.</p>
+          <p>The invitation to join ${updatedInvitation.firm.firmName} sent to ${updatedInvitation.email} has been declined.</p>
         `,
-        text: `The invitation to join ${updatedInvitation.firm.name} sent to ${updatedInvitation.email} has been declined.`,
+        text: `The invitation to join ${updatedInvitation.firm.firmName} sent to ${updatedInvitation.email} has been declined.`,
       });
     } catch (emailError) {
       console.error('Failed to send rejection notification:', emailError);

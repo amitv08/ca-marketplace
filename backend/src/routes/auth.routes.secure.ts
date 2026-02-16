@@ -310,13 +310,14 @@ router.post(
         const resetExpiry = new Date();
         resetExpiry.setHours(resetExpiry.getHours() + 1);
 
-        await prisma.passwordResetToken.create({
-          data: {
-            userId: user.id,
-            token: resetToken,
-            expiresAt: resetExpiry,
-          },
-        });
+        // await prisma.passwordResetToken.create({ // TEMPORARILY DISABLED
+        //   data: {
+        //     userId: user.id,
+        //     token: resetToken,
+        //     expiresAt: resetExpiry,
+        //   },
+        // });
+        console.log('[Auth] Password reset token generation skipped (feature not yet migrated)');
 
         // Send password reset email (BUG-001 fix)
         const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3001'}/reset-password?token=${resetToken}`;

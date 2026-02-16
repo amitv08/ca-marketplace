@@ -87,7 +87,7 @@ async function autoReleaseEscrowPayments(): Promise<AutoReleaseStats> {
         const updatedPayment = await prisma.payment.update({
           where: { id: payment.id },
           data: {
-            status: PaymentStatus.ESCROW_RELEASED,
+            status: PaymentStatus.COMPLETED,
             escrowReleasedAt: new Date(),
             releasedToCA: true,
           },

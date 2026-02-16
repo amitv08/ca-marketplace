@@ -24,10 +24,15 @@ const HEADER_NAME = 'x-csrf-token';
 
 // Configure double submit cookie CSRF protection
 const {
-  generateToken,
+  generateCsrfToken,
   doubleCsrfProtection,
 } = doubleCsrf({
   getSecret: () => CSRF_SECRET,
+  getSessionIdentifier: (req) => {
+    // For stateless JWT-based auth, use a combination of IP and user agent
+    // This provides some session uniqueness without requiring server-side sessions
+    return `${req.ip || 'unknown'}-${req.get('user-agent') || 'unknown'}`;
+  },
   cookieName: COOKIE_NAME,
   cookieOptions: {
     sameSite: 'strict',
@@ -48,7 +53,7 @@ const {
  * Apply to a GET route (e.g., GET /api/auth/csrf-token)
  */
 export const getCsrfToken = (req: Request, res: Response): void => {
-  const token = generateToken(req, res, true); // overwrite existing token
+  const token = generateCsrfToken(req, res);
   res.json({
     success: true,
     csrfToken: token,
@@ -94,11 +99,11 @@ export const strictCsrfProtection = doubleCsrfProtection;
 /**
  * Generate CSRF token for client
  */
-export const generateCsrfToken = (req: Request, res: Response) => generateToken(req, res, true);
+export const generateCsrfTokenForClient = (req: Request, res: Response) => generateCsrfToken(req, res);
 
 export default {
   getCsrfToken,
   csrfProtection,
   strictCsrfProtection,
-  generateCsrfToken,
+  generateCsrfToken: generateCsrfTokenForClient,
 };

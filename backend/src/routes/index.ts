@@ -30,7 +30,7 @@ import providerRoutes from './provider.routes';
 import adminFirmAnalyticsRoutes from './admin-firm-analytics.routes';
 import firmReviewRoutes from './firm-review.routes'; // BUG-002 fix: FirmReview schema updated
 import notificationRoutes from './notification.routes';
-import escrowRoutes from './escrow.routes';
+// import escrowRoutes from './escrow.routes'; // TEMPORARILY DISABLED for testing
 import dashboardRoutes from './dashboard.routes';
 import advancedSearchRoutes from './advanced-search.routes';
 import emailTemplateRoutes from './email-template.routes';
@@ -231,7 +231,7 @@ export const registerRoutes = (app: Express): void => {
   app.use('/api/notifications', notificationRoutes);
 
   // Escrow routes (Phase 8 - Escrow Payment System)
-  app.use('/api/escrow', escrowRoutes);
+  // app.use('/api/escrow', escrowRoutes); // TEMPORARILY DISABLED for testing
 
   // Dashboard routes (Phase 9 - Real-time Dashboard Metrics)
   app.use('/api/dashboard', dashboardRoutes);

@@ -188,10 +188,8 @@ export class EmailService {
    * BUG-001 FIX: Now uses SendGrid for actual email delivery
    */
   private static async sendEmailInternal(emailData: EmailData): Promise<void> {
-    // Initialize SendGrid
-    if (!sgMail.client) {
-      sgMail.setApiKey(env.SENDGRID_API_KEY);
-    }
+    // Initialize SendGrid (setApiKey is idempotent, safe to call multiple times)
+    sgMail.setApiKey(env.SENDGRID_API_KEY);
 
     // In development/test, just log the email (unless SENDGRID_API_KEY is set)
     if (process.env.NODE_ENV !== 'production' && env.SENDGRID_API_KEY === 'SG.test_key') {

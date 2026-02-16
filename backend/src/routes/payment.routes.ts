@@ -583,7 +583,7 @@ async function handlePaymentCaptured(payload: any) {
           payment.request.client.user.email,
           payment.request.client.user.name,
           payment.amount,
-          payment.razorpayOrderId
+          payment.razorpayOrderId || 'N/A'
         );
       } catch (emailError) {
         console.error('Failed to send payment confirmation email:', emailError);
