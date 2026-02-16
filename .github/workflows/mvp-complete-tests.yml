@@ -214,10 +214,13 @@ jobs:
                   print(f"  {label:12s} — parse error: {e}")
                   continue
               t = data.get("total", {})
-              ln = t.get("lines",     {}).get("pct", 0)
-              br = t.get("branches",  {}).get("pct", 0)
-              fn = t.get("functions", {}).get("pct", 0)
-              st = t.get("statements",{}).get("pct", 0)
+              def _f(v):
+                  try: return float(v)
+                  except (TypeError, ValueError): return 0.0
+              ln = _f(t.get("lines",     {}).get("pct", 0))
+              br = _f(t.get("branches",  {}).get("pct", 0))
+              fn = _f(t.get("functions", {}).get("pct", 0))
+              st = _f(t.get("statements",{}).get("pct", 0))
               c  = colour(ln)
               print(f"  {BOLD}{label:12s}{RESET}  {c}{bar(ln)}{RESET}  "
                     f"Lines {ln:5.1f}%  Branches {br:5.1f}%  Fns {fn:5.1f}%")
@@ -314,9 +317,12 @@ jobs:
           with open(path) as f:
               data = json.load(f)
           t = data.get("total", {})
-          lines = t.get("lines", {}).get("pct", 0)
-          branches = t.get("branches", {}).get("pct", 0)
-          funcs = t.get("functions", {}).get("pct", 0)
+          def safe_pct(val):
+              try: return float(val)
+              except (TypeError, ValueError): return 0.0
+          lines = safe_pct(t.get("lines", {}).get("pct", 0))
+          branches = safe_pct(t.get("branches", {}).get("pct", 0))
+          funcs = safe_pct(t.get("functions", {}).get("pct", 0))
 
           emoji = lambda p: "✅" if p >= 70 else ("⚠️" if p >= 50 else "❌")
 
@@ -548,7 +554,10 @@ jobs:
                       with open(p) as f:
                           d = json.load(f)
                       t = d.get("total", {})
-                      return {k: t.get(k, {}).get("pct", 0)
+                      def _sf(v):
+                          try: return float(v)
+                          except (TypeError, ValueError): return 0.0
+                      return {k: _sf(t.get(k, {}).get("pct", 0))
                               for k in ("lines", "branches", "functions", "statements")}
                   except Exception:
                       continue
