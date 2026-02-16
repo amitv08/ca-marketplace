@@ -272,9 +272,12 @@ jobs:
               print("No coverage data found — skipping threshold check")
               sys.exit(0)
 
-          lines = t.get("lines",{}).get("pct",0)
-          branches = t.get("branches",{}).get("pct",0)
-          funcs = t.get("functions",{}).get("pct",0)
+          def _f(v):
+              try: return float(v)
+              except (TypeError, ValueError): return 0.0
+          lines = _f(t.get("lines",{}).get("pct",0))
+          branches = _f(t.get("branches",{}).get("pct",0))
+          funcs = _f(t.get("functions",{}).get("pct",0))
 
           print(f"\n  Lines     {bar(lines)}  {lines:.1f}%")
           print(f"  Branches  {bar(branches)}  {branches:.1f}%")
@@ -414,15 +417,18 @@ jobs:
           except:
               print("No coverage data — skipping threshold check")
               sys.exit(0)
-          lines = t.get("lines", {}).get("pct", 0)
+          def _sf(v):
+              try: return float(v)
+              except (TypeError, ValueError): return 0.0
+          lines = _sf(t.get("lines", {}).get("pct", 0))
           print(f"Frontend line coverage: {lines:.1f}% (threshold {THRESHOLD}%)")
           e = lambda p: "✅" if p >= THRESHOLD else "❌"
           with open(GH, "a") as f:
               f.write(f"\n## 📊 Frontend Coverage\n")
               f.write("| Metric | Coverage | Threshold |\n|--------|----------|----------|\n")
               for lbl, pct in [("Lines",lines),
-                                ("Branches",t.get("branches",{}).get("pct",0)),
-                                ("Functions",t.get("functions",{}).get("pct",0))]:
+                                ("Branches",_sf(t.get("branches",{}).get("pct",0))),
+                                ("Functions",_sf(t.get("functions",{}).get("pct",0)))]:
                   f.write(f"| {lbl} | {e(pct)} {pct:.1f}% | {THRESHOLD}% |\n")
           if lines < THRESHOLD:
               sys.exit(1)
@@ -912,9 +918,12 @@ jobs:
                   try:
                       with open(p) as f: d = json.load(f)
                       t = d.get("total", {})
-                      l = t.get("lines",{}).get("pct",0)
-                      b = t.get("branches",{}).get("pct",0)
-                      fn= t.get("functions",{}).get("pct",0)
+                      def _pf(v):
+                          try: return float(v)
+                          except (TypeError, ValueError): return 0.0
+                      l = _pf(t.get("lines",{}).get("pct",0))
+                      b = _pf(t.get("branches",{}).get("pct",0))
+                      fn= _pf(t.get("functions",{}).get("pct",0))
                       e = lambda p,thr: "✅" if p>=thr else "❌"
                       return f"{e(l,90)} {l:.0f}% / {e(b,90)} {b:.0f}% / {e(fn,90)} {fn:.0f}%"
                   except: pass

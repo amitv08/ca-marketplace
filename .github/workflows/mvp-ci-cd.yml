@@ -120,12 +120,15 @@ jobs:
           cat coverage/coverage-summary.json 2>/dev/null | \
             python3 -c "
           import sys, json
+          def _f(v):
+              try: return float(v)
+              except (TypeError, ValueError): return 0.0
           data = json.load(sys.stdin)
           total = data.get('total', {})
-          lines = total.get('lines', {}).get('pct', 0)
-          branches = total.get('branches', {}).get('pct', 0)
-          funcs = total.get('functions', {}).get('pct', 0)
-          stmts = total.get('statements', {}).get('pct', 0)
+          lines = _f(total.get('lines', {}).get('pct', 0))
+          branches = _f(total.get('branches', {}).get('pct', 0))
+          funcs = _f(total.get('functions', {}).get('pct', 0))
+          stmts = _f(total.get('statements', {}).get('pct', 0))
           print(f'Lines: {lines}%  Branches: {branches}%  Functions: {funcs}%  Statements: {stmts}%')
           if lines < 50:
               print('WARNING: Line coverage below 50%')
