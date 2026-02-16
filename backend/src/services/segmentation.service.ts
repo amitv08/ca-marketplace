@@ -73,14 +73,14 @@ export class SegmentationService {
     segmentId: string,
     updates: Partial<CreateSegmentData>
   ) {
+    const updateData: Record<string, unknown> = {};
+    if (updates.name !== undefined) updateData.name = updates.name;
+    if (updates.description !== undefined) updateData.description = updates.description;
+    if (updates.rules !== undefined) updateData.rules = updates.rules as unknown as import('@prisma/client').Prisma.InputJsonValue;
+
     const segment = await prisma.userSegment.update({
       where: { id: segmentId },
-      data: {
-        ...updates,
-        ...(updates.rules !== undefined && {
-          rules: updates.rules as unknown as import('@prisma/client').Prisma.InputJsonValue,
-        }),
-      },
+      data: updateData as Parameters<typeof prisma.userSegment.update>[0]['data'],
     });
 
     // Refresh cache after update

@@ -215,7 +215,7 @@ export class HybridAssignmentService {
     // Assign the request
     await prisma.serviceRequest.update({
       where: { id: requestId },
-      context: {
+      data: {
         caId: topCandidate.caId,
         assignmentMethod: AssignmentMethod.AUTO,
         autoAssignmentScore: Math.round(topCandidate.score),
@@ -319,7 +319,7 @@ export class HybridAssignmentService {
     // Assign the request
     await prisma.serviceRequest.update({
       where: { id: data.requestId },
-      context: {
+      data: {
         caId: data.caId,
         assignmentMethod: AssignmentMethod.MANUAL,
         assignedByUserId: data.assignedBy,
@@ -879,7 +879,7 @@ export class HybridAssignmentService {
     // Update assignment
     await prisma.serviceRequest.update({
       where: { id: requestId },
-      context: {
+      data: {
         caId: newCaId,
         assignmentMethod: AssignmentMethod.MANUAL,
         assignedByUserId: overriddenBy,
