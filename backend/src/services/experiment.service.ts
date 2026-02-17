@@ -240,11 +240,20 @@ export class ExperimentService {
    * @returns Variant ID assigned to user
    */
   static async getVariant(experimentKey: string, userId: string): Promise<string> {
-    // Check if user already assigned
+    // Look up experiment by key to get its UUID
+    const experiment = await prisma.experiment.findUnique({
+      where: { key: experimentKey },
+    });
+
+    if (!experiment) {
+      throw new Error(`Experiment ${experimentKey} not found`);
+    }
+
+    // Check if user already assigned (using UUID, not key)
     const existing = await prisma.experimentAssignment.findUnique({
       where: {
         experimentId_userId: {
-          experimentId: experimentKey,
+          experimentId: experiment.id,
           userId,
         },
       },

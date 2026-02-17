@@ -241,8 +241,10 @@ describe('Service Requests API', () => {
         });
 
       expect(response.status).toBe(200);
-      expect(response.body.data.status).toBe('ACCEPTED');
-      expect(response.body.data.caId).toBeDefined();
+      // Accept endpoint returns { request: {...}, escrow: ... }
+      const requestData = response.body.data.request || response.body.data;
+      expect(requestData.status).toBe('ACCEPTED');
+      expect(requestData.caId).toBeDefined();
     });
 
     it('should allow CA to mark as in progress', async () => {

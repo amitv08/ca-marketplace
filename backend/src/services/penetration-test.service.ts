@@ -39,7 +39,7 @@ export class PenetrationTestService {
    * Check if penetration tests can run in current environment
    */
   static canRunPenTests(): boolean {
-    const environment = env.NODE_ENV || 'development';
+    const environment = process.env.NODE_ENV || env.NODE_ENV || 'development';
 
     if (environment === 'production') {
       console.warn('Penetration tests are blocked in production environment');
