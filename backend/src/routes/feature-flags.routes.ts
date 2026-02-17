@@ -12,15 +12,23 @@ const router = Router();
 
 /**
  * GET /api/admin/feature-flags OR /api/feature-flags
- * Admin: List all feature flags (with optional filter/search)
- * Non-admin: Get enabled flags for authenticated user
+ * Admin path: List all feature flags (requires ADMIN role, supports filter/search)
+ * Client path: Get enabled flags for authenticated user
  */
 router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  const isAdminPath = req.originalUrl.startsWith('/api/admin');
   const userRole = (req as any).user?.role;
   const userId = (req as any).user?.userId || (req as any).user?.id;
 
-  if (userRole === 'ADMIN') {
-    // Admin: return all flags with optional filtering
+  if (isAdminPath) {
+    // Admin endpoint - require ADMIN role
+    if (userRole !== 'ADMIN') {
+      return res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions. Admin role required.',
+      });
+    }
+
     const { enabled, search } = req.query;
     const filters: { enabled?: boolean; search?: string } = {};
 
@@ -38,7 +46,7 @@ router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) =
     });
   }
 
-  // Non-admin: return enabled flags for user
+  // Client endpoint: return enabled flags for user
   if (!userId) {
     return res.status(401).json({
       success: false,
