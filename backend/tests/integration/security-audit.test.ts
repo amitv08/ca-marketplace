@@ -101,9 +101,7 @@ describe('Security Audit API', () => {
       expect(response.status).toBe(200);
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('data');
-      expect(response.body.data).toHaveProperty('total');
-      expect(response.body.data).toHaveProperty('page');
-      expect(response.body.data).toHaveProperty('limit');
+      expect(response.body.data).toHaveProperty('pagination');
       expect(Array.isArray(response.body.data.data)).toBe(true);
     });
 
@@ -113,8 +111,8 @@ describe('Security Audit API', () => {
         .set(testAuthHeaders.admin());
 
       expect(response.status).toBe(200);
-      expect(response.body.data.page).toBe(1);
-      expect(response.body.data.limit).toBe(5);
+      expect(response.body.data.pagination.page).toBe(1);
+      expect(response.body.data.pagination.limit).toBe(5);
     });
 
     it('should support filtering by scan type', async () => {

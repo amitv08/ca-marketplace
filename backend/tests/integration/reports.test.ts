@@ -296,7 +296,7 @@ describe('Reports API', () => {
       expect(response.body.success).toBe(true);
       expect(response.body.data).toHaveProperty('executionId');
       expect(response.body.data).toHaveProperty('status');
-      expect(response.body.message).toContain('generating');
+      expect(response.body.message).toContain('generated');
 
       executionId = response.body.data.executionId;
     });

@@ -92,8 +92,8 @@ describe('Experiments API', () => {
           ],
         });
 
-      expect(response.status).toBe(400);
-      expect(response.body.error).toContain('already exists');
+      expect(response.status).toBe(409);
+      expect(response.body.error.message).toContain('already exists');
     });
 
     it('should reject experiment with invalid weights', async () => {
@@ -110,7 +110,7 @@ describe('Experiments API', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('must sum to 100');
+      expect(response.body.message).toContain('must sum to 100');
     });
 
     it('should reject experiment with less than 2 variants', async () => {
@@ -124,7 +124,7 @@ describe('Experiments API', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('at least 2 variants');
+      expect(response.body.message).toMatch(/at least 2 variants/i);
     });
 
     it('should reject creation by non-admin', async () => {
