@@ -362,10 +362,10 @@ describe('Analytics API', () => {
     });
   });
 
-  describe('POST /api/analytics/track', () => {
+  describe('POST /api/admin/analytics/track', () => {
     it('should track analytics event for authenticated user', async () => {
       const response = await request(app)
-        .post('/api/analytics/track')
+        .post('/api/admin/analytics/track')
         .set('Authorization', `Bearer ${clientToken}`)
         .send({
           eventType: 'PAGE_VIEW',
@@ -382,7 +382,7 @@ describe('Analytics API', () => {
 
     it('should track service request creation event', async () => {
       const response = await request(app)
-        .post('/api/analytics/track')
+        .post('/api/admin/analytics/track')
         .set('Authorization', `Bearer ${clientToken}`)
         .send({
           eventType: 'REQUEST_CREATED',
@@ -398,7 +398,7 @@ describe('Analytics API', () => {
 
     it('should track payment completion event', async () => {
       const response = await request(app)
-        .post('/api/analytics/track')
+        .post('/api/admin/analytics/track')
         .set('Authorization', `Bearer ${clientToken}`)
         .send({
           eventType: 'PAYMENT_COMPLETED',
@@ -414,7 +414,7 @@ describe('Analytics API', () => {
 
     it('should reject tracking without authentication', async () => {
       const response = await request(app)
-        .post('/api/analytics/track')
+        .post('/api/admin/analytics/track')
         .send({
           eventType: 'PAGE_VIEW',
         });
@@ -424,7 +424,7 @@ describe('Analytics API', () => {
 
     it('should reject tracking without eventType', async () => {
       const response = await request(app)
-        .post('/api/analytics/track')
+        .post('/api/admin/analytics/track')
         .set('Authorization', `Bearer ${clientToken}`)
         .send({
           metadata: { page: '/dashboard' },
