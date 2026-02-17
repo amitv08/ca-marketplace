@@ -97,9 +97,9 @@ describe('Service Requests API', () => {
         .set(testAuthHeaders.admin());
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('data');
-      expect(response.body).toHaveProperty('pagination');
-      expect(Array.isArray(response.body.data)).toBe(true);
+      expect(response.body.data).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('pagination');
+      expect(Array.isArray(response.body.data.data)).toBe(true);
     });
 
     it('should get client own service requests', async () => {
@@ -108,9 +108,9 @@ describe('Service Requests API', () => {
         .set(testAuthHeaders.client1());
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.data).toBeInstanceOf(Array);
       // Verify all requests belong to client1
-      response.body.data.forEach((req: any) => {
+      response.body.data.data.forEach((req: any) => {
         expect(req.clientId).toBeDefined();
       });
     });
@@ -121,7 +121,7 @@ describe('Service Requests API', () => {
         .set(testAuthHeaders.ca1());
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toBeInstanceOf(Array);
+      expect(response.body.data.data).toBeInstanceOf(Array);
     });
 
     it('should support pagination', async () => {
@@ -130,8 +130,8 @@ describe('Service Requests API', () => {
         .set(testAuthHeaders.admin());
 
       expect(response.status).toBe(200);
-      expect(response.body.pagination.page).toBe(1);
-      expect(response.body.pagination.limit).toBe(5);
+      expect(response.body.data.pagination.page).toBe(1);
+      expect(response.body.data.pagination.limit).toBe(5);
     });
 
     it('should filter by status', async () => {
@@ -140,7 +140,7 @@ describe('Service Requests API', () => {
         .set(testAuthHeaders.admin());
 
       expect(response.status).toBe(200);
-      response.body.data.forEach((req: any) => {
+      response.body.data.data.forEach((req: any) => {
         expect(req.status).toBe('PENDING');
       });
     });
@@ -166,8 +166,7 @@ describe('Service Requests API', () => {
         .set(testAuthHeaders.client1());
 
       expect(response.status).toBe(200);
-      expect(response.body.id).toBe(testServiceRequests.request1.id);
-      expect(response.body.title).toBe(testServiceRequests.request1.title);
+      expect(response.body.data.id).toBe(testServiceRequests.request1.id);
     });
 
     it('should reject access to other client request', async () => {

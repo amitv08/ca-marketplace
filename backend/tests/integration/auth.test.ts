@@ -26,17 +26,16 @@ describe('Authentication API', () => {
         .send({
           name: 'New Client',
           email: 'newclient@test.com',
-          password: 'ValidPassword@24!',
+          password: 'Zr8!cPd5$wNf3kX',
           role: 'CLIENT',
           phoneNumber: '+919876543220',
-          address: 'New Client Address',
         });
 
       expect(response.status).toBe(201);
-      expect(response.body).toHaveProperty('user');
-      expect(response.body).toHaveProperty('token');
-      expect(response.body.user.email).toBe('newclient@test.com');
-      expect(response.body.user).not.toHaveProperty('passwordHash');
+      expect(response.body.data).toHaveProperty('user');
+      expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data.user.email).toBe('newclient@test.com');
+      expect(response.body.data.user).not.toHaveProperty('passwordHash');
     });
 
     it('should register a new CA successfully', async () => {
@@ -45,14 +44,13 @@ describe('Authentication API', () => {
         .send({
           name: 'New CA',
           email: 'newca@test.com',
-          password: 'ValidPassword@24!',
+          password: 'Zr8!cPd5$wNf3kX',
           role: 'CA',
           phoneNumber: '+919876543221',
-          address: 'New CA Address',
         });
 
       expect(response.status).toBe(201);
-      expect(response.body.user.role).toBe('CA');
+      expect(response.body.data.user.role).toBe('CA');
     });
 
     it('should reject registration with weak password', async () => {
@@ -80,7 +78,7 @@ describe('Authentication API', () => {
         });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toContain('already exists');
+      expect(response.body.error.message).toContain('already exists');
     });
 
     it('should reject registration with invalid email', async () => {
@@ -116,9 +114,9 @@ describe('Authentication API', () => {
         .send(credentials);
 
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('user');
-      expect(response.body).toHaveProperty('token');
-      expect(response.body.user.email).toBe(credentials.email);
+      expect(response.body.data).toHaveProperty('user');
+      expect(response.body.data).toHaveProperty('token');
+      expect(response.body.data.user.email).toBe(credentials.email);
     });
 
     it('should reject login with invalid password', async () => {
@@ -161,7 +159,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send(credentials);
 
-      const token = loginResponse.body.token;
+      const token = loginResponse.body.data?.token;
 
       // Then logout
       const response = await request(app)
@@ -187,7 +185,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send(credentials);
 
-      const token = loginResponse.body.token;
+      const token = loginResponse.body.data?.token;
 
       // Get profile
       const response = await request(app)
@@ -195,8 +193,8 @@ describe('Authentication API', () => {
         .set('Authorization', `Bearer ${token}`);
 
       expect(response.status).toBe(200);
-      expect(response.body.email).toBe(credentials.email);
-      expect(response.body).not.toHaveProperty('passwordHash');
+      expect(response.body.data.email).toBe(credentials.email);
+      expect(response.body.data).not.toHaveProperty('passwordHash');
     });
 
     it('should reject without authentication', async () => {
@@ -223,7 +221,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send(credentials);
 
-      const token = loginResponse.body.token;
+      const token = loginResponse.body.data?.token;
 
       // Change password
       const response = await request(app)
@@ -231,8 +229,8 @@ describe('Authentication API', () => {
         .set('Authorization', `Bearer ${token}`)
         .send({
           currentPassword: credentials.password,
-          newPassword: 'NewValidPassword@24!',
-          confirmPassword: 'NewValidPassword@24!',
+          newPassword: 'Br6@jKm4#vXn2pQ',
+          confirmPassword: 'Br6@jKm4#vXn2pQ',
         });
 
       expect(response.status).toBe(200);
@@ -242,7 +240,7 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send({
           email: credentials.email,
-          password: 'NewValidPassword@24!',
+          password: 'Br6@jKm4#vXn2pQ',
         });
 
       expect(newLoginResponse.status).toBe(200);
@@ -254,15 +252,15 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send(credentials);
 
-      const token = loginResponse.body.token;
+      const token = loginResponse.body.data?.token;
 
       const response = await request(app)
         .put('/api/auth/change-password')
         .set('Authorization', `Bearer ${token}`)
         .send({
           currentPassword: 'WrongPassword',
-          newPassword: 'NewValidPassword@24!',
-          confirmPassword: 'NewValidPassword@24!',
+          newPassword: 'Br6@jKm4#vXn2pQ',
+          confirmPassword: 'Br6@jKm4#vXn2pQ',
         });
 
       expect(response.status).toBe(400);
@@ -274,15 +272,15 @@ describe('Authentication API', () => {
         .post('/api/auth/login')
         .send(credentials);
 
-      const token = loginResponse.body.token;
+      const token = loginResponse.body.data?.token;
 
       const response = await request(app)
         .put('/api/auth/change-password')
         .set('Authorization', `Bearer ${token}`)
         .send({
           currentPassword: credentials.password,
-          newPassword: 'NewValidPassword@24!',
-          confirmPassword: 'DifferentPassword@Pass24!',
+          newPassword: 'Br6@jKm4#vXn2pQ',
+          confirmPassword: 'Xk9#mL2fTy4$Jw!',
         });
 
       expect(response.status).toBe(400);

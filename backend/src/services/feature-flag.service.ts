@@ -281,12 +281,27 @@ export class FeatureFlagService {
   }
 
   /**
-   * Get all feature flags
+   * Get all feature flags with optional filtering
    *
+   * @param filters - Optional filters (enabled, search)
    * @returns Array of feature flags
    */
-  static async getAllFlags() {
+  static async getAllFlags(filters?: { enabled?: boolean; search?: string }) {
+    const where: any = {};
+
+    if (filters?.enabled !== undefined) {
+      where.enabled = filters.enabled;
+    }
+
+    if (filters?.search) {
+      where.OR = [
+        { key: { contains: filters.search, mode: 'insensitive' } },
+        { name: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
     return await prisma.featureFlag.findMany({
+      where,
       orderBy: { createdAt: 'desc' },
     });
   }

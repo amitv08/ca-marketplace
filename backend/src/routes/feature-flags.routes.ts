@@ -11,17 +11,46 @@ import { authenticate, authorize, asyncHandler } from '../middleware';
 const router = Router();
 
 /**
- * GET /api/admin/feature-flags
- * List all feature flags
- *
- * Requires: ADMIN or SUPER_ADMIN role
+ * GET /api/admin/feature-flags OR /api/feature-flags
+ * Admin: List all feature flags (with optional filter/search)
+ * Non-admin: Get enabled flags for authenticated user
  */
-router.get('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
-  const flags = await FeatureFlagService.getAllFlags();
+router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
+  const userRole = (req as any).user?.role;
+  const userId = (req as any).user?.userId || (req as any).user?.id;
+
+  if (userRole === 'ADMIN') {
+    // Admin: return all flags with optional filtering
+    const { enabled, search } = req.query;
+    const filters: { enabled?: boolean; search?: string } = {};
+
+    if (enabled !== undefined) {
+      filters.enabled = enabled === 'true';
+    }
+    if (search) {
+      filters.search = search as string;
+    }
+
+    const flags = await FeatureFlagService.getAllFlags(filters);
+    return res.json({
+      success: true,
+      data: flags,
+    });
+  }
+
+  // Non-admin: return enabled flags for user
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication required',
+    });
+  }
+
+  const enabledFlags = await FeatureFlagService.getEnabledFlags(userId, userRole);
 
   res.json({
     success: true,
-    data: flags,
+    data: enabledFlags,
   });
 }));
 
@@ -29,16 +58,7 @@ router.get('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Reque
  * POST /api/admin/feature-flags
  * Create a new feature flag
  *
- * Body:
- * - key: Unique flag key
- * - name: Display name
- * - description (optional): Description
- * - enabled (optional): Initial enabled state
- * - rolloutPercent (optional): Rollout percentage 0-100
- * - targetRoles (optional): Array of target roles
- * - targetUserIds (optional): Array of specific user IDs
- *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.post('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key, name, description, enabled, rolloutPercent, targetRoles, targetUserIds } = req.body;
@@ -46,7 +66,7 @@ router.post('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Requ
   if (!key || !name) {
     return res.status(400).json({
       success: false,
-      message: 'Missing required fields: key, name',
+      error: { message: 'Missing required fields: key, name' },
     });
   }
 
@@ -54,7 +74,7 @@ router.post('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Requ
   if (!/^[a-zA-Z0-9_-]+$/.test(key)) {
     return res.status(400).json({
       success: false,
-      message: 'Flag key must contain only alphanumeric characters, hyphens, and underscores',
+      error: { message: 'Flag key must contain only alphanumeric characters, hyphens, and underscores' },
     });
   }
 
@@ -62,7 +82,7 @@ router.post('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Requ
   if (key.length > 100) {
     return res.status(400).json({
       success: false,
-      message: 'Flag key must be less than 100 characters',
+      error: { message: 'Flag key must be less than 100 characters' },
     });
   }
 
@@ -70,7 +90,7 @@ router.post('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Requ
   if (rolloutPercent !== undefined && (rolloutPercent < 0 || rolloutPercent > 100)) {
     return res.status(400).json({
       success: false,
-      message: 'rolloutPercent must be between 0 and 100',
+      error: { message: 'rolloutPercent must be between 0 and 100' },
     });
   }
 
@@ -82,7 +102,7 @@ router.post('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Requ
     if (invalidRoles.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Invalid roles: ${invalidRoles.join(', ')}`,
+        error: { message: `Invalid roles: ${invalidRoles.join(', ')}` },
       });
     }
   }
@@ -92,32 +112,43 @@ router.post('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Requ
     if (targetUserIds.length > 10000) {
       return res.status(400).json({
         success: false,
-        message: 'Maximum 10,000 target user IDs allowed',
+        error: { message: 'Maximum 10,000 target user IDs allowed' },
       });
     }
   }
 
-  const flag = await FeatureFlagService.createFlag({
-    key,
-    name,
-    description,
-    enabled,
-    rolloutPercent,
-    targetRoles,
-    targetUserIds,
-  });
+  try {
+    const flag = await FeatureFlagService.createFlag({
+      key,
+      name,
+      description,
+      enabled,
+      rolloutPercent,
+      targetRoles,
+      targetUserIds,
+    });
 
-  res.status(201).json({
-    success: true,
-    data: flag,
-  });
+    res.status(201).json({
+      success: true,
+      data: flag,
+    });
+  } catch (error: any) {
+    // Handle unique constraint violation (duplicate key)
+    if (error?.code === 'P2002') {
+      return res.status(409).json({
+        success: false,
+        error: { message: `Feature flag with key '${key}' already exists` },
+      });
+    }
+    throw error;
+  }
 }));
 
 /**
  * GET /api/admin/feature-flags/:key
  * Get feature flag details
  *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.get('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
@@ -140,7 +171,7 @@ router.get('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: R
  * GET /api/admin/feature-flags/:key/stats
  * Get feature flag statistics
  *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.get('/:key/stats', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
@@ -156,9 +187,7 @@ router.get('/:key/stats', authenticate, authorize('ADMIN'), asyncHandler(async (
  * PUT /api/admin/feature-flags/:key
  * Update feature flag
  *
- * Body: Same as POST (all fields optional)
- *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.put('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
@@ -168,7 +197,7 @@ router.put('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: R
   if (updates.rolloutPercent !== undefined && (updates.rolloutPercent < 0 || updates.rolloutPercent > 100)) {
     return res.status(400).json({
       success: false,
-      message: 'rolloutPercent must be between 0 and 100',
+      error: { message: 'rolloutPercent must be between 0 and 100' },
     });
   }
 
@@ -180,7 +209,7 @@ router.put('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: R
     if (invalidRoles.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `Invalid roles: ${invalidRoles.join(', ')}`,
+        error: { message: `Invalid roles: ${invalidRoles.join(', ')}` },
       });
     }
   }
@@ -190,7 +219,7 @@ router.put('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: R
     if (updates.targetUserIds.length > 10000) {
       return res.status(400).json({
         success: false,
-        message: 'Maximum 10,000 target user IDs allowed',
+        error: { message: 'Maximum 10,000 target user IDs allowed' },
       });
     }
   }
@@ -207,7 +236,7 @@ router.put('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: R
  * PUT /api/admin/feature-flags/:key/enable
  * Enable a feature flag
  *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.put('/:key/enable', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
@@ -216,6 +245,7 @@ router.put('/:key/enable', authenticate, authorize('ADMIN'), asyncHandler(async 
   res.json({
     success: true,
     data: flag,
+    message: `Feature flag '${key}' enabled successfully`,
   });
 }));
 
@@ -223,7 +253,7 @@ router.put('/:key/enable', authenticate, authorize('ADMIN'), asyncHandler(async 
  * PUT /api/admin/feature-flags/:key/disable
  * Disable a feature flag
  *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.put('/:key/disable', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
@@ -232,6 +262,7 @@ router.put('/:key/disable', authenticate, authorize('ADMIN'), asyncHandler(async
   res.json({
     success: true,
     data: flag,
+    message: `Feature flag '${key}' disabled successfully`,
   });
 }));
 
@@ -239,10 +270,7 @@ router.put('/:key/disable', authenticate, authorize('ADMIN'), asyncHandler(async
  * PUT /api/admin/feature-flags/:key/rollout
  * Set rollout percentage
  *
- * Body:
- * - percent: Rollout percentage (0-100)
- *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.put('/:key/rollout', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
@@ -260,6 +288,7 @@ router.put('/:key/rollout', authenticate, authorize('ADMIN'), asyncHandler(async
   res.json({
     success: true,
     data: flag,
+    message: `Rollout percentage set to ${percent}%`,
   });
 }));
 
@@ -267,7 +296,7 @@ router.put('/:key/rollout', authenticate, authorize('ADMIN'), asyncHandler(async
  * DELETE /api/admin/feature-flags/:key
  * Delete a feature flag
  *
- * Requires: ADMIN or SUPER_ADMIN role
+ * Requires: ADMIN role
  */
 router.delete('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { key } = req.params;
@@ -276,32 +305,6 @@ router.delete('/:key', authenticate, authorize('ADMIN'), asyncHandler(async (req
   res.json({
     success: true,
     message: 'Feature flag deleted successfully',
-  });
-}));
-
-/**
- * GET /api/feature-flags
- * Get enabled flags for authenticated user (client-facing)
- *
- * Requires: Authentication
- */
-router.get('/', authenticate, asyncHandler(async (req: Request, res: Response) => {
-  // Get user info from auth middleware
-  const userId = (req as any).user?.userId || (req as any).user?.id;
-  const userRole = (req as any).user?.role;
-
-  if (!userId) {
-    return res.status(401).json({
-      success: false,
-      message: 'Authentication required',
-    });
-  }
-
-  const enabledFlags = await FeatureFlagService.getEnabledFlags(userId, userRole);
-
-  res.json({
-    success: true,
-    data: enabledFlags,
   });
 }));
 
@@ -322,6 +325,15 @@ router.get('/:key/check', authenticate, asyncHandler(async (req: Request, res: R
     return res.status(401).json({
       success: false,
       message: 'Authentication required',
+    });
+  }
+
+  // Check if flag exists first
+  const flag = await FeatureFlagService.getFlag(key);
+  if (!flag) {
+    return res.status(404).json({
+      success: false,
+      message: `Feature flag '${key}' not found`,
     });
   }
 

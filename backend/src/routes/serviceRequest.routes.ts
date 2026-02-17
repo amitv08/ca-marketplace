@@ -59,6 +59,17 @@ router.post('/', authenticate, authorize('CLIENT'), validateBody(createRequestSc
     return sendError(res, 'You can only have 3 pending requests at a time. Please wait for existing requests to be accepted or cancel them.', 400);
   }
 
+  // Validate deadline is in the future
+  if (deadline) {
+    const deadlineDate = new Date(deadline);
+    if (isNaN(deadlineDate.getTime())) {
+      return sendError(res, 'Invalid date format for deadline', 400);
+    }
+    if (deadlineDate <= new Date()) {
+      return sendError(res, 'Deadline must be a future date', 400);
+    }
+  }
+
   // Validate provider selection
   let assignmentMethod: 'AUTO' | 'MANUAL' | 'CLIENT_SPECIFIED' | null = null;
   let validatedCaId = caId;
