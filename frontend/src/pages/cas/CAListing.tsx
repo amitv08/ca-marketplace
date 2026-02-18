@@ -817,7 +817,7 @@ const CAListing: React.FC = () => {
                         {provider.specialization.slice(0, 3).map((spec) => (
                           <span
                             key={spec}
-                            className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                            className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
                           >
                             {spec.replace(/_/g, ' ')}
                           </span>

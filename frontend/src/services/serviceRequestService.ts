@@ -46,8 +46,8 @@ const serviceRequestService = {
   },
 
   // Accept service request (CA)
-  acceptRequest: async (id: string) => {
-    const response = await api.put(`/service-requests/${id}/accept`);
+  acceptRequest: async (id: string, data: { estimatedAmount: number; note?: string }) => {
+    const response = await api.post(`/service-requests/${id}/accept`, data);
     return response.data;
   },
 

@@ -97,6 +97,11 @@ const RequestDetailsPage: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Accept modal state
+  const [showAcceptModal, setShowAcceptModal] = useState(false);
+  const [acceptAmount, setAcceptAmount] = useState('');
+  const [acceptNote, setAcceptNote] = useState('');
+
   useEffect(() => {
     if (id) {
       fetchRequestDetails();
@@ -234,6 +239,33 @@ const RequestDetailsPage: React.FC = () => {
     }
   };
 
+  const handleAcceptSubmit = async () => {
+    const amount = Number(acceptAmount);
+    if (!amount || amount < 1 || amount > 10000000) {
+      setError('Please enter a valid amount between ₹1 and ₹1,00,00,000');
+      return;
+    }
+    try {
+      setActionLoading(true);
+      setError('');
+      setSuccess('');
+      await serviceRequestService.acceptRequest(id!, {
+        estimatedAmount: amount,
+        ...(acceptNote.trim() ? { note: acceptNote.trim() } : {}),
+      });
+      setSuccess('Request accepted successfully!');
+      setShowAcceptModal(false);
+      setAcceptAmount('');
+      setAcceptNote('');
+      await fetchRequestDetails();
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to accept request');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleStatusUpdate = async (action: string) => {
     try {
       setActionLoading(true);
@@ -241,10 +273,17 @@ const RequestDetailsPage: React.FC = () => {
       setSuccess('');
 
       switch (action) {
-        case 'accept':
-          await serviceRequestService.acceptRequest(id!);
-          setSuccess('Request accepted successfully!');
-          break;
+        case 'accept': {
+          // Show accept modal instead of directly accepting
+          const suggestedAmount = request?.ca?.hourlyRate && request?.estimatedHours
+            ? String(Math.round(request.ca.hourlyRate * request.estimatedHours))
+            : '';
+          setAcceptAmount(suggestedAmount);
+          setAcceptNote('');
+          setActionLoading(false);
+          setShowAcceptModal(true);
+          return;
+        }
         case 'reject':
           await api.put(`/service-requests/${id}/reject`, { reason: 'Unavailable' });
           setSuccess('Request rejected');
@@ -432,6 +471,54 @@ const RequestDetailsPage: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              {/* Fee Estimate */}
+              {(request.ca?.hourlyRate || request.firm || request.escrowAmount) && (
+                <div className="pt-4 border-t">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fee Estimate
+                  </label>
+                  <div className="bg-blue-50 rounded-lg p-3 space-y-1">
+                    {request.ca?.hourlyRate && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">CA Hourly Rate</span>
+                        <span className="font-medium text-gray-900">₹{request.ca.hourlyRate.toLocaleString()}/hr</span>
+                      </div>
+                    )}
+                    {request.firm && !request.ca && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Provider</span>
+                        <span className="font-medium text-gray-900">{request.firm.firmName}</span>
+                      </div>
+                    )}
+                    {request.estimatedHours && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Estimated Hours</span>
+                        <span className="font-medium text-gray-900">{request.estimatedHours} hrs</span>
+                      </div>
+                    )}
+                    {request.ca?.hourlyRate && request.estimatedHours && (
+                      <div className="flex justify-between text-sm font-semibold border-t border-blue-200 pt-1 mt-1">
+                        <span className="text-gray-700">Indicative Cost</span>
+                        <span className="text-blue-700">₹{(request.ca.hourlyRate * request.estimatedHours).toLocaleString()}</span>
+                      </div>
+                    )}
+                    {request.escrowAmount && (
+                      <div className="flex justify-between text-sm font-semibold border-t border-blue-200 pt-1 mt-1">
+                        <span className="text-gray-700">Agreed Amount</span>
+                        <span className="text-green-700">₹{request.escrowAmount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {request.escrowAmount
+                        ? 'Final agreed fee set by CA/firm on acceptance.'
+                        : request.firm && !request.ca
+                        ? 'Final fee will be confirmed by the assigned CA from the firm.'
+                        : 'Final fee is set by the CA when accepting the request.'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4 pt-4 border-t">
                 <div>
@@ -921,6 +1008,105 @@ const RequestDetailsPage: React.FC = () => {
           </Card>
         </div>
       </div>
+
+      {/* Accept Request Modal */}
+      {showAcceptModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-1">Accept Request</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              Set the fee for this service. The client will be notified and asked to pay into escrow.
+            </p>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                {error}
+              </div>
+            )}
+
+            {/* Fee reference */}
+            {request?.ca?.hourlyRate ? (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Your hourly rate</span>
+                  <span className="font-medium">₹{request.ca.hourlyRate.toLocaleString()}/hr</span>
+                </div>
+                {request.estimatedHours && (
+                  <div className="flex justify-between mt-1">
+                    <span className="text-gray-600">Client estimated hours</span>
+                    <span className="font-medium">{request.estimatedHours} hrs</span>
+                  </div>
+                )}
+              </div>
+            ) : request?.firm ? (
+              <div className="mb-4 p-3 bg-purple-50 rounded-lg text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Firm</span>
+                  <span className="font-medium">{request.firm.firmName}</span>
+                </div>
+                {request.estimatedHours && (
+                  <div className="flex justify-between mt-1">
+                    <span className="text-gray-600">Client estimated hours</span>
+                    <span className="font-medium">{request.estimatedHours} hrs</span>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500 mt-1">Enter the agreed fee based on your firm's standard rates.</p>
+              </div>
+            ) : null}
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Agreed Fee (₹) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="e.g. 5000"
+                value={acceptAmount}
+                onChange={(e) => setAcceptAmount(e.target.value)}
+                min="1"
+                max="10000000"
+              />
+              <p className="text-xs text-gray-500 mt-1">Between ₹1 and ₹1,00,00,000</p>
+            </div>
+
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Note to Client (Optional)
+              </label>
+              <textarea
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                rows={3}
+                placeholder="e.g. I'll start working on this after the payment is received."
+                value={acceptNote}
+                onChange={(e) => setAcceptNote(e.target.value)}
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                fullWidth
+                variant="outline"
+                onClick={() => {
+                  setShowAcceptModal(false);
+                  setError('');
+                }}
+                disabled={actionLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                fullWidth
+                onClick={handleAcceptSubmit}
+                isLoading={actionLoading}
+                disabled={!acceptAmount}
+              >
+                Confirm & Accept
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
