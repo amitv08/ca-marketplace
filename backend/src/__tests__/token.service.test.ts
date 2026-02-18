@@ -172,6 +172,9 @@ describe('TokenService', () => {
     it('should generate new access token from refresh token', async () => {
       const { refreshToken } = TokenService.generateTokenPair(mockPayload);
 
+      // refreshAccessToken requires the token to be stored first (token rotation check)
+      await TokenService.storeRefreshToken(mockPayload.userId, refreshToken);
+
       const newAccessToken = await TokenService.refreshAccessToken(refreshToken);
 
       expect(newAccessToken).toBeTruthy();

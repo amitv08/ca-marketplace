@@ -20,8 +20,13 @@ const router = Router();
 router.get('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Request, res: Response) => {
   const { PrismaClient } = await import('@prisma/client');
   const prisma = new PrismaClient();
+  const { reportType, enabled } = req.query;
 
   const reports = await prisma.scheduledReport.findMany({
+    where: {
+      ...(reportType ? { reportType: reportType as string } : {}),
+      ...(enabled !== undefined ? { enabled: enabled === 'true' } : {}),
+    },
     orderBy: { createdAt: 'desc' },
     include: {
       _count: {

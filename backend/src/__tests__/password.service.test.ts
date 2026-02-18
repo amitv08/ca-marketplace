@@ -3,7 +3,7 @@ import { PasswordService } from '../services/password.service';
 describe('PasswordService', () => {
   describe('validatePasswordPolicy', () => {
     it('should accept a valid password', () => {
-      const password = 'SecureP@ssw0rd123';
+      const password = 'SecureP@ssW0rdXvZ';
       const result = PasswordService.validatePasswordPolicy(password);
 
       expect(result.valid).toBe(true);

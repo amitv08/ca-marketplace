@@ -6,6 +6,7 @@ import request from 'supertest';
 import app from '../../src/server';
 import { clearDatabase, seedDatabase } from '../utils/database.utils';
 import { testUsers, getUserCredentials } from '../fixtures/users.fixture';
+import { testAuthHeaders } from '../utils/auth.utils';
 
 describe('Authentication API', () => {
   beforeAll(async () => {
@@ -30,7 +31,6 @@ describe('Authentication API', () => {
           role: 'CLIENT',
           phoneNumber: '+919876543220',
         });
-
       expect(response.status).toBe(201);
       expect(response.body.data).toHaveProperty('user');
       expect(response.body.data).toHaveProperty('token');
@@ -179,21 +179,13 @@ describe('Authentication API', () => {
 
   describe('GET /api/auth/me', () => {
     it('should get current user profile', async () => {
-      // Login first
-      const credentials = getUserCredentials('client1');
-      const loginResponse = await request(app)
-        .post('/api/auth/login')
-        .send(credentials);
-
-      const token = loginResponse.body.data?.token;
-
-      // Get profile
+      // Use pre-generated token to avoid blacklist timing issues from prior logout test
       const response = await request(app)
         .get('/api/auth/me')
-        .set('Authorization', `Bearer ${token}`);
+        .set(testAuthHeaders.client2());
 
       expect(response.status).toBe(200);
-      expect(response.body.data.email).toBe(credentials.email);
+      expect(response.body.data.email).toBe(testUsers.client2.email);
       expect(response.body.data).not.toHaveProperty('passwordHash');
     });
 

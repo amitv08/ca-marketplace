@@ -6,9 +6,15 @@ module.exports = {
     '**/__tests__/**/*.ts',
     '**/?(*.)+(spec|test).ts'
   ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/tests/e2e/',      // Playwright tests - run via playwright, not jest
+    '<rootDir>/src/__tests__/setup\\.ts',  // Lifecycle-only setup file, no tests
+  ],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
       isolatedModules: true,
+      tsconfig: '<rootDir>/tsconfig.test.json',
     }],
     '^.+\\.js$': ['ts-jest', {
       isolatedModules: true,

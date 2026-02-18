@@ -22,61 +22,58 @@ const prisma = new PrismaClient();
 
 /**
  * Clear all data from test database
+ * Uses CASCADE on each table individually to avoid FK ordering issues.
+ * Tables that don't exist are silently skipped.
  */
 export async function clearDatabase() {
+  // Order matters: child tables before parent tables to avoid FK issues
   const tables = [
+    // Analytics / experiment tables
+    'ReportExecution',
+    'ScheduledReport',
+    'ExperimentAssignment',
+    'Experiment',
+    'UserSegment',
+    'FeatureFlag',
+    'DailyMetric',
+    'AnalyticsEvent',
+    // Security tables
+    'CspViolation',
+    'SecurityScan',
+    // Firm tables
+    'FirmMembershipHistory',
+    'FirmPaymentDistribution',
+    'FirmReview',
+    'FirmAssignmentRule',
+    'FirmDocument',
+    'FirmInvitation',
+    'FirmMembership',
+    'CAFirm',
+    // Password / token tables (no FK constraints but should be cleared)
+    'PasswordHistory',
+    'PasswordResetToken',
+    'AuditLog',
+    // Core tables (in FK-safe order)
     'Message',
     'Review',
     'Payment',
     'ServiceRequest',
     'Availability',
+    'Notification',
     'Client',
     'CharteredAccountant',
     'User',
   ];
 
-  try {
-    // First, check which tables actually exist
-    const existingTables: string[] = [];
-    for (const table of tables) {
-      try {
-        const result = await prisma.$queryRawUnsafe<any[]>(
-          `SELECT to_regclass('public."${table}"') as exists;`
-        );
-        if (result[0]?.exists) {
-          existingTables.push(table);
-        }
-      } catch (error: any) {
-        // Silently skip if we can't check table existence
-        console.log(`Could not check table ${table}, skipping`);
+  for (const table of tables) {
+    try {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE;`);
+    } catch (error: any) {
+      // Silently skip tables that don't exist
+      if (!error.message?.includes('does not exist')) {
+        console.warn(`Could not truncate table ${table}:`, error.message);
       }
     }
-
-    // If no tables exist, migrations probably haven't run yet
-    if (existingTables.length === 0) {
-      console.log('No tables found - database might not be migrated yet');
-      return;
-    }
-
-    // Disable foreign key checks
-    await prisma.$executeRaw`SET session_replication_role = 'replica';`;
-
-    // Only truncate tables that exist
-    for (const table of existingTables) {
-      try {
-        await prisma.$executeRawUnsafe(
-          `TRUNCATE TABLE "${table}" RESTART IDENTITY CASCADE;`
-        );
-      } catch (error: any) {
-        console.warn(`Error truncating table ${table}:`, error.message);
-      }
-    }
-
-    // Re-enable foreign key checks
-    await prisma.$executeRaw`SET session_replication_role = 'origin';`;
-  } catch (error: any) {
-    // Log but don't throw - allow tests to continue
-    console.warn('Error in clearDatabase:', error.message);
   }
 }
 
