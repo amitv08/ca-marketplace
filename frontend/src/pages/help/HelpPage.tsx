@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  BookOpenIcon,
-  UserCircleIcon,
-  BriefcaseIcon,
-  BuildingOfficeIcon,
-  CreditCardIcon,
-  QuestionMarkCircleIcon,
-  LifebuoyIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-} from '@heroicons/react/24/outline';
+import BookOpenIcon from '@heroicons/react/24/outline/BookOpenIcon';
+import UserCircleIcon from '@heroicons/react/24/outline/UserCircleIcon';
+import BriefcaseIcon from '@heroicons/react/24/outline/BriefcaseIcon';
+import BuildingOfficeIcon from '@heroicons/react/24/outline/BuildingOfficeIcon';
+import CreditCardIcon from '@heroicons/react/24/outline/CreditCardIcon';
+import QuestionMarkCircleIcon from '@heroicons/react/24/outline/QuestionMarkCircleIcon';
+import LifebuoyIcon from '@heroicons/react/24/outline/LifebuoyIcon';
+import ChevronDownIcon from '@heroicons/react/24/outline/ChevronDownIcon';
+import ChevronRightIcon from '@heroicons/react/24/outline/ChevronRightIcon';
 import { useAppSelector } from '../../store/hooks';
 
 interface Section {
