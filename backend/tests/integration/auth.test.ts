@@ -239,16 +239,10 @@ describe('Authentication API', () => {
     });
 
     it('should reject with wrong current password', async () => {
-      const credentials = getUserCredentials('client1');
-      const loginResponse = await request(app)
-        .post('/api/auth/login')
-        .send(credentials);
-
-      const token = loginResponse.body.data?.token;
-
+      // Use pre-generated token to avoid login rate-limit / DB issues in CI
       const response = await request(app)
         .put('/api/auth/change-password')
-        .set('Authorization', `Bearer ${token}`)
+        .set(testAuthHeaders.client1())
         .send({
           currentPassword: 'WrongPassword',
           newPassword: 'Br6@jKm4#vXn2pQ',
@@ -260,15 +254,10 @@ describe('Authentication API', () => {
 
     it('should reject when passwords do not match', async () => {
       const credentials = getUserCredentials('client1');
-      const loginResponse = await request(app)
-        .post('/api/auth/login')
-        .send(credentials);
-
-      const token = loginResponse.body.data?.token;
-
+      // Use pre-generated token to avoid login rate-limit / DB issues in CI
       const response = await request(app)
         .put('/api/auth/change-password')
-        .set('Authorization', `Bearer ${token}`)
+        .set(testAuthHeaders.client1())
         .send({
           currentPassword: credentials.password,
           newPassword: 'Br6@jKm4#vXn2pQ',

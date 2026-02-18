@@ -64,7 +64,7 @@ jobs:
         working-directory: ./backend
         run: |
           cp .env.example .env
-          echo "DATABASE_URL=postgresql://caadmin:CaSecure123!@localhost:5432/camarketplace_test" >> .env
+          echo "DATABASE_URL=postgresql://caadmin:CaSecure123!@localhost:5432/camarketplace_test?connection_limit=5" >> .env
 
       - name: 🗄️ Setup database
         working-directory: ./backend
@@ -78,7 +78,7 @@ jobs:
         run: npm run test:all -- --coverage --forceExit
         env:
           NODE_ENV: test
-          DATABASE_URL: postgresql://caadmin:CaSecure123!@localhost:5432/camarketplace_test
+          DATABASE_URL: postgresql://caadmin:CaSecure123!@localhost:5432/camarketplace_test?connection_limit=5
 
       - name: 📊 Upload coverage to Codecov
         uses: codecov/codecov-action@v3

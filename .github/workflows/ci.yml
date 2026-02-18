@@ -73,7 +73,7 @@ jobs:
 
     env:
       NODE_ENV: test
-      DATABASE_URL: postgresql://caadmin:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/camarketplace
+      DATABASE_URL: postgresql://caadmin:${{ secrets.POSTGRES_PASSWORD }}@localhost:5432/camarketplace?connection_limit=5
       JWT_SECRET: ${{ secrets.JWT_SECRET }}
       JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
       JWT_EXPIRES_IN: 15m
