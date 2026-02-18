@@ -148,7 +148,7 @@ const ClientDashboard: React.FC = () => {
           type: 'warning',
           message: `Payment required for completed ${req.serviceType.replace(/_/g, ' ').toLowerCase()} service`,
           time: getRelativeTime(req.completedAt || req.updatedAt),
-          link: `/requests/${req.id}`,
+          link: `/payment/${req.id}`,
         });
       });
 

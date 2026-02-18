@@ -21,6 +21,7 @@ import {
   Card,
   CardContent,
   CardHeader,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
   Settings as SettingsIcon,
@@ -227,7 +228,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Individual CA Platform Fee"
                       type="number"
                       value={config.individualPlatformFeePercent}
-                      onChange={e => handleChange('individualPlatformFeePercent', parseFloat(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('individualPlatformFeePercent', parseFloat(e.target.value))}
                       InputProps={{
                         endAdornment: <InputAdornment position="end">%</InputAdornment>,
                       }}
@@ -240,7 +241,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Firm Platform Fee"
                       type="number"
                       value={config.firmPlatformFeePercent}
-                      onChange={e => handleChange('firmPlatformFeePercent', parseFloat(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('firmPlatformFeePercent', parseFloat(e.target.value))}
                       InputProps={{
                         endAdornment: <InputAdornment position="end">%</InputAdornment>,
                       }}
@@ -262,10 +263,10 @@ const PlatformSettingsPage: React.FC = () => {
                   <Select
                     multiple
                     value={config.enabledServiceTypes}
-                    onChange={e => handleChange('enabledServiceTypes', e.target.value)}
-                    renderValue={(selected) => (
+                    onChange={(e: SelectChangeEvent<string[]>) => handleChange('enabledServiceTypes', e.target.value)}
+                    renderValue={(selected: unknown) => (
                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                        {(selected as string[]).map((value) => (
+                        {(selected as string[]).map((value: string) => (
                           <Chip key={value} label={SERVICE_TYPES.find(st => st.value === value)?.label || value} size="small" />
                         ))}
                       </Box>
@@ -294,7 +295,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Auto-Verify After Days"
                       type="number"
                       value={config.autoVerifyCAAfterDays}
-                      onChange={e => handleChange('autoVerifyCAAfterDays', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('autoVerifyCAAfterDays', parseInt(e.target.value))}
                       helperText="0 = disabled"
                     />
                   </Grid>
@@ -304,7 +305,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Minimum Experience Years"
                       type="number"
                       value={config.minimumExperienceYears}
-                      onChange={e => handleChange('minimumExperienceYears', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('minimumExperienceYears', parseInt(e.target.value))}
                       helperText="Minimum years required to register"
                     />
                   </Grid>
@@ -313,7 +314,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.requireDocumentUpload}
-                          onChange={e => handleChange('requireDocumentUpload', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('requireDocumentUpload', e.target.checked)}
                         />
                       }
                       label="Require Document Upload"
@@ -324,7 +325,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.requirePhoneVerification}
-                          onChange={e => handleChange('requirePhoneVerification', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('requirePhoneVerification', e.target.checked)}
                         />
                       }
                       label="Require Phone Verification"
@@ -335,7 +336,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.requireEmailVerification}
-                          onChange={e => handleChange('requireEmailVerification', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('requireEmailVerification', e.target.checked)}
                         />
                       }
                       label="Require Email Verification"
@@ -358,7 +359,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Escrow Auto-Release Days"
                       type="number"
                       value={config.escrowAutoReleaseDays}
-                      onChange={e => handleChange('escrowAutoReleaseDays', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('escrowAutoReleaseDays', parseInt(e.target.value))}
                       helperText="Days after completion to auto-release"
                     />
                   </Grid>
@@ -367,7 +368,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.allowInstantPayments}
-                          onChange={e => handleChange('allowInstantPayments', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('allowInstantPayments', e.target.checked)}
                         />
                       }
                       label="Allow Instant Payments (No Escrow)"
@@ -379,7 +380,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Minimum Payment Amount"
                       type="number"
                       value={config.minimumPaymentAmount}
-                      onChange={e => handleChange('minimumPaymentAmount', parseFloat(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('minimumPaymentAmount', parseFloat(e.target.value))}
                       InputProps={{
                         startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                       }}
@@ -391,7 +392,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Maximum Payment Amount"
                       type="number"
                       value={config.maximumPaymentAmount || ''}
-                      onChange={e => handleChange('maximumPaymentAmount', e.target.value ? parseFloat(e.target.value) : null)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('maximumPaymentAmount', e.target.value ? parseFloat(e.target.value) : null)}
                       InputProps={{
                         startAdornment: <InputAdornment position="start">₹</InputAdornment>,
                       }}
@@ -414,7 +415,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.allowClientRefunds}
-                          onChange={e => handleChange('allowClientRefunds', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('allowClientRefunds', e.target.checked)}
                         />
                       }
                       label="Allow Client Refunds"
@@ -426,7 +427,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Refund Processing Days"
                       type="number"
                       value={config.refundProcessingDays}
-                      onChange={e => handleChange('refundProcessingDays', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('refundProcessingDays', parseInt(e.target.value))}
                       helperText="Business days to process refunds"
                     />
                   </Grid>
@@ -436,7 +437,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Partial Refund Min %"
                       type="number"
                       value={config.partialRefundMinPercent}
-                      onChange={e => handleChange('partialRefundMinPercent', parseFloat(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('partialRefundMinPercent', parseFloat(e.target.value))}
                       InputProps={{
                         endAdornment: <InputAdornment position="end">%</InputAdornment>,
                       }}
@@ -448,7 +449,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Partial Refund Max %"
                       type="number"
                       value={config.partialRefundMaxPercent}
-                      onChange={e => handleChange('partialRefundMaxPercent', parseFloat(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('partialRefundMaxPercent', parseFloat(e.target.value))}
                       InputProps={{
                         endAdornment: <InputAdornment position="end">%</InputAdornment>,
                       }}
@@ -460,7 +461,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Dispute Auto-Close Days"
                       type="number"
                       value={config.disputeAutoCloseDays}
-                      onChange={e => handleChange('disputeAutoCloseDays', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('disputeAutoCloseDays', parseInt(e.target.value))}
                       helperText="Auto-close unresolved disputes"
                     />
                   </Grid>
@@ -469,7 +470,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.requireDisputeEvidence}
-                          onChange={e => handleChange('requireDisputeEvidence', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('requireDisputeEvidence', e.target.checked)}
                         />
                       }
                       label="Require Evidence"
@@ -480,7 +481,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.allowCAResponse}
-                          onChange={e => handleChange('allowCAResponse', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('allowCAResponse', e.target.checked)}
                         />
                       }
                       label="Allow CA Response"
@@ -503,7 +504,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Max Requests Per Client"
                       type="number"
                       value={config.maxActiveRequestsPerClient}
-                      onChange={e => handleChange('maxActiveRequestsPerClient', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('maxActiveRequestsPerClient', parseInt(e.target.value))}
                     />
                   </Grid>
                   <Grid item xs={12} sm={4}>
@@ -512,7 +513,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Max Requests Per CA"
                       type="number"
                       value={config.maxActiveRequestsPerCA}
-                      onChange={e => handleChange('maxActiveRequestsPerCA', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('maxActiveRequestsPerCA', parseInt(e.target.value))}
                     />
                   </Grid>
                   <Grid item xs={12} sm={4}>
@@ -521,7 +522,7 @@ const PlatformSettingsPage: React.FC = () => {
                       label="Cancellation Hours"
                       type="number"
                       value={config.requestCancellationHours}
-                      onChange={e => handleChange('requestCancellationHours', parseInt(e.target.value))}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('requestCancellationHours', parseInt(e.target.value))}
                       helperText="Hours before start to cancel"
                     />
                   </Grid>
@@ -541,7 +542,7 @@ const PlatformSettingsPage: React.FC = () => {
                       control={
                         <Switch
                           checked={config.isMaintenanceMode}
-                          onChange={e => handleChange('isMaintenanceMode', e.target.checked)}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('isMaintenanceMode', e.target.checked)}
                         />
                       }
                       label="Enable Maintenance Mode"
@@ -555,7 +556,7 @@ const PlatformSettingsPage: React.FC = () => {
                         multiline
                         rows={3}
                         value={config.maintenanceMessage || ''}
-                        onChange={e => handleChange('maintenanceMessage', e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('maintenanceMessage', e.target.value)}
                         helperText="Message shown to users during maintenance"
                       />
                     </Grid>

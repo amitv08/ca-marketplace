@@ -753,7 +753,7 @@ const CAListing: React.FC = () => {
               <Card
                 key={provider.id}
                 hoverable
-                onClick={() => navigate(provider.type === 'individual' ? `/cas/${provider.id}` : `/firms/${provider.id}`)}
+                onClick={() => navigate(provider.type === 'individual' ? `/ca/${provider.id}` : `/firms/${provider.id}`)}
               >
                 {provider.type === 'individual' ? (
                   // Individual CA Card

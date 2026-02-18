@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar, Footer, ProtectedRoute } from './components/common';
 import { useAppDispatch, useAppSelector } from './store/hooks';
-import { setUser } from './store/slices/authSlice';
+import { setUser, logout } from './store/slices/authSlice';
 import api from './services/api';
 
 // Auth Pages
@@ -22,6 +22,7 @@ import ClientDashboard from './pages/client/ClientDashboard';
 import CADashboard from './pages/ca/CADashboard';
 import FirmAdminDashboard from './pages/ca/FirmAdminDashboard';
 import CAListing from './pages/cas/CAListing';
+import CAProfile from './pages/cas/CAProfile';
 import FirmRegistrationWizard from './pages/ca/FirmRegistrationWizard';
 import MyFirmPage from './pages/ca/MyFirmPage';
 import InvitationsPage from './pages/ca/InvitationsPage';
@@ -41,23 +42,25 @@ import ServiceRequestsManagement from './pages/admin/ServiceRequestsManagement';
 import FirmsListPage from './pages/admin/FirmsListPage';
 import FirmDetailsPage from './pages/admin/FirmDetailsPage';
 import FirmAnalyticsDashboard from './pages/admin/FirmAnalyticsDashboard';
-import PlatformSettingsPage from './pages/admin/PlatformSettingsPage';
-import DisputesPage from './pages/admin/DisputesPage';
+// TODO: Fix MUI version compatibility (need v4 or update code to v5/v6/v7)
+// import PlatformSettingsPage from './pages/admin/PlatformSettingsPage';
+// import DisputesPage from './pages/admin/DisputesPage';
 
 // Shared Pages
 import ProfilePage from './pages/profile/ProfilePage';
 import RequestDetailsPage from './pages/requests/RequestDetailsPage';
 import CreateReviewPage from './pages/reviews/CreateReviewPage';
+import PaymentPage from './pages/payment/PaymentPage';
 
 function AppContent() {
   const dispatch = useAppDispatch();
-  const { user, token } = useAppSelector((state) => state.auth);
+  const { token } = useAppSelector((state) => state.auth);
 
-  // Restore user session on app load if token exists but user doesn't
+  // Validate and restore user session on app load if token exists
   useEffect(() => {
     const restoreSession = async () => {
-      // If we have a token but no user data, fetch the user profile
-      if (token && !user) {
+      // ALWAYS validate token if it exists (don't trust localStorage)
+      if (token) {
         try {
           const response = await api.get('/users/profile');
           if (response.data.success && response.data.data) {
@@ -66,15 +69,14 @@ function AppContent() {
         } catch (error) {
           console.error('Failed to restore session:', error);
           // Token is invalid, clear everything
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          dispatch(logout());
           window.location.href = '/login';
         }
       }
     };
 
     restoreSession();
-  }, [dispatch, user, token]);
+  }, [dispatch, token]);
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -86,6 +88,7 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
           <Route path="/register/:role" element={<Register />} />
           <Route path="/cas" element={<CAListing />} />
+          <Route path="/ca/:id" element={<CAProfile />} />
           <Route path="/help" element={<HelpPage />} />
 
           {/* Shared Protected Routes - Accessible to all authenticated users */}
@@ -110,6 +113,14 @@ function AppContent() {
             element={
               <ProtectedRoute allowedRoles={['CLIENT']}>
                 <CreateReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/payment/:requestId"
+            element={
+              <ProtectedRoute allowedRoles={['CLIENT']}>
+                <PaymentPage />
               </ProtectedRoute>
             }
           />
@@ -279,6 +290,7 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* TODO: Re-enable after fixing MUI compatibility
           <Route
             path="/admin/platform-settings"
             element={
@@ -295,6 +307,7 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          */}
 
           {/* Catch all - redirect to home */}
           <Route path="*" element={<Navigate to="/" replace />} />

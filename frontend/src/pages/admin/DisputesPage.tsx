@@ -32,6 +32,7 @@ import {
   Tab,
   Badge,
   Stack,
+  SelectChangeEvent,
 } from '@mui/material';
 import {
   Gavel as GavelIcon,
@@ -253,7 +254,7 @@ const DisputesPage: React.FC = () => {
 
         {/* Status Filter Tabs */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-          <Tabs value={statusFilter} onChange={(_, newValue) => setStatusFilter(newValue)}>
+          <Tabs value={statusFilter} onChange={(_: React.SyntheticEvent, newValue: string) => setStatusFilter(newValue)}>
             <Tab label="Open" value="OPEN" />
             <Tab label="Under Review" value="UNDER_REVIEW" />
             <Tab label="Resolved" value="RESOLVED" />
@@ -384,7 +385,7 @@ const DisputesPage: React.FC = () => {
           component="div"
           count={total}
           page={page}
-          onPageChange={(_, newPage) => setPage(newPage)}
+          onPageChange={(_: unknown, newPage: number) => setPage(newPage)}
           rowsPerPage={rowsPerPage}
           onRowsPerPageChange={(e) => {
             setRowsPerPage(parseInt(e.target.value, 10));
@@ -548,7 +549,7 @@ const DisputesPage: React.FC = () => {
                       rows={2}
                       placeholder="Add admin note..."
                       value={adminNote}
-                      onChange={(e) => setAdminNote(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAdminNote(e.target.value)}
                       sx={{ mb: 1 }}
                     />
                     <Button
@@ -626,7 +627,7 @@ const DisputesPage: React.FC = () => {
                 <InputLabel>Resolution</InputLabel>
                 <Select
                   value={resolution}
-                  onChange={(e) => setResolution(e.target.value)}
+                  onChange={(e: SelectChangeEvent<string>) => setResolution(e.target.value)}
                   label="Resolution"
                 >
                   <MenuItem value="FULL_REFUND">Full Refund</MenuItem>
@@ -644,7 +645,7 @@ const DisputesPage: React.FC = () => {
                   type="number"
                   label="Refund Percentage"
                   value={refundPercentage}
-                  onChange={(e) => setRefundPercentage(parseInt(e.target.value))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRefundPercentage(parseInt(e.target.value))}
                   InputProps={{
                     endAdornment: <Typography>%</Typography>,
                   }}
@@ -660,7 +661,7 @@ const DisputesPage: React.FC = () => {
                 rows={4}
                 label="Resolution Notes"
                 value={resolutionNotes}
-                onChange={(e) => setResolutionNotes(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setResolutionNotes(e.target.value)}
                 helperText="Explain the reasoning for this resolution"
                 required
               />
