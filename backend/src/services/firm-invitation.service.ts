@@ -1,7 +1,13 @@
-import { PrismaClient, InvitationStatus, FirmMemberRole, MembershipType, VerificationStatus } from '@prisma/client';
+import { InvitationStatus, FirmMemberRole, MembershipType, VerificationStatus } from '@prisma/client';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
+import { prisma } from '../config';
+import {
+  NotFoundError,
+  AuthorizationError,
+  ValidationError,
+  BusinessLogicError,
+  ErrorCode,
+} from '../utils/errors';
 
 interface SendInvitationData {
   firmId: string;
@@ -37,13 +43,13 @@ export class FirmInvitationService {
     });
 
     if (!inviterMembership) {
-      throw new Error('Only firm admins can send invitations');
+      throw new AuthorizationError('Only firm admins can send invitations');
     }
 
     // 2. Check firm status - must be DRAFT or ACTIVE
     const firm = inviterMembership.firm;
     if (!['DRAFT', 'ACTIVE'].includes(firm.status)) {
-      throw new Error(`Cannot send invitations when firm status is ${firm.status}`);
+      throw new ValidationError(`Cannot send invitations when firm status is ${firm.status}`);
     }
 
     // 3. If caId provided, validate the CA
@@ -56,12 +62,12 @@ export class FirmInvitationService {
       });
 
       if (!ca) {
-        throw new Error('CA not found');
+        throw new NotFoundError('CA');
       }
 
       // Check if CA is verified
       if (ca.verificationStatus !== VerificationStatus.VERIFIED) {
-        throw new Error('Only verified CAs can be invited to join a firm');
+        throw new BusinessLogicError('Only verified CAs can be invited to join a firm', ErrorCode.CA_NOT_VERIFIED);
       }
 
       // Check if CA already has an active firm membership
@@ -73,7 +79,7 @@ export class FirmInvitationService {
       });
 
       if (activeMembership) {
-        throw new Error('CA is already a member of an active firm');
+        throw new BusinessLogicError('CA is already a member of an active firm', ErrorCode.DUPLICATE_ENTRY);
       }
 
       // Check if CA already has a pending invitation from this firm
@@ -89,7 +95,7 @@ export class FirmInvitationService {
       });
 
       if (existingInvitation) {
-        throw new Error('CA already has a pending invitation from this firm');
+        throw new BusinessLogicError('CA already has a pending invitation from this firm', ErrorCode.DUPLICATE_ENTRY);
       }
 
       // Use CA's email if not provided
@@ -111,7 +117,7 @@ export class FirmInvitationService {
     });
 
     if (existingEmailInvitation) {
-      throw new Error('An invitation has already been sent to this email address');
+      throw new BusinessLogicError('An invitation has already been sent to this email address', ErrorCode.DUPLICATE_ENTRY);
     }
 
     // 5. Generate invitation token
@@ -197,12 +203,12 @@ export class FirmInvitationService {
     });
 
     if (!invitation) {
-      throw new Error('Invalid invitation token');
+      throw new NotFoundError('Invitation');
     }
 
     // 2. Validate invitation status
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new Error(`Invitation is ${invitation.status.toLowerCase()}`);
+      throw new BusinessLogicError(`Invitation is ${invitation.status.toLowerCase()}`, ErrorCode.INVALID_STATE_TRANSITION);
     }
 
     // 3. Check if expired
@@ -211,7 +217,7 @@ export class FirmInvitationService {
         where: { id: invitation.id },
         data: { status: InvitationStatus.EXPIRED },
       });
-      throw new Error('Invitation has expired');
+      throw new BusinessLogicError('Invitation has expired', ErrorCode.INVALID_STATE_TRANSITION);
     }
 
     // 4. Validate the CA accepting matches the invitation
@@ -221,17 +227,17 @@ export class FirmInvitationService {
     });
 
     if (!ca) {
-      throw new Error('CA not found');
+      throw new NotFoundError('CA');
     }
 
     // Check if CA email matches invitation email
     if (ca.user.email.toLowerCase() !== invitation.email.toLowerCase()) {
-      throw new Error('This invitation was sent to a different email address');
+      throw new ValidationError('This invitation was sent to a different email address');
     }
 
     // 5. Check if CA is verified
     if (ca.verificationStatus !== VerificationStatus.VERIFIED) {
-      throw new Error('Only verified CAs can join a firm');
+      throw new BusinessLogicError('Only verified CAs can join a firm', ErrorCode.CA_NOT_VERIFIED);
     }
 
     // 6. Check if CA already has an active firm membership
@@ -243,7 +249,7 @@ export class FirmInvitationService {
     });
 
     if (activeMembership) {
-      throw new Error('You are already a member of an active firm. Please leave your current firm before joining a new one.');
+      throw new BusinessLogicError('You are already a member of an active firm. Please leave your current firm before joining a new one.', ErrorCode.DUPLICATE_ENTRY);
     }
 
     // 7. Create firm membership and update invitation in a transaction
@@ -328,12 +334,12 @@ export class FirmInvitationService {
     });
 
     if (!invitation) {
-      throw new Error('Invalid invitation token');
+      throw new NotFoundError('Invitation');
     }
 
     // 2. Validate invitation status
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new Error(`Invitation is ${invitation.status.toLowerCase()}`);
+      throw new BusinessLogicError(`Invitation is ${invitation.status.toLowerCase()}`, ErrorCode.INVALID_STATE_TRANSITION);
     }
 
     // 3. Validate the CA rejecting
@@ -343,11 +349,11 @@ export class FirmInvitationService {
     });
 
     if (!ca) {
-      throw new Error('CA not found');
+      throw new NotFoundError('CA');
     }
 
     if (ca.user.email.toLowerCase() !== invitation.email.toLowerCase()) {
-      throw new Error('This invitation was sent to a different email address');
+      throw new ValidationError('This invitation was sent to a different email address');
     }
 
     // 4. Update invitation
@@ -410,17 +416,17 @@ export class FirmInvitationService {
     });
 
     if (!invitation) {
-      throw new Error('Invitation not found');
+      throw new NotFoundError('Invitation');
     }
 
     // 2. Validate canceller is firm admin
     if (invitation.firm.members.length === 0) {
-      throw new Error('Only firm admins can cancel invitations');
+      throw new AuthorizationError('Only firm admins can cancel invitations');
     }
 
     // 3. Validate invitation is pending
     if (invitation.status !== InvitationStatus.PENDING) {
-      throw new Error(`Cannot cancel ${invitation.status.toLowerCase()} invitation`);
+      throw new BusinessLogicError(`Cannot cancel ${invitation.status.toLowerCase()} invitation`, ErrorCode.INVALID_STATE_TRANSITION);
     }
 
     // 4. Update invitation
@@ -473,7 +479,7 @@ export class FirmInvitationService {
     });
 
     if (!ca) {
-      throw new Error('CA not found');
+      throw new NotFoundError('CA');
     }
 
     const invitations = await prisma.firmInvitation.findMany({
@@ -525,7 +531,7 @@ export class FirmInvitationService {
     });
 
     if (!invitation) {
-      throw new Error('Invalid invitation token');
+      throw new NotFoundError('Invitation');
     }
 
     // Check if expired (update status if needed)

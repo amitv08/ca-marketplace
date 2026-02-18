@@ -3,6 +3,7 @@ import { authenticate, authorize, asyncHandler } from '../middleware';
 import { FirmRegistrationService } from '../services/firm-registration.service';
 import { FirmInvitationService } from '../services/firm-invitation.service';
 import { sendSuccess, sendError } from '../utils';
+import { prisma } from '../config';
 
 const router = express.Router();
 
@@ -19,10 +20,7 @@ router.post(
   authorize('CA'),
   asyncHandler(async (req: Request, res: Response) => {
     // Get CA from authenticated user
-    const prisma = (await import('@prisma/client')).PrismaClient;
-    const db = new prisma();
-
-    const ca = await db.charteredAccountant.findUnique({
+    const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
     });
 
@@ -105,10 +103,7 @@ router.delete(
     const { firmId } = req.params;
 
     // Get CA from authenticated user
-    const prisma = (await import('@prisma/client')).PrismaClient;
-    const db = new prisma();
-
-    const ca = await db.charteredAccountant.findUnique({
+    const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
     });
 
@@ -142,10 +137,7 @@ router.post(
     }
 
     // Get CA from authenticated user
-    const prisma = (await import('@prisma/client')).PrismaClient;
-    const db = new prisma();
-
-    const ca = await db.charteredAccountant.findUnique({
+    const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
     });
 
@@ -203,10 +195,7 @@ router.get(
   authorize('CA'),
   asyncHandler(async (req: Request, res: Response) => {
     // Get CA from authenticated user
-    const prisma = (await import('@prisma/client')).PrismaClient;
-    const db = new prisma();
-
-    const ca = await db.charteredAccountant.findUnique({
+    const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
     });
 
@@ -247,10 +236,7 @@ router.post(
     const { token } = req.params;
 
     // Get CA from authenticated user
-    const prisma = (await import('@prisma/client')).PrismaClient;
-    const db = new prisma();
-
-    const ca = await db.charteredAccountant.findUnique({
+    const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
     });
 
@@ -283,10 +269,7 @@ router.post(
     const { token } = req.params;
 
     // Get CA from authenticated user
-    const prisma = (await import('@prisma/client')).PrismaClient;
-    const db = new prisma();
-
-    const ca = await db.charteredAccountant.findUnique({
+    const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
     });
 
@@ -312,10 +295,7 @@ router.delete(
     const { invitationId } = req.params;
 
     // Get CA from authenticated user
-    const prisma = (await import('@prisma/client')).PrismaClient;
-    const db = new prisma();
-
-    const ca = await db.charteredAccountant.findUnique({
+    const ca = await prisma.charteredAccountant.findUnique({
       where: { userId: req.user!.userId },
     });
 
