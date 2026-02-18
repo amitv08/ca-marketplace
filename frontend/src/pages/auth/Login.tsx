@@ -30,7 +30,7 @@ const Login: React.FC = () => {
       if (response.success) {
         dispatch(loginSuccess({
           user: response.data.user,
-          token: response.data.token,
+          token: response.data.accessToken || response.data.token,
         }));
 
         // Redirect based on role
