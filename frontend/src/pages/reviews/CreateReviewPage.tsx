@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAppSelector } from '../../store/hooks';
 import api from '../../services/api';
 import { Card, Button, Loading, Alert } from '../../components/common';
 
@@ -19,8 +18,6 @@ const CreateReviewPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const requestId = searchParams.get('requestId');
-  const { user } = useAppSelector((state) => state.auth);
-
   const [request, setRequest] = useState<ServiceRequest | null>(null);
   const [rating, setRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
@@ -29,17 +26,7 @@ const CreateReviewPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (!requestId) {
-      setError('No request ID provided');
-      setLoading(false);
-      return;
-    }
-
-    fetchRequest();
-  }, [requestId]);
-
-  const fetchRequest = async () => {
+  const fetchRequest = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/service-requests/${requestId}`);
@@ -65,7 +52,16 @@ const CreateReviewPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [requestId]);
+
+  useEffect(() => {
+    if (!requestId) {
+      setError('No request ID provided');
+      setLoading(false);
+      return;
+    }
+    fetchRequest();
+  }, [requestId, fetchRequest]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

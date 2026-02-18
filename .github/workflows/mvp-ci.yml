@@ -89,7 +89,7 @@ jobs:
 
       - name: 📁 Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: backend-test-results
           path: |
@@ -144,7 +144,7 @@ jobs:
 
       - name: 📁 Upload test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-test-results
           path: |
@@ -192,7 +192,7 @@ jobs:
 
       - name: 📁 Upload E2E artifacts
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: e2e-test-results
           path: |
@@ -241,7 +241,7 @@ jobs:
           npm run build
 
       - name: 📦 Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: production-build
           path: |
@@ -259,7 +259,7 @@ jobs:
 
     steps:
       - name: 📥 Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
 
       - name: 📊 Generate summary
         run: |

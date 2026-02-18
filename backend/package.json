@@ -26,7 +26,7 @@
     "test:perf:stress": "k6 run tests/performance/stress-test.js",
     "test:perf:api": "k6 run tests/performance/api-performance.js",
     "test:all": "npm run test:unit && npm run test:integration && npm run test:security",
-    "test:ci": "jest --ci --coverage --maxWorkers=2",
+    "test:ci": "jest --ci --coverage --runInBand",
     "lint": "tsc --noEmit",
     "db:maintenance": "ts-node src/scripts/db-maintenance.ts",
     "db:analyze": "ts-node src/scripts/db-maintenance.ts analyze",
