@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/common';
 
 const PaymentManagement: React.FC = () => {
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

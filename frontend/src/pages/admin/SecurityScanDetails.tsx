@@ -14,6 +14,7 @@ const SecurityScanDetails: React.FC = () => {
     if (scanId) {
       fetchScanDetails();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanId]);
 
   const fetchScanDetails = async () => {

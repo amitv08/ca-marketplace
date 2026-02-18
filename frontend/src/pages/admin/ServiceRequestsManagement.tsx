@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/common';
 
 const ServiceRequestsManagement: React.FC = () => {
-  const [requests, setRequests] = useState<any[]>([]);
+  const [requests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

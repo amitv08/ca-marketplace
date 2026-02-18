@@ -281,10 +281,11 @@ export function useTrackEvent() {
   return trackEvent;
 }
 
-export default {
+const analyticsHooks = {
   useDashboardMetrics,
   useFunnelData,
   useRevenueData,
   useCAUtilization,
   useTrackEvent,
 };
+export default analyticsHooks;

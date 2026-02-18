@@ -71,6 +71,7 @@ const PaymentPage: React.FC = () => {
     if (requestId) {
       fetchRequestDetails();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requestId]);
 
   // Load Razorpay script

@@ -90,6 +90,7 @@ const HelpPage: React.FC = () => {
   // Filter sections based on user role
   const sections = useMemo(() => {
     return allSections.filter(section => section.roles.includes(userRole));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole]);
 
   // Set default active section when sections change
@@ -104,6 +105,7 @@ const HelpPage: React.FC = () => {
         setActiveSection(sections[0].id);
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sections, userRole]);
 
   const allFaqs = [
@@ -192,6 +194,7 @@ const HelpPage: React.FC = () => {
   // Filter FAQs based on user role
   const faqs = useMemo(() => {
     return allFaqs.filter(faqCategory => faqCategory.roles.includes(userRole));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRole]);
 
   // Get personalized header text based on role

@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAppSelector } from '../../store/hooks';
 import api from '../../services/api';
-import { Card, Button, Input, Loading, Alert, Badge, Select } from '../../components/common';
+import { Card, Button, Input, Loading, Alert, Badge } from '../../components/common';
 
 interface UserProfile {
   id: string;
@@ -30,8 +28,6 @@ interface UserProfile {
 }
 
 const ProfilePage: React.FC = () => {
-  const navigate = useNavigate();
-  const { user: authUser } = useAppSelector((state) => state.auth);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

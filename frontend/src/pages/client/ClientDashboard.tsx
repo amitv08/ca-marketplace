@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppSelector } from '../../store/hooks';
-import { serviceRequestService, paymentService, notificationService } from '../../services';
+import { serviceRequestService, paymentService } from '../../services';
 import { Card, Button, Loading } from '../../components/common';
 import { useClientDashboardMetrics } from '../../hooks/useDashboardMetrics';
 
@@ -64,7 +64,7 @@ const ClientDashboard: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | null>(null); // Filter state
 
   // Use dashboard metrics hook with 5-minute cache
-  const { metrics: dashboardMetrics, loading: metricsLoading, error: metricsError } = useClientDashboardMetrics();
+  const { metrics: dashboardMetrics } = useClientDashboardMetrics();
 
   useEffect(() => {
     fetchDashboardData();
@@ -82,7 +82,6 @@ const ClientDashboard: React.FC = () => {
       ]);
 
       let allRequests: ServiceRequest[] = [];
-      let actualPendingCount = 0;
       let pendingRequests: ServiceRequest[] = [];
 
       if (recentResponse.success) {
@@ -94,7 +93,6 @@ const ClientDashboard: React.FC = () => {
         pendingRequests = Array.isArray(pendingResponse.data.data || pendingResponse.data)
           ? pendingResponse.data.data || pendingResponse.data
           : [];
-        actualPendingCount = pendingRequests.length;
 
         // Merge pending requests with recent requests (avoid duplicates)
         // Combine: pending requests first, then non-pending recent requests

@@ -107,6 +107,7 @@ const RequestDetailsPage: React.FC = () => {
       fetchRequestDetails();
       fetchMessages();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
   const fetchRequestDetails = async () => {

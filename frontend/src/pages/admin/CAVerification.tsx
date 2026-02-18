@@ -37,6 +37,7 @@ const CAVerification: React.FC = () => {
   useEffect(() => {
     fetchCAs();
     fetchStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   const fetchCAs = async () => {

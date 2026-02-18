@@ -56,6 +56,7 @@ const FirmAdminDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchFirmData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchFirmData = async () => {

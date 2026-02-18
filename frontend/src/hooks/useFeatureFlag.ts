@@ -26,7 +26,6 @@ export interface FeatureFlag {
  */
 export function useFeatureFlag(flagKey: string): boolean {
   const [enabled, setEnabled] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!flagKey) return;
@@ -41,8 +40,6 @@ export function useFeatureFlag(flagKey: string): boolean {
       } catch (err) {
         console.error('Failed to check feature flag:', err);
         setEnabled(false);
-      } finally {
-        setLoading(false);
       }
     };
 

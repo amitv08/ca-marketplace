@@ -48,7 +48,7 @@ const CADashboard: React.FC = () => {
   const [profileCompletion, setProfileCompletion] = useState(0);
 
   // Use dashboard metrics hook with 5-minute cache
-  const { metrics: dashboardMetrics, loading: metricsLoading, error: metricsError } = useCADashboardMetrics();
+  const { metrics: dashboardMetrics } = useCADashboardMetrics();
 
   useEffect(() => {
     fetchDashboardData();
@@ -316,7 +316,7 @@ const CADashboard: React.FC = () => {
             <p className="text-gray-500">total</p>
           </div>
           <div className="mt-3">
-            {dashboardMetrics?.abandonmentCount || 0 === 0 ? (
+            {(dashboardMetrics?.abandonmentCount || 0) === 0 ? (
               <div className="flex items-center text-green-600 text-sm">
                 <svg className="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
                   <path

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
-import { Card, Loading, Alert, Badge } from '../../components/common';
+import { Card, Loading, Alert } from '../../components/common';
 
 interface User {
   id: string;
@@ -23,6 +23,7 @@ const UserManagement: React.FC = () => {
   useEffect(() => {
     fetchUsers();
     fetchStats();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roleFilter]);
 
   const fetchUsers = async () => {

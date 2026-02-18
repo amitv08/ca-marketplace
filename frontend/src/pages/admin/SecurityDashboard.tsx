@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { securityService, SecurityFinding, DashboardSummary } from '../../services';
+import { securityService, DashboardSummary } from '../../services';
 import { Card, Button, Loading } from '../../components/common';
 
 const SecurityDashboard: React.FC = () => {
