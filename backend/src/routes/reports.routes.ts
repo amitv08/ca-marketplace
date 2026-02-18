@@ -22,11 +22,12 @@ router.get('/', authenticate, authorize('ADMIN'), asyncHandler(async (req: Reque
   const prisma = new PrismaClient();
   const { reportType, enabled } = req.query;
 
+  const where: any = {};
+  if (reportType) where.reportType = reportType;
+  if (enabled !== undefined) where.enabled = enabled === 'true';
+
   const reports = await prisma.scheduledReport.findMany({
-    where: {
-      ...(reportType ? { reportType: reportType as string } : {}),
-      ...(enabled !== undefined ? { enabled: enabled === 'true' } : {}),
-    },
+    where,
     orderBy: { createdAt: 'desc' },
     include: {
       _count: {
