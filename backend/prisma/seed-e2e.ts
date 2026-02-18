@@ -10,7 +10,7 @@
  * Idempotent — uses upsert so re-running is safe.
  */
 
-import { PrismaClient, UserRole, Specialization, VerificationStatus } from '@prisma/client';
+import { PrismaClient, UserRole, Specialization, VerificationStatus, FirmType, FirmStatus, FirmMemberRole, MembershipType } from '@prisma/client';
 import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
@@ -160,12 +160,77 @@ async function main() {
   });
   console.log(`  ✓ Firm Admin: ${firmAdminUser.email}`);
 
+  // ── 5. CA Firm + members ───────────────────────────────────────────────────
+  const firmAdmin = await prisma.charteredAccountant.findFirst({
+    where: { userId: firmAdminUser.id },
+  });
+
+  if (firmAdmin) {
+    const firm = await prisma.cAFirm.upsert({
+      where: { firmName: 'Shah & Associates' },
+      update: {},
+      create: {
+        firmName: 'Shah & Associates',
+        firmType: FirmType.PARTNERSHIP,
+        registrationNumber: 'FIRM-REG-001',
+        gstin: '27AABCS1429B1Z1',
+        pan: 'AABCS1429B',
+        email: 'info@shahandassociates.demo.com',
+        phone: '9000003000',
+        address: '101 Commerce House, Nariman Point, Mumbai',
+        city: 'Mumbai',
+        state: 'Maharashtra',
+        pincode: '400021',
+        description: 'Full-service CA firm specialising in GST and audit.',
+        establishedYear: 2010,
+        status: FirmStatus.ACTIVE,
+        specializations: [Specialization.GST, Specialization.AUDIT],
+      },
+    });
+    console.log(`  ✓ Firm: ${firm.firmName}`);
+
+    // Enrol firm admin as FIRM_ADMIN member
+    await prisma.firmMembership.upsert({
+      where: { firmId_caId_isActive: { firmId: firm.id, caId: firmAdmin.id, isActive: true } },
+      update: {},
+      create: {
+        caId: firmAdmin.id,
+        firmId: firm.id,
+        role: FirmMemberRole.FIRM_ADMIN,
+        membershipType: MembershipType.FULL_TIME,
+        isActive: true,
+        joinDate: new Date(),
+      },
+    });
+
+    // Add ca2 as a firm member (SENIOR_CA)
+    const ca2 = await prisma.charteredAccountant.findFirst({
+      where: { user: { email: 'ca2@demo.com' } },
+    });
+    if (ca2) {
+      await prisma.firmMembership.upsert({
+        where: { firmId_caId_isActive: { firmId: firm.id, caId: ca2.id, isActive: true } },
+        update: {},
+        create: {
+          caId: ca2.id,
+          firmId: firm.id,
+          role: FirmMemberRole.SENIOR_CA,
+          membershipType: MembershipType.FULL_TIME,
+          isActive: true,
+          joinDate: new Date(),
+        },
+      });
+      console.log('  ✓ ca2@demo.com enrolled as SENIOR_CA in firm');
+    }
+  }
+
   console.log('\n✅ E2E seed complete.\n');
   console.log('  Credentials for Cypress:');
-  console.log('    Admin:      admin@caplatform.com / Admin@123!');
-  console.log('    Client 1-5: clientN@demo.com    / Demo@123');
-  console.log('    CA 1-3:     caN@demo.com         / Demo@123');
-  console.log('    Firm Admin: shahandassociates.1@demo.com / Demo@123');
+  console.log('    Admin:         admin@caplatform.com / Admin@123!');
+  console.log('    Client 1-5:    clientN@demo.com    / Demo@123');
+  console.log('    CA 1-3:        caN@demo.com         / Demo@123');
+  console.log('    Firm Admin CA: shahandassociates.1@demo.com / Demo@123');
+  console.log('    Firm Member:   ca2@demo.com / Demo@123 (SENIOR_CA in Shah & Associates)');
 }
 
 main()
