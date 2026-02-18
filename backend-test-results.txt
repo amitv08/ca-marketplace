@@ -1,0 +1,1504 @@
+
+> backend@1.0.0 test:all
+> npm run test:unit && npm run test:integration && npm run test:security --coverage --forceExit
+
+
+> backend@1.0.0 test:unit
+> jest --testPathPattern=tests/unit --coverage
+
+  console.log
+    ✓ Database connected
+
+      at Object.<anonymous> (tests/setup.ts:59:13)
+
+  console.log
+    ✓ Database schema verified
+
+      at Object.<anonymous> (tests/setup.ts:73:15)
+
+  console.log
+    ✓ Security audit tables verified
+
+      at Object.<anonymous> (tests/setup.ts:89:15)
+
+  console.log
+    ✓ Database connected
+
+      at Object.<anonymous> (tests/setup.ts:59:13)
+
+  console.log
+    ✓ Database schema verified
+
+      at Object.<anonymous> (tests/setup.ts:73:15)
+
+  console.log
+    ✓ Security audit tables verified
+
+      at Object.<anonymous> (tests/setup.ts:89:15)
+
+  console.log
+    Snyk token not configured, skipping Snyk scan
+
+      at Function.log [as runSnykScan] (src/services/vulnerability-scanner.service.ts:149:17)
+
+  console.log
+    Snyk token not configured, skipping Snyk scan
+
+      at Function.log [as runSnykScan] (src/services/vulnerability-scanner.service.ts:149:17)
+
+  console.log
+    Trivy scan not enabled, skipping
+
+      at Function.log [as runTrivyScan] (src/services/vulnerability-scanner.service.ts:238:17)
+
+  console.log
+    Trivy scan not enabled, skipping
+
+      at Function.log [as runTrivyScan] (src/services/vulnerability-scanner.service.ts:238:17)
+
+  console.log
+    Returning cached vulnerability scan results
+
+      at Function.log [as runFullScan] (src/services/vulnerability-scanner.service.ts:302:15)
+
+  console.log
+    🧹 Starting cleanup...
+
+      at Object.<anonymous> (tests/setup.ts:150:13)
+
+  console.log
+    ✓ Prisma disconnected
+
+      at Object.<anonymous> (tests/setup.ts:155:15)
+
+  console.log
+    🧹 Starting cleanup...
+
+      at Object.<anonymous> (tests/setup.ts:150:13)
+
+  console.log
+    ✓ Prisma disconnected
+
+      at Object.<anonymous> (tests/setup.ts:155:15)
+
+  console.log
+    ✅ Cleanup complete
+
+      at Object.<anonymous> (tests/setup.ts:179:13)
+
+  console.log
+    ✅ Redis client connected
+
+      at EventEmitter.log (src/config/redis.ts:25:11)
+
+  console.log
+    ✅ Redis client ready
+
+      at EventEmitter.log (src/config/redis.ts:33:11)
+
+PASS tests/unit/services/vulnerability-scanner.test.ts (6.312 s)
+  VulnerabilityScannerService
+    runNpmAudit
+      ✓ should parse npm audit results correctly (15 ms)
+      ✓ should handle npm audit errors gracefully (1 ms)
+      ✓ should map npm severity levels correctly (1 ms)
+    runSnykScan
+      ✓ should skip scan when SNYK_TOKEN is not configured (17 ms)
+      ✓ should skip scan when SNYK_TOKEN is missing (4 ms)
+    runTrivyScan
+      ✓ should skip scan when Trivy is not enabled (7 ms)
+      ✓ should skip scan when ENABLE_TRIVY_SCAN is not set (5 ms)
+    deduplicateFindings
+      ✓ should remove duplicate CVEs (3 ms)
+      ✓ should remove duplicates based on component and title when no CVE (1 ms)
+      ✓ should keep different vulnerabilities (1 ms)
+    calculateSummary
+      ✓ should correctly count vulnerabilities by severity (6 ms)
+      ✓ should handle empty findings (1 ms)
+    runFullScan
+      ✓ should aggregate results from all scanners (3 ms)
+      ✓ should handle scan failures gracefully (8 ms)
+    severity mapping
+      ✓ should map Snyk severity correctly (2 ms)
+      ✓ should map Trivy severity correctly (3 ms)
+
+  console.log
+    ✅ Cleanup complete
+
+      at Object.<anonymous> (tests/setup.ts:179:13)
+
+  console.log
+    ✅ Redis client connected
+
+      at EventEmitter.log (src/config/redis.ts:25:11)
+
+  console.log
+    ✅ Redis client ready
+
+      at EventEmitter.log (src/config/redis.ts:33:11)
+
+PASS tests/unit/utils.helpers.test.ts (6.557 s)
+  Helper Functions
+    hashPassword
+      ✓ should hash a password (152 ms)
+      ✓ should generate different hashes for same password (224 ms)
+    comparePassword
+      ✓ should return true for matching password (238 ms)
+      ✓ should return false for non-matching password (231 ms)
+    generateRandomString
+      ✓ should generate string of default length (2 ms)
+      ✓ should generate string of specified length
+      ✓ should generate different strings
+      ✓ should only contain alphanumeric characters (1 ms)
+    formatDate
+      ✓ should format date to ISO string (5 ms)
+    parsePaginationParams
+      ✓ should parse valid pagination params (4 ms)
+      ✓ should use default values for undefined params (6 ms)
+      ✓ should handle invalid page number (2 ms)
+      ✓ should limit maximum page size (3 ms)
+      ✓ should handle negative values (1 ms)
+      ✓ should handle non-numeric strings (4 ms)
+    createPaginationResponse
+      ✓ should create pagination response (2 ms)
+      ✓ should handle last page correctly (12 ms)
+      ✓ should handle single page (1 ms)
+    sanitizeUser
+      ✓ should remove password from user object (11 ms)
+    calculateAverageRating
+      ✓ should calculate average rating (1 ms)
+      ✓ should return 0 for empty array (5 ms)
+      ✓ should round to 1 decimal place (1 ms)
+      ✓ should handle single rating (1 ms)
+    isValidUUID
+      ✓ should return true for valid UUID (4 ms)
+      ✓ should return false for invalid UUID (3 ms)
+    sleep
+      ✓ should delay execution (104 ms)
+    pick
+      ✓ should pick specified properties (3 ms)
+      ✓ should handle empty keys array
+      ✓ should ignore non-existent keys (1 ms)
+    omit
+      ✓ should omit specified properties (1 ms)
+      ✓ should handle empty keys array
+      ✓ should handle non-existent keys (1 ms)
+
+  console.log
+    ✓ Database connected
+
+      at Object.<anonymous> (tests/setup.ts:59:13)
+
+  console.log
+    ✓ Database schema verified
+
+      at Object.<anonymous> (tests/setup.ts:73:15)
+
+  console.log
+    ✓ Security audit tables verified
+
+      at Object.<anonymous> (tests/setup.ts:89:15)
+
+  console.log
+    🧹 Starting cleanup...
+
+      at Object.<anonymous> (tests/setup.ts:150:13)
+
+  console.log
+    ✓ Prisma disconnected
+
+      at Object.<anonymous> (tests/setup.ts:155:15)
+
+  console.log
+    ✅ Cleanup complete
+
+      at Object.<anonymous> (tests/setup.ts:179:13)
+
+  console.log
+    ✅ Redis client connected
+
+      at EventEmitter.log (src/config/redis.ts:25:11)
+
+  console.log
+    ✅ Redis client ready
+
+      at EventEmitter.log (src/config/redis.ts:33:11)
+
+PASS tests/unit/services/security-audit.test.ts (8.373 s)
+  SecurityAuditService
+    checkSecurityHeaders
+      ✓ should identify missing security headers (10 ms)
+      ✓ should pass when all security headers are present (2 ms)
+      ✓ should handle errors gracefully (1 ms)
+      ✓ should calculate severity correctly (1 ms)
+    calculateSecurityScore
+      ✓ should return 100 for no vulnerabilities (1 ms)
+      ✓ should deduct correctly for critical vulnerabilities (1 ms)
+      ✓ should deduct correctly for high vulnerabilities (1 ms)
+      ✓ should deduct correctly for medium vulnerabilities (1 ms)
+      ✓ should deduct correctly for low vulnerabilities (1 ms)
+      ✓ should handle mixed severity levels (1 ms)
+      ✓ should not go below 0 (1 ms)
+    detectEnvironment
+      ✓ should detect production environment (1 ms)
+      ✓ should detect test environment
+      ✓ should detect staging environment (1 ms)
+      ✓ should default to development
+    isProductionEnvironment
+      ✓ should return true for production
+      ✓ should return false for non-production
+    calculateSummary
+      ✓ should correctly count findings by severity (3 ms)
+      ✓ should handle empty findings (3 ms)
+    runFullAudit
+      ✓ should create a scan record and trigger all scans (211 ms)
+    getDashboardSummary
+      ✓ should return comprehensive dashboard data (65 ms)
+
+A worker process has failed to exit gracefully and has been force exited. This is likely caused by tests leaking due to improper teardown. Try running with --detectOpenHandles to find leaks. Active timers can also cause this, ensure that .unref() was called on them.
+Failed to collect coverage from /app/src/scripts/auto-release-escrow.ts
+ERROR: [96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m32[0m - [91merror[0m[90m TS1109: [0mExpression expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m34[0m - [91merror[0m[90m TS1109: [0mExpression expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m36[0m - [91merror[0m[90m TS1109: [0mExpression expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                   ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m53[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                                    ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m61[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                                            ~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m32[0m - [91merror[0m[90m TS1005: [0m']' expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                               ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m38[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                     ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m40[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                       ~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m46[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m79[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                                                              ~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m87[0m - [91merror[0m[90m TS1005: [0m'(' expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                                                                      ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m36[0m - [91merror[0m[90m TS1005: [0m']' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                   ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m42[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m44[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                           ~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m55[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                      ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m63[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                              ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m88[0m - [91merror[0m[90m TS1005: [0m',' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                                                       ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m96[0m - [91merror[0m[90m TS1005: [0m',' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                                                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m108[0m - [91merror[0m[90m TS1005: [0m'=>' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                                                                           ~~~[0m
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m82[0m:[93m32[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m82[0m:[93m34[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m82[0m:[93m35[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m                                  ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m83[0m:[93m39[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m83[0m         console.log(`  - Auto-release date: ${payment.autoReleaseAt}`);
+[7m  [0m [91m                                      ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m83[0m:[93m45[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m83[0m         console.log(`  - Auto-release date: ${payment.autoReleaseAt}`);
+[7m  [0m [91m                                            ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m84[0m:[93m31[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m84[0m         console.log(`  - Days overdue: ${Math.floor((new Date().getTime() - new Date(payment.autoReleaseAt!).getTime()) / (1000 * 60 * 60 * 24))}`);
+[7m  [0m [91m                              ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m84[0m:[93m40[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m84[0m         console.log(`  - Days overdue: ${Math.floor((new Date().getTime() - new Date(payment.autoReleaseAt!).getTime()) / (1000 * 60 * 60 * 24))}`);
+[7m  [0m [91m                                       ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m24[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                       ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m26[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                         ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m34[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m48[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                                               ~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m69[0m - [91merror[0m[90m TS1443: [0mModule declaration names may only use ' or " quoted strings.
+
+[7m 96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m   [0m [91m                                                                    ~~~[0m
+[7m 97[0m         stats.released++;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m108[0m               serviceType: payment.request.serviceType,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m109[0m               dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m109[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m109[0m               dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
+[7m   [0m [91m                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m109[0m:[93m97[0m - [91merror[0m[90m TS1443: [0mModule declaration names may only use ' or " quoted strings.
+
+[7m109[0m               dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
+[7m   [0m [91m                                                                                                ~~[0m
+[7m110[0m             });
+[7m   [0m [91m~~~~~~~~~~~~~~~[0m
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m28[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m28[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                             ~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m36[0m - [91merror[0m[90m TS1435: [0mUnknown keyword or identifier. Did you mean 'set'?
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                                   ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m41[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                                        ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m48[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m121[0m:[93m28[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m121[0m             dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/dashboard`,
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m121[0m:[93m99[0m - [91merror[0m[90m TS1443: [0mModule declaration names may only use ' or " quoted strings.
+
+[7m121[0m             dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/dashboard`,
+[7m   [0m [91m                                                                                                  ~~[0m
+[7m122[0m           });
+[7m   [0m [91m~~~~~~~~~~~~~[0m
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m26[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m26[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m28[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                           ~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m34[0m - [91merror[0m[90m TS1435: [0mUnknown keyword or identifier. Did you mean 'set'?
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                                 ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m39[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                                      ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m50[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m28[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                             ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m37[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                    ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m40[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                       ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m45[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                            ~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m58[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                         ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m69[0m - [91merror[0m[90m TS1005: [0m'(' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                    ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m77[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                            ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m78[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m86[0m - [91merror[0m[90m TS1005: [0m',' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                                     ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m90[0m - [91merror[0m[90m TS1005: [0m')' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m26[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m28[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                           ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m36[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                   ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m44[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m65[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                                                ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m92[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                                                                           ~~~[0m
+[7m132[0m         }
+[7m   [0m [91m~~~~~~~~~[0m
+[7m...[0m 
+[7m134[0m       } catch (error: any) {
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m26[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m28[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                           ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m35[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                  ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m38[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                     ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m46[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                             ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m54[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                                     ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m67[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                                                  ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m145[0m:[93m31[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m145[0m     console.log(`  - Processed: ${stats.processed}`);
+[7m   [0m [91m                              ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m145[0m:[93m33[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m145[0m     console.log(`  - Processed: ${stats.processed}`);
+[7m   [0m [91m                                ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m146[0m:[93m30[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m146[0m     console.log(`  - Released: ${stats.released}`);
+[7m   [0m [91m                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m146[0m:[93m32[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m146[0m     console.log(`  - Released: ${stats.released}`);
+[7m   [0m [91m                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m147[0m:[93m28[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m147[0m     console.log(`  - Failed: ${stats.failed}`);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m147[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m147[0m     console.log(`  - Failed: ${stats.failed}`);
+[7m   [0m [91m                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m152[0m:[93m34[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m152[0m         console.log(`  - Payment ${err.paymentId}: ${err.error}`);
+[7m   [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m152[0m:[93m50[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m152[0m         console.log(`  - Payment ${err.paymentId}: ${err.error}`);
+[7m   [0m [91m                                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m152[0m:[93m52[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m152[0m         console.log(`  - Payment ${err.paymentId}: ${err.error}`);
+[7m   [0m [91m                                                   ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m180[0m:[93m1[0m - [91merror[0m[90m TS1160: [0mUnterminated template literal.
+
+[7m180[0m 
+[7m   [0m [91m[0m
+STACK: 
+-------------------------------------|---------|----------|---------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------
+File                                 | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                                                                                                                                   
+-------------------------------------|---------|----------|---------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------
+All files                            |    2.34 |     1.55 |    2.22 |    2.26 |                                                                                                                                                     
+ src                                 |       0 |        0 |       0 |       0 |                                                                                                                                                     
+  server.ts                          |       0 |        0 |       0 |       0 | 1-172                                                                                                                                               
+ src/config                          |   13.35 |    10.34 |    4.83 |   13.63 |                                                                                                                                                     
+  cdn.ts                             |       0 |        0 |       0 |       0 | 20-139                                                                                                                                              
+  cors.ts                            |       0 |      100 |     100 |       0 | 2-4                                                                                                                                                 
+  database.ts                        |   18.43 |    20.58 |       0 |   17.77 | 30-69,75-77,105-109,117-122,130-135,147-160,176-196,209-228,239-252,267-284,298-320,332-351,364-380,393-397,406-415,424-428,436-465,470-471,475-476 
+  env.ts                             |    92.3 |      100 |     100 |    92.3 | 52                                                                                                                                                  
+  queues.ts                          |       0 |        0 |       0 |       0 | 6-256                                                                                                                                               
+  redis.ts                           |   56.25 |        0 |      40 |   56.25 | 11-20,29                                                                                                                                            
+  socket.ts                          |       0 |        0 |       0 |       0 | 1-172                                                                                                                                               
+  socketInstance.ts                  |       0 |        0 |       0 |       0 | 4-14                                                                                                                                                
+ src/controllers                     |       0 |        0 |       0 |       0 |                                                                                                                                                     
+  csp-report.controller.ts           |       0 |        0 |       0 |       0 | 2-132                                                                                                                                               
+ src/examples                        |       0 |      100 |       0 |       0 |                                                                                                                                                     
+  email-integration-example.ts       |       0 |      100 |       0 |       0 | 8-203                                                                                                                                               
+ src/jobs                            |       0 |      100 |       0 |       0 |                                                                                                                                                     
+  escrow-auto-release.job.ts         |       0 |      100 |       0 |       0 | 1-39                                                                                                                                                
+ src/middleware                      |       0 |        0 |       0 |       0 |                                                                                                                                                     
+  advanced-monitoring.ts             |       0 |        0 |       0 |       0 | 2-450                                                                                                                                               
+  auth.ts                            |       0 |        0 |       0 |       0 | 2-138                                                                                                                                               
+  cache-headers.ts                   |       0 |        0 |       0 |       0 | 49-499                                                                                                                                              
+  compression.ts                     |       0 |        0 |       0 |       0 | 1-191                                                                                                                                               
+  csrf.ts                            |       0 |        0 |       0 |       0 | 2-104                                                                                                                                               
+  errorHandler.ts                    |       0 |        0 |       0 |       0 | 2-260                                                                                                                                               
+  field-selection.ts                 |       0 |        0 |       0 |       0 | 24-399                                                                                                                                              
+  fileUpload.ts                      |       0 |        0 |       0 |       0 | 1-501                                                                                                                                               
+  httpLogger.ts                      |       0 |        0 |       0 |       0 | 2-184                                                                                                                                               
+  httpsRedirect.ts                   |       0 |        0 |       0 |       0 | 2-41                                                                                                                                                
+  metricsTracker.ts                  |       0 |        0 |       0 |       0 | 2-78                                                                                                                                                
+  rateLimiter.ts                     |       0 |        0 |       0 |       0 | 1-184                                                                                                                                               
+  rbac.ts                            |       0 |        0 |       0 |       0 | 2-377                                                                                                                                               
+  requestLimits.ts                   |       0 |        0 |       0 |       0 | 2-101                                                                                                                                               
+  secureHeaders.ts                   |       0 |      100 |     100 |       0 | 2-8                                                                                                                                                 
+  security.ts                        |       0 |        0 |       0 |       0 | 1-187                                                                                                                                               
+  upload.ts                          |       0 |        0 |       0 |       0 | 1-89                                                                                                                                                
+  validation.ts                      |       0 |        0 |       0 |       0 | 1-374                                                                                                                                               
+  validator.ts                       |       0 |        0 |       0 |       0 | 2-101                                                                                                                                               
+ src/routes                          |       0 |        0 |       0 |       0 |                                                                                                                                                     
+  admin-firm-analytics.routes.ts     |       0 |        0 |       0 |       0 | 6-333                                                                                                                                               
+  admin.routes.ts                    |       0 |        0 |       0 |       0 | 1-676                                                                                                                                               
+  advanced-search.routes.ts          |       0 |        0 |       0 |       0 | 1-170                                                                                                                                               
+  analytics.routes.ts                |       0 |        0 |       0 |       0 | 6-220                                                                                                                                               
+  auth.routes.secure.ts              |       0 |        0 |       0 |       0 | 1-430                                                                                                                                               
+  auth.routes.ts                     |       0 |        0 |       0 |       0 | 1-150                                                                                                                                               
+  availability.routes.ts             |       0 |        0 |       0 |       0 | 1-227                                                                                                                                               
+  ca.routes.ts                       |       0 |        0 |       0 |       0 | 1-199                                                                                                                                               
+  dashboard.routes.ts                |       0 |        0 |       0 |       0 | 6-100                                                                                                                                               
+  dispute.routes.ts                  |       0 |        0 |       0 |       0 | 1-393                                                                                                                                               
+  email-template.routes.ts           |       0 |        0 |       0 |       0 | 1-93                                                                                                                                                
+  error-management.routes.ts         |       0 |        0 |       0 |       0 | 1-310                                                                                                                                               
+  escrow.routes.ts                   |       0 |        0 |       0 |       0 | 1-397                                                                                                                                               
+  experiments.routes.ts              |       0 |        0 |       0 |       0 | 6-447                                                                                                                                               
+  feature-flags.routes.ts            |       0 |        0 |       0 |       0 | 6-339                                                                                                                                               
+  firm-assignment.routes.ts          |       0 |        0 |       0 |       0 | 1-142                                                                                                                                               
+  firm-document.routes.ts            |       0 |        0 |       0 |       0 | 1-249                                                                                                                                               
+  firm-membership.routes.ts          |       0 |        0 |       0 |       0 | 1-228                                                                                                                                               
+  firm-payment.routes.ts             |       0 |        0 |       0 |       0 | 1-210                                                                                                                                               
+  firm-registration.routes.ts        |       0 |        0 |       0 |       0 | 1-387                                                                                                                                               
+  firm-review.routes.ts              |       0 |        0 |       0 |       0 | 1-262                                                                                                                                               
+  firm.routes.ts                     |       0 |        0 |       0 |       0 | 1-275                                                                                                                                               
+  hybrid-assignment.routes.ts        |       0 |        0 |       0 |       0 | 1-385                                                                                                                                               
+  independent-work.routes.ts         |       0 |        0 |       0 |       0 | 1-254                                                                                                                                               
+  message.routes.ts                  |       0 |        0 |       0 |       0 | 1-471                                                                                                                                               
+  monitoring.routes.ts               |       0 |        0 |       0 |       0 | 1-373                                                                                                                                               
+  notification.routes.ts             |       0 |        0 |       0 |       0 | 1-128                                                                                                                                               
+  payment-distribution.routes.ts     |       0 |        0 |       0 |       0 | 1-587                                                                                                                                               
+  payment.routes.ts                  |       0 |        0 |       0 |       0 | 1-633                                                                                                                                               
+  platform-config.routes.ts          |       0 |        0 |       0 |       0 | 1-184                                                                                                                                               
+  provider.routes.ts                 |       0 |        0 |       0 |       0 | 1-281                                                                                                                                               
+  refund.routes.ts                   |       0 |        0 |       0 |       0 | 1-92                                                                                                                                                
+  reports.routes.ts                  |       0 |        0 |       0 |       0 | 6-441                                                                                                                                               
+  request.routes.ts                  |       0 |        0 |       0 |       0 | 1-262                                                                                                                                               
+  review.routes.ts                   |       0 |        0 |       0 |       0 | 1-271                                                                                                                                               
+  security-audit.routes.ts           |       0 |        0 |       0 |       0 | 1-466                                                                                                                                               
+  serviceRequest.routes.ts           |       0 |        0 |       0 |       0 | 1-1305                                                                                                                                              
+  user.routes.ts                     |       0 |        0 |       0 |       0 | 1-393                                                                                                                                               
+ src/scripts                         |       0 |        0 |       0 |       0 |                                                                                                                                                     
+  db-maintenance.ts                  |       0 |        0 |       0 |       0 | 16-317                                                                                                                                              
+  fix-inconsistent-statuses.ts       |       0 |        0 |       0 |       0 | 12-163                                                                                                                                              
+  migrate-to-escrow-system.ts        |       0 |        0 |       0 |       0 | 11-178                                                                                                                                              
+ src/services                        |    3.09 |     2.19 |    2.35 |    3.18 |                                                                                                                                                     
+  access-control-test.service.ts     |     6.3 |        0 |       0 |     6.3 | 31-515                                                                                                                                              
+  admin-firm-analytics.service.ts    |       0 |        0 |       0 |       0 | 6-694                                                                                                                                               
+  advanced-search.service.ts         |       0 |        0 |       0 |       0 | 6-468                                                                                                                                               
+  aggregation.service.ts             |       0 |        0 |       0 |       0 | 7-409                                                                                                                                               
+  alert.service.ts                   |       0 |        0 |       0 |       0 | 1-511                                                                                                                                               
+  analytics.service.ts               |       0 |        0 |       0 |       0 | 7-760                                                                                                                                               
+  audit-logger.service.ts            |       0 |      100 |       0 |       0 | 2-218                                                                                                                                               
+  audit.service.ts                   |   11.53 |        0 |       0 |   11.53 | 28-183                                                                                                                                              
+  batch.service.ts                   |       0 |        0 |       0 |       0 | 2-478                                                                                                                                               
+  cache.service.ts                   |       0 |        0 |       0 |       0 | 1-645                                                                                                                                               
+  dashboard.service.ts               |       0 |        0 |       0 |       0 | 6-506                                                                                                                                               
+  dataFilter.service.ts              |       0 |        0 |       0 |       0 | 1-420                                                                                                                                               
+  dispute.service.ts                 |       0 |        0 |       0 |       0 | 1-512                                                                                                                                               
+  email-notification.service.ts      |       0 |        0 |       0 |       0 | 8-771                                                                                                                                               
+  email-template.service.ts          |       0 |        0 |       0 |       0 | 1-400                                                                                                                                               
+  email.service.ts                   |       0 |        0 |       0 |       0 | 1-337                                                                                                                                               
+  escrow.service.ts                  |       0 |        0 |       0 |       0 | 5-310                                                                                                                                               
+  experiment.service.ts              |       0 |        0 |       0 |       0 | 7-543                                                                                                                                               
+  feature-flag.service.ts            |       0 |        0 |       0 |       0 | 7-406                                                                                                                                               
+  firm-assignment.service.ts         |       0 |        0 |       0 |       0 | 1-579                                                                                                                                               
+  firm-document.service.ts           |       0 |        0 |       0 |       0 | 1-547                                                                                                                                               
+  firm-invitation.service.ts         |       0 |        0 |       0 |       0 | 1-563                                                                                                                                               
+  firm-membership.service.ts         |       0 |        0 |       0 |       0 | 1-816                                                                                                                                               
+  firm-payment.service.ts            |       0 |        0 |       0 |       0 | 1-654                                                                                                                                               
+  firm-registration.service.ts       |       0 |        0 |       0 |       0 | 1-710                                                                                                                                               
+  firm-review.service.ts             |       0 |        0 |       0 |       0 | 1-745                                                                                                                                               
+  firm.service.ts                    |       0 |        0 |       0 |       0 | 1-957                                                                                                                                               
+  health.service.ts                  |       0 |        0 |       0 |       0 | 1-401                                                                                                                                               
+  hybrid-assignment.service.ts       |       0 |        0 |       0 |       0 | 1-914                                                                                                                                               
+  independent-work.service.ts        |       0 |        0 |       0 |       0 | 1-689                                                                                                                                               
+  job-scheduler.service.ts           |       0 |        0 |       0 |       0 | 7-483                                                                                                                                               
+  logger.service.ts                  |       0 |        0 |       0 |       0 | 1-184                                                                                                                                               
+  metrics.service.ts                 |       0 |        0 |       0 |       0 | 1-421                                                                                                                                               
+  notification.service.ts            |       0 |        0 |       0 |       0 | 1-379                                                                                                                                               
+  password.service.ts                |       0 |        0 |       0 |       0 | 1-436                                                                                                                                               
+  payment-distribution.service.ts    |       0 |        0 |       0 |       0 | 1-581                                                                                                                                               
+  payment-release.service.ts         |       0 |        0 |       0 |       0 | 6-254                                                                                                                                               
+  penetration-test.service.ts        |    4.39 |        0 |       0 |    4.39 | 30-424                                                                                                                                              
+  permission.service.ts              |       0 |        0 |       0 |       0 | 1-461                                                                                                                                               
+  platform-config.service.ts         |       0 |        0 |       0 |       0 | 1-271                                                                                                                                               
+  provider-comparison.service.ts     |       0 |        0 |       0 |       0 | 1-642                                                                                                                                               
+  provider-recommendation.service.ts |       0 |        0 |       0 |       0 | 43-432                                                                                                                                              
+  provider-search.service.ts         |       0 |        0 |       0 |       0 | 1-611                                                                                                                                               
+  query.service.ts                   |       0 |        0 |       0 |       0 | 1-820                                                                                                                                               
+  razorpay.service.ts                |       0 |        0 |       0 |       0 | 1-278                                                                                                                                               
+  refund.service.ts                  |       0 |        0 |       0 |       0 | 1-207                                                                                                                                               
+  reporting.service.ts               |       0 |        0 |       0 |       0 | 7-724                                                                                                                                               
+  rls.service.ts                     |       0 |      100 |       0 |       0 | 7-42                                                                                                                                                
+  scheduler.service.ts               |       0 |        0 |       0 |       0 | 9-54                                                                                                                                                
+  security-audit.service.ts          |    78.4 |    53.12 |   52.63 |   78.57 | 68,144,203,241-258,307-327,367-370,384-398                                                                                                          
+  security-logger.service.ts         |       0 |      100 |       0 |       0 | 1-149                                                                                                                                               
+  segmentation.service.ts            |       0 |        0 |       0 |       0 | 7-426                                                                                                                                               
+  tax.service.ts                     |       0 |        0 |       0 |       0 | 1-479                                                                                                                                               
+  token.service.ts                   |       0 |        0 |       0 |       0 | 1-339                                                                                                                                               
+  virus-scan.service.ts              |       0 |        0 |       0 |       0 | 6-475                                                                                                                                               
+  vulnerability-scanner.service.ts   |   69.11 |    48.71 |   73.68 |   69.11 | 102-103,125-134,157-223,246-284,350-352,441,461                                                                                                     
+  wallet.service.ts                  |       0 |        0 |       0 |       0 | 1-547                                                                                                                                               
+ src/utils                           |    7.26 |     4.52 |    9.46 |    5.67 |                                                                                                                                                     
+  circuitBreaker.ts                  |       0 |        0 |       0 |       0 | 1-377                                                                                                                                               
+  constants.ts                       |       0 |      100 |     100 |       0 | 2-91                                                                                                                                                
+  crypto.ts                          |       0 |        0 |       0 |       0 | 1-80                                                                                                                                                
+  errors.ts                          |       0 |        0 |       0 |       0 | 1-185                                                                                                                                               
+  fallback.ts                        |       0 |        0 |       0 |       0 | 1-496                                                                                                                                               
+  helpers.ts                         |     100 |      100 |     100 |     100 |                                                                                                                                                     
+  performance-monitor.ts             |       0 |        0 |       0 |       0 | 7-424                                                                                                                                               
+  response.ts                        |       0 |        0 |       0 |       0 | 14-86                                                                                                                                               
+  retry.ts                           |       0 |        0 |       0 |       0 | 1-293                                                                                                                                               
+  statistics.ts                      |       0 |        0 |       0 |       0 | 17-331                                                                                                                                              
+  transaction.ts                     |       0 |        0 |       0 |       0 | 1-468                                                                                                                                               
+-------------------------------------|---------|----------|---------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------
+Test Suites: 3 passed, 3 total
+Tests:       69 passed, 69 total
+Snapshots:   0 total
+Time:        34.454 s
+Ran all test suites matching /tests\/unit/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?
+
+> backend@1.0.0 test:integration
+> jest --testPathPattern=tests/integration --coverage --runInBand
+
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/index.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/v1.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/rng.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/stringify.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/validate.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/regex.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/v3.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/v35.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/parse.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/md5.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/v4.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/native.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/v5.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/sha1.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/nil.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+ts-jest[ts-jest-transformer] (WARN) Got a `.js` file to compile while `allowJs` option is not set to `true` (file: /app/node_modules/uuid/dist/version.js). To fix this:
+  - if you want TypeScript to process JS files, set `allowJs` to `true` in your TypeScript config (usually tsconfig.json)
+  - if you do not want TypeScript to process your `.js` files, in your Jest config change the `transform` key which value is `ts-jest` so that it does not match `.js` files anymore
+FAIL tests/integration/feature-flags.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'csrf-csrf' from 'src/middleware/csrf.ts'
+
+    Require stack:
+      src/middleware/csrf.ts
+      src/middleware/index.ts
+      src/server.ts
+      tests/integration/feature-flags.test.ts
+
+      1 | import { Request, Response, NextFunction } from 'express';
+    > 2 | import { doubleCsrf } from 'csrf-csrf';
+        | ^
+      3 | import { env } from '../config';
+      4 |
+      5 | /**
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.require (src/middleware/csrf.ts:2:1)
+      at Object.<anonymous> (src/middleware/index.ts:7:1)
+      at Object.require (src/server.ts:6:1)
+      at Object.<anonymous> (tests/integration/feature-flags.test.ts:6:1)
+
+FAIL tests/integration/experiments.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'csrf-csrf' from 'src/middleware/csrf.ts'
+
+    Require stack:
+      src/middleware/csrf.ts
+      src/middleware/index.ts
+      src/server.ts
+      tests/integration/experiments.test.ts
+
+      1 | import { Request, Response, NextFunction } from 'express';
+    > 2 | import { doubleCsrf } from 'csrf-csrf';
+        | ^
+      3 | import { env } from '../config';
+      4 |
+      5 | /**
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.require (src/middleware/csrf.ts:2:1)
+      at Object.<anonymous> (src/middleware/index.ts:7:1)
+      at Object.require (src/server.ts:6:1)
+      at Object.<anonymous> (tests/integration/experiments.test.ts:6:1)
+
+FAIL tests/integration/analytics.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'csrf-csrf' from 'src/middleware/csrf.ts'
+
+    Require stack:
+      src/middleware/csrf.ts
+      src/middleware/index.ts
+      src/server.ts
+      tests/integration/analytics.test.ts
+
+      1 | import { Request, Response, NextFunction } from 'express';
+    > 2 | import { doubleCsrf } from 'csrf-csrf';
+        | ^
+      3 | import { env } from '../config';
+      4 |
+      5 | /**
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.require (src/middleware/csrf.ts:2:1)
+      at Object.<anonymous> (src/middleware/index.ts:7:1)
+      at Object.require (src/server.ts:6:1)
+      at Object.<anonymous> (tests/integration/analytics.test.ts:6:1)
+
+FAIL tests/integration/reports.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'csrf-csrf' from 'src/middleware/csrf.ts'
+
+    Require stack:
+      src/middleware/csrf.ts
+      src/middleware/index.ts
+      src/server.ts
+      tests/integration/reports.test.ts
+
+      1 | import { Request, Response, NextFunction } from 'express';
+    > 2 | import { doubleCsrf } from 'csrf-csrf';
+        | ^
+      3 | import { env } from '../config';
+      4 |
+      5 | /**
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.require (src/middleware/csrf.ts:2:1)
+      at Object.<anonymous> (src/middleware/index.ts:7:1)
+      at Object.require (src/server.ts:6:1)
+      at Object.<anonymous> (tests/integration/reports.test.ts:6:1)
+
+FAIL tests/integration/security-audit.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'csrf-csrf' from 'src/middleware/csrf.ts'
+
+    Require stack:
+      src/middleware/csrf.ts
+      src/middleware/index.ts
+      src/server.ts
+      tests/integration/security-audit.test.ts
+
+      1 | import { Request, Response, NextFunction } from 'express';
+    > 2 | import { doubleCsrf } from 'csrf-csrf';
+        | ^
+      3 | import { env } from '../config';
+      4 |
+      5 | /**
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.require (src/middleware/csrf.ts:2:1)
+      at Object.<anonymous> (src/middleware/index.ts:7:1)
+      at Object.require (src/server.ts:6:1)
+      at Object.<anonymous> (tests/integration/security-audit.test.ts:6:1)
+
+FAIL tests/integration/service-requests.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'csrf-csrf' from 'src/middleware/csrf.ts'
+
+    Require stack:
+      src/middleware/csrf.ts
+      src/middleware/index.ts
+      src/server.ts
+      tests/integration/service-requests.test.ts
+
+      1 | import { Request, Response, NextFunction } from 'express';
+    > 2 | import { doubleCsrf } from 'csrf-csrf';
+        | ^
+      3 | import { env } from '../config';
+      4 |
+      5 | /**
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.require (src/middleware/csrf.ts:2:1)
+      at Object.<anonymous> (src/middleware/index.ts:7:1)
+      at Object.require (src/server.ts:6:1)
+      at Object.<anonymous> (tests/integration/service-requests.test.ts:6:1)
+
+FAIL tests/integration/auth.test.ts
+  ● Test suite failed to run
+
+    Cannot find module 'csrf-csrf' from 'src/middleware/csrf.ts'
+
+    Require stack:
+      src/middleware/csrf.ts
+      src/middleware/index.ts
+      src/server.ts
+      tests/integration/auth.test.ts
+
+      1 | import { Request, Response, NextFunction } from 'express';
+    > 2 | import { doubleCsrf } from 'csrf-csrf';
+        | ^
+      3 | import { env } from '../config';
+      4 |
+      5 | /**
+
+      at Resolver._throwModNotFoundError (node_modules/jest-resolve/build/resolver.js:427:11)
+      at Object.require (src/middleware/csrf.ts:2:1)
+      at Object.<anonymous> (src/middleware/index.ts:7:1)
+      at Object.require (src/server.ts:6:1)
+      at Object.<anonymous> (tests/integration/auth.test.ts:6:1)
+
+Failed to collect coverage from /app/src/scripts/auto-release-escrow.ts
+ERROR: [96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m32[0m - [91merror[0m[90m TS1109: [0mExpression expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m34[0m - [91merror[0m[90m TS1109: [0mExpression expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m36[0m - [91merror[0m[90m TS1109: [0mExpression expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                   ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m53[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                                    ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m8[0m:[93m61[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m8[0m  * - Every 30 minutes: `*/30 * * * * cd /app && npx ts-node src/scripts/auto-release-escrow.ts`
+[7m [0m [91m                                                            ~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m32[0m - [91merror[0m[90m TS1005: [0m']' expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                               ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m38[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                     ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m40[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                       ~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m46[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m79[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                                                              ~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m69[0m:[93m87[0m - [91merror[0m[90m TS1005: [0m'(' expected.
+
+[7m69[0m     console.log(`[Auto-Release Escrow] Found ${duePayments.length} payment(s) due for auto-release`);
+[7m  [0m [91m                                                                                      ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m36[0m - [91merror[0m[90m TS1005: [0m']' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                   ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m42[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m44[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                           ~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m55[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                      ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m63[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                              ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m88[0m - [91merror[0m[90m TS1005: [0m',' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                                                       ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m96[0m - [91merror[0m[90m TS1005: [0m',' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                                                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m81[0m:[93m108[0m - [91merror[0m[90m TS1005: [0m'=>' expected.
+
+[7m81[0m         console.log(`[Auto-Release Escrow] Processing payment ${payment.id} (Request: ${payment.requestId})`);
+[7m  [0m [91m                                                                                                           ~~~[0m
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m82[0m:[93m32[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m82[0m:[93m34[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m82[0m:[93m35[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m82[0m         console.log(`  - Amount: ₹${payment.amount}`);
+[7m  [0m [91m                                  ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m83[0m:[93m39[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m83[0m         console.log(`  - Auto-release date: ${payment.autoReleaseAt}`);
+[7m  [0m [91m                                      ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m83[0m:[93m45[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m83[0m         console.log(`  - Auto-release date: ${payment.autoReleaseAt}`);
+[7m  [0m [91m                                            ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m84[0m:[93m31[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m84[0m         console.log(`  - Days overdue: ${Math.floor((new Date().getTime() - new Date(payment.autoReleaseAt!).getTime()) / (1000 * 60 * 60 * 24))}`);
+[7m  [0m [91m                              ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m84[0m:[93m40[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m84[0m         console.log(`  - Days overdue: ${Math.floor((new Date().getTime() - new Date(payment.autoReleaseAt!).getTime()) / (1000 * 60 * 60 * 24))}`);
+[7m  [0m [91m                                       ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m24[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                       ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m26[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                         ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m34[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m48[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m  [0m [91m                                               ~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m96[0m:[93m69[0m - [91merror[0m[90m TS1443: [0mModule declaration names may only use ' or " quoted strings.
+
+[7m 96[0m         console.log(`  ✓ Payment ${payment.id} released successfully`);
+[7m   [0m [91m                                                                    ~~~[0m
+[7m 97[0m         stats.released++;
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m...[0m 
+[7m108[0m               serviceType: payment.request.serviceType,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m109[0m               dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m109[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m109[0m               dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
+[7m   [0m [91m                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m109[0m:[93m97[0m - [91merror[0m[90m TS1443: [0mModule declaration names may only use ' or " quoted strings.
+
+[7m109[0m               dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/ca/dashboard`,
+[7m   [0m [91m                                                                                                ~~[0m
+[7m110[0m             });
+[7m   [0m [91m~~~~~~~~~~~~~~~[0m
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m28[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m28[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                             ~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m36[0m - [91merror[0m[90m TS1435: [0mUnknown keyword or identifier. Did you mean 'set'?
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                                   ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m41[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                                        ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m111[0m:[93m48[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m111[0m             console.log(`  ✓ Email sent to CA: ${payment.request.ca.user.email}`);
+[7m   [0m [91m                                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m121[0m:[93m28[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m121[0m             dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/dashboard`,
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m121[0m:[93m99[0m - [91merror[0m[90m TS1443: [0mModule declaration names may only use ' or " quoted strings.
+
+[7m121[0m             dashboardUrl: `${process.env.FRONTEND_URL || 'http://localhost:3001'}/client/dashboard`,
+[7m   [0m [91m                                                                                                  ~~[0m
+[7m122[0m           });
+[7m   [0m [91m~~~~~~~~~~~~~[0m
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m26[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m26[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m28[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                           ~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m34[0m - [91merror[0m[90m TS1435: [0mUnknown keyword or identifier. Did you mean 'set'?
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                                 ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m39[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                                      ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m123[0m:[93m50[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m123[0m           console.log(`  ✓ Email sent to Client: ${payment.request.client.user.email}`);
+[7m   [0m [91m                                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m28[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                             ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m37[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                    ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m40[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                       ~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m45[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                            ~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m58[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                         ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m69[0m - [91merror[0m[90m TS1005: [0m'(' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                    ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m77[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                            ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m78[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m86[0m - [91merror[0m[90m TS1005: [0m',' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                                     ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m125[0m:[93m90[0m - [91merror[0m[90m TS1005: [0m')' expected.
+
+[7m125[0m           console.error(`  ⚠ Failed to send notification emails for payment ${payment.id}:`, emailError.message);
+[7m   [0m [91m                                                                                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m26[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m28[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                           ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m36[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                   ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m44[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m65[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                                                ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m131[0m:[93m92[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m131[0m           console.log(`  ✓ Service request ${payment.requestId} already marked as COMPLETED`);
+[7m   [0m [91m                                                                                           ~~~[0m
+[7m132[0m         }
+[7m   [0m [91m~~~~~~~~~[0m
+[7m...[0m 
+[7m134[0m       } catch (error: any) {
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m26[0m - [91merror[0m[90m TS1127: [0mInvalid character.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                         ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m28[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                           ~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m35[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                  ~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m38[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                     ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m46[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                             ~~~~~~~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m54[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                                     ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m135[0m:[93m67[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m135[0m         console.error(`  ✗ Failed to release payment ${payment.id}:`, error.message);
+[7m   [0m [91m                                                                  ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m145[0m:[93m31[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m145[0m     console.log(`  - Processed: ${stats.processed}`);
+[7m   [0m [91m                              ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m145[0m:[93m33[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m145[0m     console.log(`  - Processed: ${stats.processed}`);
+[7m   [0m [91m                                ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m146[0m:[93m30[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m146[0m     console.log(`  - Released: ${stats.released}`);
+[7m   [0m [91m                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m146[0m:[93m32[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m146[0m     console.log(`  - Released: ${stats.released}`);
+[7m   [0m [91m                               ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m147[0m:[93m28[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m147[0m     console.log(`  - Failed: ${stats.failed}`);
+[7m   [0m [91m                           ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m147[0m:[93m30[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m147[0m     console.log(`  - Failed: ${stats.failed}`);
+[7m   [0m [91m                             ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m152[0m:[93m34[0m - [91merror[0m[90m TS1005: [0m';' expected.
+
+[7m152[0m         console.log(`  - Payment ${err.paymentId}: ${err.error}`);
+[7m   [0m [91m                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m152[0m:[93m50[0m - [91merror[0m[90m TS1128: [0mDeclaration or statement expected.
+
+[7m152[0m         console.log(`  - Payment ${err.paymentId}: ${err.error}`);
+[7m   [0m [91m                                                 ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m152[0m:[93m52[0m - [91merror[0m[90m TS1434: [0mUnexpected keyword or identifier.
+
+[7m152[0m         console.log(`  - Payment ${err.paymentId}: ${err.error}`);
+[7m   [0m [91m                                                   ~[0m
+[96msrc/scripts/auto-release-escrow.ts[0m:[93m180[0m:[93m1[0m - [91merror[0m[90m TS1160: [0mUnterminated template literal.
+
+[7m180[0m 
+[7m   [0m [91m[0m
+STACK: 
+-------------------------------------|---------|----------|---------|---------|-------------------
+File                                 | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------------------------|---------|----------|---------|---------|-------------------
+All files                            |       0 |        0 |       0 |       0 |                   
+ src                                 |       0 |        0 |       0 |       0 |                   
+  server.ts                          |       0 |        0 |       0 |       0 | 1-172             
+ src/config                          |       0 |        0 |       0 |       0 |                   
+  cdn.ts                             |       0 |        0 |       0 |       0 | 20-139            
+  cors.ts                            |       0 |      100 |     100 |       0 | 2-4               
+  database.ts                        |       0 |        0 |       0 |       0 | 1-476             
+  env.ts                             |       0 |        0 |       0 |       0 | 1-96              
+  queues.ts                          |       0 |        0 |       0 |       0 | 6-256             
+  redis.ts                           |       0 |        0 |       0 |       0 | 1-36              
+  socket.ts                          |       0 |        0 |       0 |       0 | 1-172             
+  socketInstance.ts                  |       0 |        0 |       0 |       0 | 4-14              
+ src/controllers                     |       0 |        0 |       0 |       0 |                   
+  csp-report.controller.ts           |       0 |        0 |       0 |       0 | 2-132             
+ src/examples                        |       0 |      100 |       0 |       0 |                   
+  email-integration-example.ts       |       0 |      100 |       0 |       0 | 8-203             
+ src/jobs                            |       0 |      100 |       0 |       0 |                   
+  escrow-auto-release.job.ts         |       0 |      100 |       0 |       0 | 1-39              
+ src/middleware                      |       0 |        0 |       0 |       0 |                   
+  advanced-monitoring.ts             |       0 |        0 |       0 |       0 | 2-450             
+  auth.ts                            |       0 |        0 |       0 |       0 | 2-138             
+  cache-headers.ts                   |       0 |        0 |       0 |       0 | 49-499            
+  compression.ts                     |       0 |        0 |       0 |       0 | 1-191             
+  csrf.ts                            |       0 |        0 |       0 |       0 | 2-104             
+  errorHandler.ts                    |       0 |        0 |       0 |       0 | 2-260             
+  field-selection.ts                 |       0 |        0 |       0 |       0 | 24-399            
+  fileUpload.ts                      |       0 |        0 |       0 |       0 | 1-501             
+  httpLogger.ts                      |       0 |        0 |       0 |       0 | 2-184             
+  httpsRedirect.ts                   |       0 |        0 |       0 |       0 | 2-41              
+  metricsTracker.ts                  |       0 |        0 |       0 |       0 | 2-78              
+  rateLimiter.ts                     |       0 |        0 |       0 |       0 | 1-184             
+  rbac.ts                            |       0 |        0 |       0 |       0 | 2-377             
+  requestLimits.ts                   |       0 |        0 |       0 |       0 | 2-101             
+  secureHeaders.ts                   |       0 |      100 |     100 |       0 | 2-8               
+  security.ts                        |       0 |        0 |       0 |       0 | 1-187             
+  upload.ts                          |       0 |        0 |       0 |       0 | 1-89              
+  validation.ts                      |       0 |        0 |       0 |       0 | 1-374             
+  validator.ts                       |       0 |        0 |       0 |       0 | 2-101             
+ src/routes                          |       0 |        0 |       0 |       0 |                   
+  admin-firm-analytics.routes.ts     |       0 |        0 |       0 |       0 | 6-333             
+  admin.routes.ts                    |       0 |        0 |       0 |       0 | 1-676             
+  advanced-search.routes.ts          |       0 |        0 |       0 |       0 | 1-170             
+  analytics.routes.ts                |       0 |        0 |       0 |       0 | 6-220             
+  auth.routes.secure.ts              |       0 |        0 |       0 |       0 | 1-430             
+  auth.routes.ts                     |       0 |        0 |       0 |       0 | 1-150             
+  availability.routes.ts             |       0 |        0 |       0 |       0 | 1-227             
+  ca.routes.ts                       |       0 |        0 |       0 |       0 | 1-199             
+  dashboard.routes.ts                |       0 |        0 |       0 |       0 | 6-100             
+  dispute.routes.ts                  |       0 |        0 |       0 |       0 | 1-393             
+  email-template.routes.ts           |       0 |        0 |       0 |       0 | 1-93              
+  error-management.routes.ts         |       0 |        0 |       0 |       0 | 1-310             
+  escrow.routes.ts                   |       0 |        0 |       0 |       0 | 1-397             
+  experiments.routes.ts              |       0 |        0 |       0 |       0 | 6-447             
+  feature-flags.routes.ts            |       0 |        0 |       0 |       0 | 6-339             
+  firm-assignment.routes.ts          |       0 |        0 |       0 |       0 | 1-142             
+  firm-document.routes.ts            |       0 |        0 |       0 |       0 | 1-249             
+  firm-membership.routes.ts          |       0 |        0 |       0 |       0 | 1-228             
+  firm-payment.routes.ts             |       0 |        0 |       0 |       0 | 1-210             
+  firm-registration.routes.ts        |       0 |        0 |       0 |       0 | 1-387             
+  firm-review.routes.ts              |       0 |        0 |       0 |       0 | 1-262             
+  firm.routes.ts                     |       0 |        0 |       0 |       0 | 1-275             
+  hybrid-assignment.routes.ts        |       0 |        0 |       0 |       0 | 1-385             
+  independent-work.routes.ts         |       0 |        0 |       0 |       0 | 1-254             
+  message.routes.ts                  |       0 |        0 |       0 |       0 | 1-471             
+  monitoring.routes.ts               |       0 |        0 |       0 |       0 | 1-373             
+  notification.routes.ts             |       0 |        0 |       0 |       0 | 1-128             
+  payment-distribution.routes.ts     |       0 |        0 |       0 |       0 | 1-587             
+  payment.routes.ts                  |       0 |        0 |       0 |       0 | 1-633             
+  platform-config.routes.ts          |       0 |        0 |       0 |       0 | 1-184             
+  provider.routes.ts                 |       0 |        0 |       0 |       0 | 1-281             
+  refund.routes.ts                   |       0 |        0 |       0 |       0 | 1-92              
+  reports.routes.ts                  |       0 |        0 |       0 |       0 | 6-441             
+  request.routes.ts                  |       0 |        0 |       0 |       0 | 1-262             
+  review.routes.ts                   |       0 |        0 |       0 |       0 | 1-271             
+  security-audit.routes.ts           |       0 |        0 |       0 |       0 | 1-466             
+  serviceRequest.routes.ts           |       0 |        0 |       0 |       0 | 1-1305            
+  user.routes.ts                     |       0 |        0 |       0 |       0 | 1-393             
+ src/scripts                         |       0 |        0 |       0 |       0 |                   
+  db-maintenance.ts                  |       0 |        0 |       0 |       0 | 16-317            
+  fix-inconsistent-statuses.ts       |       0 |        0 |       0 |       0 | 12-163            
+  migrate-to-escrow-system.ts        |       0 |        0 |       0 |       0 | 11-178            
+ src/services                        |       0 |        0 |       0 |       0 |                   
+  access-control-test.service.ts     |       0 |        0 |       0 |       0 | 1-515             
+  admin-firm-analytics.service.ts    |       0 |        0 |       0 |       0 | 6-694             
+  advanced-search.service.ts         |       0 |        0 |       0 |       0 | 6-468             
+  aggregation.service.ts             |       0 |        0 |       0 |       0 | 7-409             
+  alert.service.ts                   |       0 |        0 |       0 |       0 | 1-511             
+  analytics.service.ts               |       0 |        0 |       0 |       0 | 7-760             
+  audit-logger.service.ts            |       0 |      100 |       0 |       0 | 2-218             
+  audit.service.ts                   |       0 |        0 |       0 |       0 | 1-183             
+  batch.service.ts                   |       0 |        0 |       0 |       0 | 2-478             
+  cache.service.ts                   |       0 |        0 |       0 |       0 | 1-645             
+  dashboard.service.ts               |       0 |        0 |       0 |       0 | 6-506             
+  dataFilter.service.ts              |       0 |        0 |       0 |       0 | 1-420             
+  dispute.service.ts                 |       0 |        0 |       0 |       0 | 1-512             
+  email-notification.service.ts      |       0 |        0 |       0 |       0 | 8-771             
+  email-template.service.ts          |       0 |        0 |       0 |       0 | 1-400             
+  email.service.ts                   |       0 |        0 |       0 |       0 | 1-337             
+  escrow.service.ts                  |       0 |        0 |       0 |       0 | 5-310             
+  experiment.service.ts              |       0 |        0 |       0 |       0 | 7-543             
+  feature-flag.service.ts            |       0 |        0 |       0 |       0 | 7-406             
+  firm-assignment.service.ts         |       0 |        0 |       0 |       0 | 1-579             
+  firm-document.service.ts           |       0 |        0 |       0 |       0 | 1-547             
+  firm-invitation.service.ts         |       0 |        0 |       0 |       0 | 1-563             
+  firm-membership.service.ts         |       0 |        0 |       0 |       0 | 1-816             
+  firm-payment.service.ts            |       0 |        0 |       0 |       0 | 1-654             
+  firm-registration.service.ts       |       0 |        0 |       0 |       0 | 1-710             
+  firm-review.service.ts             |       0 |        0 |       0 |       0 | 1-745             
+  firm.service.ts                    |       0 |        0 |       0 |       0 | 1-957             
+  health.service.ts                  |       0 |        0 |       0 |       0 | 1-401             
+  hybrid-assignment.service.ts       |       0 |        0 |       0 |       0 | 1-914             
+  independent-work.service.ts        |       0 |        0 |       0 |       0 | 1-689             
+  job-scheduler.service.ts           |       0 |        0 |       0 |       0 | 7-483             
+  logger.service.ts                  |       0 |        0 |       0 |       0 | 1-184             
+  metrics.service.ts                 |       0 |        0 |       0 |       0 | 1-421             
+  notification.service.ts            |       0 |        0 |       0 |       0 | 1-379             
+  password.service.ts                |       0 |        0 |       0 |       0 | 1-436             
+  payment-distribution.service.ts    |       0 |        0 |       0 |       0 | 1-581             
+  payment-release.service.ts         |       0 |        0 |       0 |       0 | 6-254             
+  penetration-test.service.ts        |       0 |        0 |       0 |       0 | 1-424             
+  permission.service.ts              |       0 |        0 |       0 |       0 | 1-461             
+  platform-config.service.ts         |       0 |        0 |       0 |       0 | 1-271             
+  provider-comparison.service.ts     |       0 |        0 |       0 |       0 | 1-642             
+  provider-recommendation.service.ts |       0 |        0 |       0 |       0 | 43-432            
+  provider-search.service.ts         |       0 |        0 |       0 |       0 | 1-611             
+  query.service.ts                   |       0 |        0 |       0 |       0 | 1-820             
+  razorpay.service.ts                |       0 |        0 |       0 |       0 | 1-278             
+  refund.service.ts                  |       0 |        0 |       0 |       0 | 1-207             
+  reporting.service.ts               |       0 |        0 |       0 |       0 | 7-724             
+  rls.service.ts                     |       0 |      100 |       0 |       0 | 7-42              
+  scheduler.service.ts               |       0 |        0 |       0 |       0 | 9-54              
+  security-audit.service.ts          |       0 |        0 |       0 |       0 | 1-457             
+  security-logger.service.ts         |       0 |      100 |       0 |       0 | 1-149             
+  segmentation.service.ts            |       0 |        0 |       0 |       0 | 7-426             
+  tax.service.ts                     |       0 |        0 |       0 |       0 | 1-479             
+  token.service.ts                   |       0 |        0 |       0 |       0 | 1-339             
+  virus-scan.service.ts              |       0 |        0 |       0 |       0 | 6-475             
+  vulnerability-scanner.service.ts   |       0 |        0 |       0 |       0 | 1-461             
+  wallet.service.ts                  |       0 |        0 |       0 |       0 | 1-547             
+ src/utils                           |       0 |        0 |       0 |       0 |                   
+  circuitBreaker.ts                  |       0 |        0 |       0 |       0 | 1-377             
+  constants.ts                       |       0 |      100 |     100 |       0 | 2-91              
+  crypto.ts                          |       0 |        0 |       0 |       0 | 1-80              
+  errors.ts                          |       0 |        0 |       0 |       0 | 1-185             
+  fallback.ts                        |       0 |        0 |       0 |       0 | 1-496             
+  helpers.ts                         |       0 |        0 |       0 |       0 | 1-122             
+  performance-monitor.ts             |       0 |        0 |       0 |       0 | 7-424             
+  response.ts                        |       0 |        0 |       0 |       0 | 14-86             
+  retry.ts                           |       0 |        0 |       0 |       0 | 1-293             
+  statistics.ts                      |       0 |        0 |       0 |       0 | 17-331            
+  transaction.ts                     |       0 |        0 |       0 |       0 | 1-468             
+-------------------------------------|---------|----------|---------|---------|-------------------
+Jest: "global" coverage threshold for statements (1%) not met: 0%
+Jest: "global" coverage threshold for branches (0.5%) not met: 0%
+Jest: "global" coverage threshold for lines (1%) not met: 0%
+Jest: "global" coverage threshold for functions (2%) not met: 0%
+Test Suites: 7 failed, 7 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        17.45 s
+Ran all test suites matching /tests\/integration/i.
+Force exiting Jest: Have you considered using `--detectOpenHandles` to detect async operations that kept running after all tests finished?

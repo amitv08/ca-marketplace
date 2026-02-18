@@ -1,0 +1,9 @@
+
+> backend@1.0.0 test:all
+> npm run test:unit && npm run test:integration && npm run test:security
+
+
+> backend@1.0.0 test:unit
+> jest --testPathPattern=tests/unit --coverage
+
+sh: 1: jest: not found

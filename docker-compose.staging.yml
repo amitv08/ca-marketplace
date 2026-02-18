@@ -1,7 +1,12 @@
 version: '3.8'
 
 # Staging Environment Configuration
-# Uses production Docker images from GHCR for realistic staging tests
+# Uses production Docker images from GHCR for realistic staging tests.
+#
+# Usage:
+#   docker-compose -f docker-compose.staging.yml up -d   # start all services
+#   docker-compose -f docker-compose.staging.yml run --rm migrate    # apply migrations
+#   docker-compose -f docker-compose.staging.yml run --rm smoke-test # verify deployment
 
 services:
   # PostgreSQL Database
@@ -47,7 +52,7 @@ services:
       - "${BACKEND_PORT:-5001}:5000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-caadmin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-camarketplace_staging}
-      - NODE_ENV=staging
+      - NODE_ENV=production
       - JWT_SECRET=${JWT_SECRET}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
@@ -100,6 +105,57 @@ services:
     restart: unless-stopped
     profiles:
       - with-nginx
+
+  # ── Migration runner (one-shot) ──────────────────────────────────────────
+  migrate:
+    image: ${BACKEND_IMAGE:-ghcr.io/amitv08/ca-marketplace/backend:latest}
+    container_name: ca_staging_migrate
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-caadmin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-camarketplace_staging}
+      - NODE_ENV=production
+    command: ["npx", "prisma", "migrate", "deploy"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ── Smoke test runner (exits 0 when staging is healthy) ──────────────────
+  smoke-test:
+    image: curlimages/curl:latest
+    container_name: ca_staging_smoke
+    environment:
+      API_URL: http://backend:5000/api
+      FRONTEND_URL: http://frontend:80
+    command: >
+      sh -c "
+        set -e
+        echo '=== Staging Smoke Tests ==='
+
+        echo '[1/4] Backend /api/health...'
+        STATUS=$$(curl -sf -o /dev/null -w '%{http_code}' $$API_URL/health)
+        [ \"$$STATUS\" = '200' ] && echo '  ✓ Backend healthy (HTTP 200)' || (echo \"  ✗ Backend returned HTTP $$STATUS\" && exit 1)
+
+        echo '[2/4] Frontend root...'
+        STATUS=$$(curl -sf -o /dev/null -w '%{http_code}' $$FRONTEND_URL/)
+        ([ \"$$STATUS\" = '200' ] || [ \"$$STATUS\" = '304' ]) && echo '  ✓ Frontend serving (HTTP 200/304)' || (echo \"  ✗ Frontend returned HTTP $$STATUS\" && exit 1)
+
+        echo '[3/4] Auth endpoint (expect 401 on invalid creds)...'
+        STATUS=$$(curl -sf -X POST $$API_URL/auth/login \
+          -H 'Content-Type: application/json' \
+          -d '{\"email\":\"smoke@test.invalid\",\"password\":\"wrong\"}' \
+          -o /dev/null -w '%{http_code}')
+        ([ \"$$STATUS\" = '401' ] || [ \"$$STATUS\" = '400' ]) && echo '  ✓ Auth endpoint operational' || (echo \"  ✗ Auth returned HTTP $$STATUS\" && exit 1)
+
+        echo '[4/4] CA listing endpoint...'
+        STATUS=$$(curl -sf -o /dev/null -w '%{http_code}' $$API_URL/cas)
+        ([ \"$$STATUS\" = '200' ] || [ \"$$STATUS\" = '401' ]) && echo '  ✓ CA listing reachable' || (echo \"  ✗ CA endpoint returned HTTP $$STATUS\" && exit 1)
+
+        echo '=== All smoke tests PASSED ==='
+      "
+    restart: "no"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   postgres_staging_data:

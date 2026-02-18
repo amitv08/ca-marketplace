@@ -58,6 +58,8 @@ backups/
 backend/backups/
 *.sql
 *.sql.gz
+# But track Prisma migration SQL files
+!backend/prisma/migrations/**/*.sql
 
 # SSL Certificates
 certbot/conf/

@@ -1,0 +1,263 @@
+# docker-compose.test.yml
+# Test-only compose file for local CI simulation.
+# Uses isolated ports and a separate database so it never touches dev data.
+# Usage: docker-compose -f docker-compose.test.yml up --build --abort-on-container-exit
+
+version: '3.8'
+
+# ─── Shared config fragments ──────────────────────────────────────────────────
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql://caadmin:CaSecure123!@postgres-test:5432/camarketplace_test
+  TEST_DATABASE_URL: postgresql://caadmin:CaSecure123!@postgres-test:5432/camarketplace_test
+  REDIS_URL: redis://redis-test:6379/1
+  TEST_REDIS_URL: redis://redis-test:6379/1
+  JWT_SECRET: ci-test-jwt-secret-not-for-production
+  JWT_REFRESH_SECRET: ci-test-jwt-refresh-secret-not-for-production
+  JWT_EXPIRES_IN: 1h
+  JWT_REFRESH_EXPIRES_IN: 7d
+  NODE_ENV: test
+  PORT: 5001
+  SILENT_TESTS: "false"
+
+x-healthcheck-defaults: &hc-defaults
+  interval: 10s
+  timeout: 5s
+  retries: 10
+  start_period: 15s
+
+services:
+
+  # ── Infrastructure ───────────────────────────────────────────────────────────
+
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: ca_postgres_test
+    environment:
+      POSTGRES_DB: camarketplace_test
+      POSTGRES_USER: caadmin
+      POSTGRES_PASSWORD: CaSecure123!
+    ports:
+      - "54321:5432"   # Isolated test port (dev uses 54320)
+    tmpfs:
+      - /var/lib/postgresql/data   # In-memory for speed; wiped on every run
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U caadmin -d camarketplace_test"]
+      <<: *hc-defaults
+
+  redis-test:
+    image: redis:7-alpine
+    container_name: ca_redis_test
+    ports:
+      - "63791:6379"   # Isolated test port (dev uses 63790)
+    tmpfs:
+      - /data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      <<: *hc-defaults
+
+  # ── Migration runner (exits 0 on success, blocks dependent services) ─────────
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_migrate_test
+    environment:
+      <<: *backend-env
+    command: >
+      sh -c "
+        echo '→ Waiting for Postgres...' &&
+        until pg_isready -h postgres-test -U caadmin -d camarketplace_test; do sleep 1; done &&
+        echo '→ Running Prisma migrations...' &&
+        npx prisma migrate deploy &&
+        echo '→ Seeding analytics data...' &&
+        npm run seed || true &&
+        echo '✓ Migration complete'
+      "
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+
+  # ── Backend unit tests ────────────────────────────────────────────────────────
+
+  backend-unit:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_backend_unit_test
+    environment:
+      <<: *backend-env
+    volumes:
+      - ./backend/coverage/unit:/app/coverage     # Persist coverage output
+      - ./backend/reports:/app/reports
+    command: >
+      sh -c "
+        echo '=== Backend Unit Tests ===' &&
+        npm run test:unit -- --ci --forceExit --coverageReporters=lcov --coverageReporters=json-summary &&
+        echo '✓ Unit tests passed'
+      "
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Backend integration tests ─────────────────────────────────────────────────
+
+  backend-integration:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_backend_integration_test
+    environment:
+      <<: *backend-env
+    volumes:
+      - ./backend/coverage/integration:/app/coverage
+      - ./backend/reports:/app/reports
+    command: >
+      sh -c "
+        echo '=== Backend Integration Tests ===' &&
+        npm run test:integration -- --ci --forceExit --coverageReporters=lcov --coverageReporters=json-summary &&
+        echo '✓ Integration tests passed'
+      "
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Backend security tests ────────────────────────────────────────────────────
+
+  backend-security:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_backend_security_test
+    environment:
+      <<: *backend-env
+    volumes:
+      - ./backend/coverage/security:/app/coverage
+      - ./backend/reports:/app/reports
+    command: >
+      sh -c "
+        echo '=== Backend Security Tests ===' &&
+        npm run test:security -- --ci --forceExit --coverageReporters=lcov --coverageReporters=json-summary &&
+        echo '✓ Security tests passed'
+      "
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Backend negative tests ────────────────────────────────────────────────────
+
+  backend-negative:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_backend_negative_test
+    environment:
+      <<: *backend-env
+    volumes:
+      - ./backend/coverage/negative:/app/coverage
+      - ./backend/reports:/app/reports
+    command: >
+      sh -c "
+        echo '=== Backend Negative Tests ===' &&
+        npx jest --testPathPattern=tests/negative --ci --forceExit --runInBand \
+          --coverageReporters=lcov --coverageReporters=json-summary &&
+        echo '✓ Negative tests passed'
+      "
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Frontend unit tests ───────────────────────────────────────────────────────
+
+  frontend-unit:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ca_frontend_unit_test
+    environment:
+      CI: "true"
+      REACT_APP_API_URL: http://localhost:5001/api
+    volumes:
+      - ./frontend/coverage:/app/coverage
+    command: >
+      sh -c "
+        echo '=== Frontend Unit Tests ===' &&
+        npm test -- --coverage --watchAll=false --ci \
+          --coverageReporters=lcov --coverageReporters=json-summary \
+          --passWithNoTests &&
+        echo '✓ Frontend tests passed'
+      "
+
+  # ── Backend server (for E2E) ──────────────────────────────────────────────────
+
+  backend-e2e-server:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ca_backend_e2e
+    environment:
+      <<: *backend-env
+      NODE_ENV: development
+      PORT: 5001
+    ports:
+      - "5001:5001"
+    command: >
+      sh -c "
+        npx prisma generate &&
+        npm run build &&
+        npm run start
+      "
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5001/api/health || exit 1"]
+      <<: *hc-defaults
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  # ── Frontend server (for E2E) ─────────────────────────────────────────────────
+
+  frontend-e2e-server:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ca_frontend_e2e
+    environment:
+      REACT_APP_API_URL: http://backend-e2e-server:5001/api
+      PORT: 3001
+      CI: "false"
+    ports:
+      - "3001:3001"
+    depends_on:
+      backend-e2e-server:
+        condition: service_healthy
+
+  # ── Cypress E2E runner ────────────────────────────────────────────────────────
+
+  cypress:
+    image: cypress/included:13.6.3
+    container_name: ca_cypress_test
+    working_dir: /e2e
+    environment:
+      CYPRESS_baseUrl: http://frontend-e2e-server:3001
+      CYPRESS_apiUrl: http://backend-e2e-server:5001/api
+    volumes:
+      - ./frontend:/e2e
+      - ./frontend/cypress/videos:/e2e/cypress/videos
+      - ./frontend/cypress/screenshots:/e2e/cypress/screenshots
+    command: >
+      sh -c "
+        echo '=== Cypress E2E Tests ===' &&
+        cypress run
+          --browser chrome
+          --headless
+          --spec 'cypress/e2e/01-authentication.cy.js,cypress/e2e/02-client-workflow.cy.js,cypress/e2e/03-ca-workflow.cy.js'
+          --config baseUrl=http://frontend-e2e-server:3001 &&
+        echo '✓ E2E tests passed'
+      "
+    depends_on:
+      frontend-e2e-server:
+        condition: service_started
+      backend-e2e-server:
+        condition: service_healthy

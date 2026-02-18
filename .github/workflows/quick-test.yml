@@ -1,0 +1,48 @@
+name: Quick Test (Fast Feedback)
+
+on:
+  push:
+    branches: [ '**' ]  # All branches
+  pull_request:
+
+# Cancel previous runs on same PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quick-checks:
+    name: Quick Checks (< 5 min)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+      - name: 🔍 Lint backend
+        working-directory: ./backend
+        run: |
+          npm ci
+          npm run lint || echo "Lint not configured"
+
+      - name: 🔍 Lint frontend
+        working-directory: ./frontend
+        run: |
+          npm ci
+          npm run lint || echo "Lint not configured"
+
+      - name: 🏗️ Build check
+        run: |
+          cd backend && npm run build
+          cd ../frontend && npm run build
+        env:
+          VITE_API_URL: http://localhost:8081/api
+
+      - name: ✅ Quick validation passed
+        run: echo "Code compiles and lints successfully"

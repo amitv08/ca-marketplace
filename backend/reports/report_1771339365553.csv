@@ -1,0 +1,10 @@
+section,data,metric,value
+Header,All CAs Performance Report,,
+Section: CA Performance Metrics,"Utilization, revenue, and ratings",,
+,,,
+Summary,,,
+Summary,,totalCAs,0
+Summary,,averageUtilization,0%
+Summary,,totalRevenue,0
+Summary,,totalRequests,0
+Summary,,averageRating,0

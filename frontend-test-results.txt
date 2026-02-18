@@ -1,0 +1,10 @@
+
+> ca-marketplace-frontend@0.1.0 test
+> react-scripts test --coverage --watchAll=false --passWithNoTests
+
+No tests found, exiting with code 0
+----------|---------|----------|---------|---------|-------------------
+File      | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+----------|---------|----------|---------|---------|-------------------
+All files |       0 |        0 |       0 |       0 |                   
+----------|---------|----------|---------|---------|-------------------
