@@ -167,6 +167,62 @@ router.post('/create-order', authenticate, authorize('CLIENT'), validateBody(cre
   }, 'Razorpay order created successfully');
 }));
 
+// Stub payment (test mode - simulates escrow payment without real gateway)
+router.post('/stub-pay', authenticate, authorize('CLIENT'), asyncHandler(async (req: Request, res: Response) => {
+  const { requestId } = req.body;
+
+  if (!requestId) {
+    return sendError(res, 'requestId is required', 400);
+  }
+
+  const client = await prisma.client.findUnique({ where: { userId: req.user!.userId } });
+  if (!client) {
+    return sendError(res, 'Client profile not found', 404);
+  }
+
+  const request = await prisma.serviceRequest.findUnique({
+    where: { id: requestId },
+    include: { ca: { include: { user: true } }, client: { include: { user: true } } },
+  });
+
+  if (!request) return sendError(res, 'Service request not found', 404);
+  if (request.clientId !== client.id) return sendError(res, 'Access denied', 403);
+  if (request.escrowStatus !== 'PENDING_PAYMENT') {
+    return sendError(res, 'Payment is not required at this stage', 400);
+  }
+
+  const amount = request.escrowAmount || 0;
+  const { platformFee, caAmount } = calculatePaymentDistribution(amount);
+
+  const [payment] = await prisma.$transaction([
+    prisma.payment.create({
+      data: {
+        clientId: client.id,
+        caId: request.caId!,
+        requestId,
+        amount,
+        platformFee,
+        caAmount,
+        status: 'ESCROW_HELD',
+        isEscrow: true,
+        escrowHeldAt: new Date(),
+        autoReleaseAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        razorpayOrderId: `stub_${Date.now()}`,
+        razorpayPaymentId: `stub_pay_${Date.now()}`,
+      },
+    }),
+    prisma.serviceRequest.update({
+      where: { id: requestId },
+      data: {
+        escrowStatus: 'ESCROW_HELD',
+        escrowPaidAt: new Date(),
+      },
+    }),
+  ]);
+
+  sendSuccess(res, { payment }, 'Stub payment completed — escrow held');
+}));
+
 // Verify Razorpay payment (Phase-7)
 const verifyPaymentSchema = {
   razorpayOrderId: { required: true, type: 'string' as const },

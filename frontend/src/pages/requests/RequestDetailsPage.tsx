@@ -22,6 +22,7 @@ interface ServiceRequest {
   client?: {
     id: string;
     user: {
+      id: string;
       name: string;
       email?: string;
       phone?: string;
@@ -30,6 +31,7 @@ interface ServiceRequest {
   ca?: {
     id: string;
     user: {
+      id: string;
       name: string;
       email?: string;
       phone?: string;
@@ -90,6 +92,7 @@ const RequestDetailsPage: React.FC = () => {
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+  const [paymentLoading, setPaymentLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [messageText, setMessageText] = useState('');
@@ -176,6 +179,21 @@ const RequestDetailsPage: React.FC = () => {
     }
   };
 
+  const handleStubPayment = async () => {
+    try {
+      setPaymentLoading(true);
+      setError('');
+      await api.post('/payments/stub-pay', { requestId: id });
+      setSuccess('Payment completed! Escrow is now held.');
+      await fetchRequestDetails();
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Payment failed');
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!messageText.trim() && selectedFiles.length === 0) return;
 
@@ -183,10 +201,10 @@ const RequestDetailsPage: React.FC = () => {
       setSending(true);
       setError('');
 
-      // Determine receiver ID (use the CA/Client entity ID, not user ID)
+      // Determine receiver User.id (not the CA/Client profile ID)
       const receiverId = user?.role === 'CLIENT'
-        ? request?.ca?.id
-        : request?.client?.id;
+        ? request?.ca?.user?.id
+        : request?.client?.user?.id;
 
       // Send message with first file (backend supports single file per message)
       const response = await messageService.sendMessage({
@@ -396,7 +414,8 @@ const RequestDetailsPage: React.FC = () => {
 
   const canAccept = user?.role === 'CA' && request.status === 'PENDING';
   const canReject = user?.role === 'CA' && request.status === 'PENDING';
-  const canStart = user?.role === 'CA' && request.status === 'ACCEPTED';
+  const canStart = user?.role === 'CA' && request.status === 'ACCEPTED' &&
+                   request.escrowStatus !== 'PENDING_PAYMENT';
   const canComplete = user?.role === 'CA' && request.status === 'IN_PROGRESS';
   const canCancel = (user?.role === 'CLIENT' || user?.role === 'CA') &&
                     (request.status === 'PENDING' || request.status === 'ACCEPTED');
@@ -691,10 +710,21 @@ const RequestDetailsPage: React.FC = () => {
                 )}
 
                 {request.escrowStatus === 'PENDING_PAYMENT' && user?.role === 'CLIENT' && (
-                  <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <p className="text-sm text-yellow-800">
-                      <strong>⚠️ Payment Required:</strong> Please complete the payment to proceed
-                      with your service request.
+                  <div className="mt-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                    <p className="text-sm text-yellow-800 mb-3">
+                      <strong>⚠️ Payment Required:</strong> Please complete the escrow payment of{' '}
+                      <strong>₹{request.escrowAmount?.toLocaleString()}</strong> to allow the CA to
+                      start work.
+                    </p>
+                    <Button
+                      onClick={handleStubPayment}
+                      isLoading={paymentLoading}
+                      fullWidth
+                    >
+                      Pay ₹{request.escrowAmount?.toLocaleString()} (Test Mode)
+                    </Button>
+                    <p className="text-xs text-yellow-600 mt-2 text-center">
+                      Test mode — no real money is charged
                     </p>
                   </div>
                 )}
@@ -928,6 +958,15 @@ const RequestDetailsPage: React.FC = () => {
                 >
                   Reject Request
                 </Button>
+              )}
+
+              {user?.role === 'CA' && request.status === 'ACCEPTED' &&
+               request.escrowStatus === 'PENDING_PAYMENT' && (
+                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-xs text-yellow-800 text-center">
+                    Waiting for client to complete escrow payment before you can start work.
+                  </p>
+                </div>
               )}
 
               {canStart && (

@@ -637,6 +637,23 @@ router.post('/:id/accept', authenticate, authorize('CA'), asyncHandler(async (re
     return sendError(res, `Failed to create escrow order: ${escrowError.message}`, 500);
   }
 
+  // Save CA's acceptance note as a message so client can see it in the thread
+  const note = req.body.note;
+  if (note && note.trim()) {
+    try {
+      await prisma.message.create({
+        data: {
+          senderId: req.user!.userId,
+          receiverId: updated.client.user.id,
+          requestId: id,
+          content: note.trim(),
+        },
+      });
+    } catch (msgError) {
+      console.error('Failed to save acceptance note as message:', msgError);
+    }
+  }
+
   // Send email notification to client using new template system
   try {
     await EmailTemplateService.sendRequestAccepted({
@@ -892,6 +909,11 @@ router.post('/:id/start', authenticate, authorize('CA'), asyncHandler(async (req
 
   if (request.status !== 'ACCEPTED') {
     return sendError(res, 'Request must be accepted before starting work', 400);
+  }
+
+  // Ensure client has paid into escrow before CA can start
+  if (request.escrowStatus === 'PENDING_PAYMENT') {
+    return sendError(res, 'Cannot start work until the client completes the escrow payment', 400);
   }
 
   const updated = await prisma.serviceRequest.update({
